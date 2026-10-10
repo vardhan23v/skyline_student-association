@@ -1,4 +1,7 @@
 import { Router } from 'express';
+import { z } from 'zod';
+import { getDb } from '../../config/db';
+import { validate } from '../../middleware/validate';
 import { requireRole } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/errorHandler';
 import { adminCheckinRouter, adminEventsRouter } from '../events/routes';
@@ -16,6 +19,10 @@ import { overview } from './service';
 export const adminRouter = Router();
 adminRouter.use(requireRole('admin'));
 adminRouter.get('/overview', asyncHandler(async (_req, res) => res.json(await overview())));
+/** Active accounts, e.g. `?role=admin` for the task assignee picker. */
+adminRouter.get('/users', validate({ query: z.object({ role: z.enum(['admin', 'user']).optional() }) }), asyncHandler(async (req, res) => {
+  res.json(await getDb()('users').where({ is_active: true }).modify((qb) => { if (req.query.role) qb.where({ role: req.query.role }); }).select('id', 'name', 'email').orderBy('name'));
+}));
 adminRouter.use('/events', adminEventsRouter);
 adminRouter.use('/checkin', adminCheckinRouter);
 adminRouter.use('/members', adminMembersRouter);

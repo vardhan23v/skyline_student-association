@@ -2,6 +2,7 @@ import type { Knex } from 'knex';
 import { getDb } from '../../config/db';
 import { startOfDayInTz, todayYmd } from '../../lib/dates';
 import { summary } from '../finance/service';
+import { fundraiserProgress } from '../fundraisers/routes';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 /** created_at is DATETIME on MySQL but 'YYYY-MM-DD HH:MM:SS' (UTC) text on SQLite, where a JS Date binds as epoch ms. */
@@ -12,7 +13,7 @@ export async function overview() {
   const db = getDb();
   const today = todayYmd();
   const since = createdAtBound(db, startOfDayInTz(today));
-  const [[{ total }], [{ active }], [{ upcoming }], todays, [{ pending }], fin] = await Promise.all([
+  const [[{ total }], [{ active }], [{ upcoming }], todays, [{ pending }], fin, fundraisers] = await Promise.all([
     db('members').count({ total: '*' }),
     db('memberships').where({ status: 'active' }).where('expiry_date', '>=', today).countDistinct({ active: 'member_id' }),
     db('tickets as t').join('events as e', 'e.id', 't.event_id').where('e.starts_at', '>', new Date()).whereNot('e.status', 'draft')
@@ -20,6 +21,7 @@ export async function overview() {
     db('orders').where('created_at', '>=', since).select('status', 'total'),
     db('orders').where({ status: 'pending' }).count({ pending: '*' }),
     summary({}),
+    fundraiserProgress(undefined, { status: 'active' }),
   ]);
   const sold = todays.filter((o: any) => o.status === 'paid' || o.status === 'fulfilled');
   return {
@@ -28,6 +30,7 @@ export async function overview() {
     orders_today: { count: todays.length, paid: sold.length, revenue: round2(sold.reduce((s: number, o: any) => s + Number(o.total), 0)) },
     pending_orders: Number(pending),
     balance: fin.balance,
+    fundraisers: { active: fundraisers.length, behind: fundraisers.filter((f: { health: string }) => f.health === 'behind').length },
     as_of: today,
   };
 }

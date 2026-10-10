@@ -204,8 +204,7 @@ export async function payExpense(admin_id: number, id: number) {
 }
 
 /** Admin records cash income for a fundraiser (bake sale) → ledger. */
-export async function recordFundraiserCash(admin_id: number, fundraiser_id: number, amount: number, memo?: string) {
-  const db = getDb();
+export async function recordFundraiserCash(admin_id: number, fundraiser_id: number, amount: number, memo?: string, db: Knex = getDb()) {
   const f = await db('fundraisers').where({ id: fundraiser_id }).first();
   if (!f) throw notFound('Fundraiser not found');
   return db.transaction(async (trx) => {
