@@ -6,11 +6,13 @@ let lenis: Lenis | null = null;
 const NAV_OFFSET = -88;
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** Phones and tablets: native momentum scrolling feels right there, and Lenis would fight it. */
+const touch = () => typeof window !== 'undefined' && window.matchMedia('(hover: none), (pointer: coarse)').matches;
 
-/** Lenis smooth scrolling for the lifetime of the calling page; skipped under reduced motion. */
+/** Lenis smooth scrolling for the lifetime of the calling page; skipped on touch screens and under reduced motion. */
 export function useSmoothScroll() {
   useEffect(() => {
-    if (reducedMotion()) return;
+    if (reducedMotion() || touch()) return;
     lenis = new Lenis({ autoRaf: true, lerp: 0.1 });
     return () => { lenis?.destroy(); lenis = null; };
   }, []);

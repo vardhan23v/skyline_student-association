@@ -16,9 +16,9 @@ function Row({ photos, offset, reverse, onOpen }: { photos: GalleryPhoto[]; offs
                 tabIndex={copy === 1 ? -1 : undefined}
                 data-cursor="view"
                 onClick={(e) => { e.currentTarget.focus(); onOpen(offset + i); }}
-                className="group block overflow-hidden rounded-2xl border border-cream/20"
+                className="group block overflow-hidden rounded-xl border border-cream/20 sm:rounded-2xl"
               >
-                <img src={p.image} alt={copy === 1 ? '' : p.alt} width={720} height={540} loading="lazy" decoding="async" className="h-40 w-[13.5rem] object-cover transition-transform duration-500 group-hover:scale-105 sm:h-56 sm:w-[19rem]" />
+                <img src={p.image} srcSet={`${p.image.replace(/\.jpg$/, '-480.jpg')} 480w, ${p.image} 720w`} sizes="(min-width: 640px) 304px, 176px" alt={copy === 1 ? '' : p.alt} width={720} height={540} loading="lazy" decoding="async" className="h-32 w-44 object-cover transition-transform duration-500 group-hover:scale-105 sm:h-56 sm:w-[19rem]" />
               </button>
             </li>
           )),
@@ -32,12 +32,12 @@ export function GalleryMarquee() {
   const [open, setOpen] = useState<number | null>(null);
   const half = Math.ceil(gallery.length / 2);
   return (
-    <section id="gallery" data-bg="gallery" data-theme="dark" tabIndex={-1} aria-labelledby="gallery-h" className="overflow-hidden border-t border-cream/20 py-24 outline-none sm:py-32">
-      <div className="mx-auto max-w-7xl px-4 sm:px-8">
+    <section id="gallery" data-bg="gallery" data-theme="dark" tabIndex={-1} aria-labelledby="gallery-h" className="l-section overflow-hidden border-t border-cream/20 outline-none">
+      <div className="l-gutter mx-auto max-w-7xl">
         <SectionHeading id="gallery-h" script="moments" title="Gallery" />
-        <p className="t-body mt-4 text-cream/70">Hover to pause. Select a photo to open it.</p>
+        <p className="t-body mt-4 text-cream/70"><span className="[@media(hover:none)]:hidden">Hover to pause. Select a photo to open it.</span><span className="hidden [@media(hover:none)]:inline">Tap a photo to open it; swipe to browse.</span></p>
       </div>
-      <div className="mt-12 space-y-4">
+      <div className="mt-8 space-y-3 sm:mt-12 sm:space-y-4">
         <Row photos={gallery.slice(0, half)} offset={0} onOpen={setOpen} />
         <Row photos={gallery.slice(half)} offset={half} reverse onOpen={setOpen} />
       </div>

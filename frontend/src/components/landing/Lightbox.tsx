@@ -8,7 +8,7 @@ import { dur } from '../../lib/motion';
 
 type Props = { photos: GalleryPhoto[]; index: number | null; onChange: (i: number | null) => void };
 
-/** Modal photo viewer: Esc closes, ← → navigate, swipe on touch, focus trapped and restored. */
+/** Modal photo viewer: Esc closes, ← → navigate; on touch swipe sideways to browse and down to close. Focus trapped and restored. */
 export function Lightbox({ photos, index, onChange }: Props) {
   const open = index !== null;
   const dialog = useRef<HTMLDivElement>(null);
@@ -53,11 +53,11 @@ export function Lightbox({ photos, index, onChange }: Props) {
           className="landing fixed inset-0 z-[80] flex flex-col bg-midnight/95 backdrop-blur-md"
           onClick={(e) => { if (e.target === e.currentTarget) onChange(null); }}
         >
-          <div className="flex items-center justify-between p-4">
+          <div className="flex items-center justify-between px-4 pb-2 pt-[calc(env(safe-area-inset-top)+1rem)]">
             <p className="t-label text-cream/70" aria-live="polite">{index! + 1} / {photos.length}</p>
             <button ref={closeBtn} type="button" onClick={() => onChange(null)} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full border border-cream/15 text-cream hover:border-cream"><X className="h-5 w-5" /></button>
           </div>
-          <div className="relative flex flex-1 items-center justify-center px-4 pb-6" onClick={(e) => { if (e.target === e.currentTarget) onChange(null); }}>
+          <div className="relative flex flex-1 items-center justify-center px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]" onClick={(e) => { if (e.target === e.currentTarget) onChange(null); }}>
             <AnimatePresence mode="wait" initial={false}>
               <motion.figure
                 key={index}
@@ -65,13 +65,19 @@ export function Lightbox({ photos, index, onChange }: Props) {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.97 }}
                 transition={{ duration: dur.fast }}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.4}
-                onDragEnd={(_, info) => { if (info.offset.x < -60) step(1); else if (info.offset.x > 60) step(-1); }}
-                className="flex max-h-full max-w-5xl cursor-grab flex-col items-center active:cursor-grabbing"
+                drag
+                dragDirectionLock
+                dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                dragElastic={{ left: 0.4, right: 0.4, top: 0.05, bottom: 0.6 }}
+                onDragEnd={(_, info) => {
+                  const { x, y } = info.offset;
+                  if (y > 90 && y > Math.abs(x)) onChange(null);
+                  else if (x < -60) step(1);
+                  else if (x > 60) step(-1);
+                }}
+                className="flex max-h-full max-w-5xl cursor-grab touch-none flex-col items-center active:cursor-grabbing"
               >
-                <img src={photo.image} alt={photo.alt} draggable={false} className="max-h-[72svh] w-auto rounded-2xl object-contain" />
+                <img src={photo.image} alt={photo.alt} draggable={false} className="max-h-[70svh] w-auto rounded-2xl object-contain landscape:max-h-[62svh]" />
                 <figcaption className="t-body mt-4 text-center text-cream">{photo.alt}</figcaption>
               </motion.figure>
             </AnimatePresence>

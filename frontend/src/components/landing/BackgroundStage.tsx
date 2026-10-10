@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { motion, useMotionValue, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { backgrounds, type SectionBackground } from '../../data/backgrounds';
 import { Embers } from './Embers';
+import { useMediaQuery } from '../../hooks/useCursorFollow';
 
 /** Crossfade window: this fraction of the viewport height either side of a section boundary. */
 const FADE = 0.3;
@@ -15,16 +16,8 @@ type Bound = { top: number; bottom: number };
 type Mode = 'full' | 'lite' | 'reduced';
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-function useMediaQuery(query: string) {
-  const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const on = () => setMatch(mq.matches);
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, [query]);
-  return match;
-}
+/** CSS variables read by .bg-focal: the photo's object-position from md up, and under md. */
+const focalVars = (bg: SectionBackground) => ({ '--focal': bg.focal, '--focal-m': bg.focalMobile }) as CSSProperties;
 
 /**
  * Fixed layer behind the landing page holding every section background, stacked in page order.
@@ -32,8 +25,8 @@ function useMediaQuery(query: string) {
  * the previous one: scroll-linked, so scrolling back reverses it exactly. The incoming image settles
  * from scale 1.08; the outgoing one eases to 1.04. (No animated blur: a full-screen filter
  * re-rasterises every frame and caused scroll jank between sections.) Only the two layers in a crossfade
- * are visible; the rest are `visibility: hidden`. Phones get a plain opacity crossfade, reduced
- * motion a short timed fade.
+ * are visible; the rest are `visibility: hidden`. Under md: a plain opacity crossfade (no scale, no parallax) and
+ * only the current background and its neighbours stay loaded. Reduced motion: a short timed fade.
  */
 export function BackgroundStage({ variant = 'stage' }: {
   /**
@@ -46,23 +39,24 @@ export function BackgroundStage({ variant = 'stage' }: {
   return variant === 'stage' ? <ScrollStage /> : <StillStage dim={variant === 'dim'} />;
 }
 
-/** One static hero layer. The blur is a static filter on a layer that never moves, so it rasterises once. */
+/** One static hero layer. The blur is a static filter on a layer that never moves, so it rasterises once; phones skip
+ *  it (a full-screen filter is still costly to composite there) and get a darker overlay instead. */
 function StillStage({ dim }: { dim: boolean }) {
   const hero = backgrounds[0];
   const [ready, setReady] = useState(false);
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-midnight">
-      <div className={`absolute inset-0 ${dim ? 'scale-110 blur-2xl' : ''}`}>
-        {!ready && <div className="absolute inset-0 scale-110 bg-cover blur-2xl" style={{ backgroundImage: `url(${hero.placeholder})`, backgroundPosition: hero.focal }} />}
+      <div className={`absolute inset-0 ${dim ? 'md:scale-110 md:blur-2xl' : ''}`} style={focalVars(hero)}>
+        {!ready && <div className="bg-focal absolute inset-0 scale-110 bg-cover blur-2xl" style={{ backgroundImage: `url(${hero.placeholder})` }} />}
         <picture>
           <source type="image/avif" srcSet={hero.picture.sources.avif} sizes="100vw" />
           <source type="image/webp" srcSet={hero.picture.sources.webp} sizes="100vw" />
           <img src={hero.picture.img.src} srcSet={hero.picture.sources.jpeg} sizes="100vw" width={hero.picture.img.w} height={hero.picture.img.h} alt="" decoding="async"
             {...({ fetchpriority: 'high' } as Record<string, string>)} onLoad={() => setReady(true)}
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${ready ? 'opacity-100' : 'opacity-0'}`} style={{ objectPosition: hero.focal }} />
+            className={`bg-focal absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${ready ? 'opacity-100' : 'opacity-0'}`} />
         </picture>
       </div>
-      <div className="absolute inset-0" style={{ background: `color-mix(in srgb, var(--midnight) ${dim ? 80 : Math.round(hero.overlay * 100)}%, transparent)` }} />
+      <div className={`absolute inset-0 ${dim ? 'bg-midnight/86 md:bg-midnight/80' : ''}`} style={dim ? undefined : { background: `color-mix(in srgb, var(--midnight) ${Math.round(hero.overlay * 100)}%, transparent)` }} />
       <div className="bg-scrim absolute inset-0" />
       {!dim && <div className="bg-heat absolute inset-0" />}
       <div className="bg-vignette absolute inset-0" />
@@ -73,7 +67,7 @@ function StillStage({ dim }: { dim: boolean }) {
 
 function ScrollStage() {
   const reduce = useReducedMotion();
-  const narrow = useMediaQuery('(max-width: 768px)');
+  const narrow = useMediaQuery('(max-width: 767px)');
   const mode: Mode = reduce ? 'reduced' : narrow ? 'lite' : 'full';
 
   const { scrollY } = useScroll();
@@ -128,7 +122,9 @@ function ScrollStage() {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-midnight">
       {backgrounds.map((bg, i) => (
-        <Layer key={bg.id} bg={bg} index={i} mid={mid} bounds={bounds} vh={vh} mode={mode} active={active} load={load.has(bg.id)} />
+        // Phones keep only the current background and its neighbours decoded; far ones are dropped (and re-fetched
+        // from the HTTP cache if the user scrolls back).
+        <Layer key={bg.id} bg={bg} index={i} mid={mid} bounds={bounds} vh={vh} mode={mode} active={active} load={load.has(bg.id) && (mode === 'full' || Math.abs(i - active) <= 1)} />
       ))}
       <div className="bg-scrim absolute inset-0" />
       {/* Depth: a low heat glow, a cinematic vignette, then the embers drifting in front of it all. */}
@@ -152,6 +148,7 @@ type LayerProps = {
 
 function Layer({ bg, index, mid, bounds, vh, mode, active, load }: LayerProps) {
   const [ready, setReady] = useState(false);
+  useEffect(() => { if (!load) setReady(false); }, [load]);
   const last = index === backgrounds.length - 1;
   /** 0 → 1 as this section's top edge crosses the middle of the viewport. */
   const enter = (m: number) => {
@@ -185,11 +182,11 @@ function Layer({ bg, index, mid, bounds, vh, mode, active, load }: LayerProps) {
       : { opacity, visibility, transform, willChange };
 
   return (
-    <motion.div className="absolute inset-x-0 -inset-y-[10vh]" style={style}>
+    <motion.div className="absolute inset-x-0 -inset-y-[10vh]" style={{ ...style, ...focalVars(bg) }}>
       {!ready && (
         <div
-          className="absolute inset-0 scale-110 bg-cover blur-2xl"
-          style={{ backgroundImage: `url(${bg.placeholder})`, backgroundPosition: bg.focal }}
+          className="bg-focal absolute inset-0 scale-110 bg-cover blur-2xl"
+          style={{ backgroundImage: `url(${bg.placeholder})` }}
         />
       )}
       {load && (
@@ -207,8 +204,7 @@ function Layer({ bg, index, mid, bounds, vh, mode, active, load }: LayerProps) {
             // React 18 doesn't know the camelCase prop; the lowercase HTML attribute passes through as-is.
             {...({ fetchpriority: index === 0 ? 'high' : 'auto' } as Record<string, string>)}
             onLoad={() => setReady(true)}
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${ready ? 'opacity-100' : 'opacity-0'}`}
-            style={{ objectPosition: bg.focal }}
+            className={`bg-focal absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${ready ? 'opacity-100' : 'opacity-0'}`}
           />
         </picture>
       )}

@@ -20,7 +20,7 @@ export function StatCounter({ stat }: { stat: Stat }) {
   const final = `${stat.prefix ?? ''}${fmt(stat.value, stat.decimals)}${stat.suffix ?? ''}`;
   return (
     <div className="border-t border-cream/20 pt-5">
-      <p ref={ref} className="t-h2 tabular-nums text-cream">
+      <p ref={ref} className="t-h2 whitespace-nowrap tabular-nums text-cream">
         <span aria-hidden="true">{stat.prefix}{fmt(value, stat.decimals)}{stat.suffix}</span>
         <span className="sr-only">{final}</span>
       </p>

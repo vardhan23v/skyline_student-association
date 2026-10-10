@@ -18,7 +18,7 @@ export function HomePage() {
   useSmoothScroll();
   return (
     <MotionConfig reducedMotion="user">
-      <div className="landing relative min-h-screen overflow-x-clip">
+      <div className="landing relative min-h-[100svh]">
         <BackgroundStage />
         <a href="#events" className="sr-only z-[90] rounded-full bg-cream px-4 py-2 font-bold text-midnight focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Skip to content</a>
         <GlassNav />

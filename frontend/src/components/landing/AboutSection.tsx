@@ -9,14 +9,14 @@ const icons = { ticket: Ticket, clipboard: ClipboardList, scale: Scale };
 
 export function AboutSection() {
   return (
-    <section id="about" data-bg="about" data-theme="dark" tabIndex={-1} aria-labelledby="about-h" className="border-t border-cream/20 py-24 outline-none sm:py-32">
-      <div className="mx-auto max-w-7xl px-4 sm:px-8">
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-20">
+    <section id="about" data-bg="about" data-theme="dark" tabIndex={-1} aria-labelledby="about-h" className="l-section border-t border-cream/20 outline-none">
+      <div className="l-gutter mx-auto max-w-7xl">
+        <div className="grid gap-8 md:gap-12 lg:grid-cols-2 lg:gap-20">
           <div>
             <SectionHeading id="about-h" script="our" title="Story" />
-            <p className="t-body mt-8 max-w-[60ch] text-cream">{about.paragraph}</p>
+            <p className="t-body mt-6 max-w-[60ch] text-cream md:mt-8">{about.paragraph}</p>
           </div>
-          <ul className="grid gap-4">
+          <ul className="grid gap-3 md:gap-4">
             {about.features.map((f, i) => {
               const Icon = icons[f.icon];
               return (
@@ -26,7 +26,7 @@ export function AboutSection() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: '-10% 0px' }}
                   transition={{ duration: dur.base, ease: ease.out, delay: i * 0.1 }}
-                  className="glass-l flex gap-5 rounded-2xl p-6 transition-colors hover:border-cream/60"
+                  className="glass-l flex gap-4 rounded-2xl p-5 transition-colors hover:border-cream/60 md:gap-5 md:p-6"
                 >
                   <Icon aria-hidden="true" strokeWidth={1.5} className="h-8 w-8 shrink-0 text-cream" />
                   <div>
@@ -38,7 +38,7 @@ export function AboutSection() {
             })}
           </ul>
         </div>
-        <div className="mt-20 grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-4">
+        <div className="mt-14 grid grid-cols-2 gap-x-4 gap-y-8 md:mt-20 md:gap-x-6 md:gap-y-10 lg:grid-cols-4">
           {stats.map((s) => <StatCounter key={s.label} stat={s} />)}
         </div>
       </div>

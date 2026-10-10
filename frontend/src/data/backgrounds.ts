@@ -35,25 +35,28 @@ export type SectionBackground = {
   picture: ImagetoolsPicture;
   /** ~150-byte blurred data URL shown until the real image has loaded. */
   placeholder: string;
-  /** object-position: keeps the light source in frame on narrow screens. */
+  /** object-position from md up. */
   focal: string;
+  /** object-position under md. A portrait phone shows about a quarter of the 16:9 frame, so this aims that slice at
+   *  the light source (the overlay values were measured on the brightest area, so any crop keeps text at AA). */
+  focalMobile: string;
   /** Extra midnight darkening, 0–1, on top of the shared scrim. */
   overlay: number;
 };
 
 export const backgrounds: SectionBackground[] = [
   // bg-1 as shot: the identity image. The glow sits upper-left, clear of the centred headline.
-  { id: 'hero', picture: heroPic, placeholder: heroPh, focal: '35% 40%', overlay: 0.5 },
+  { id: 'hero', picture: heroPic, placeholder: heroPh, focal: '35% 40%', focalMobile: '28% 30%', overlay: 0.5 },
   // bg-2 bokeh: the liveliest frame, for what's coming up.
-  { id: 'events', picture: eventsPic, placeholder: eventsPh, focal: '15% 60%', overlay: 0.52 },
+  { id: 'events', picture: eventsPic, placeholder: eventsPh, focal: '15% 60%', focalMobile: '6% 75%', overlay: 0.52 },
   // bg-3, slide number cropped, desaturated 40%: memory, slightly faded.
-  { id: 'past', picture: pastPic, placeholder: pastPh, focal: '20% 60%', overlay: 0.38 },
+  { id: 'past', picture: pastPic, placeholder: pastPh, focal: '20% 60%', focalMobile: '10% 55%', overlay: 0.38 },
   // bg-5 curtains: a dark centre stage so the product video card pops.
-  { id: 'merch', picture: merchPic, placeholder: merchPh, focal: '50% 50%', overlay: 0.05 },
+  { id: 'merch', picture: merchPic, placeholder: merchPh, focal: '50% 50%', focalMobile: '84% 50%', overlay: 0.05 },
   // bg-4, slide number cropped: light from the right, opposite to "past" for rhythm.
-  { id: 'about', picture: aboutPic, placeholder: aboutPh, focal: '85% 50%', overlay: 0.29 },
+  { id: 'about', picture: aboutPic, placeholder: aboutPh, focal: '85% 50%', focalMobile: '94% 50%', overlay: 0.29 },
   // bg-7 at 55% exposure and blurred: recedes so the photos are the content.
-  { id: 'gallery', picture: galleryPic, placeholder: galleryPh, focal: '25% 75%', overlay: 0.05 },
+  { id: 'gallery', picture: galleryPic, placeholder: galleryPh, focal: '25% 75%', focalMobile: '18% 85%', overlay: 0.05 },
   // bg-1 mirrored and warmed: the page closes where it opened.
-  { id: 'join', picture: joinPic, placeholder: joinPh, focal: '65% 40%', overlay: 0.43 },
+  { id: 'join', picture: joinPic, placeholder: joinPh, focal: '65% 40%', focalMobile: '62% 30%', overlay: 0.43 },
 ];

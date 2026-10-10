@@ -1,11 +1,14 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useReducedMotion, useSpring } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Clock, MapPin, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Clock, MapPin, MoveRight, Users } from 'lucide-react';
 import { upcomingEvents, type UpcomingEvent } from '../../data/landing';
 import { SectionHeading } from './SectionHeading';
 import { dateParts, fullDate } from './format';
 import { dur, ease } from '../../lib/motion';
+import { useFinePointer } from '../../hooks/useCursorFollow';
+
+const HINT_KEY = 'ssa_swipe_hint';
 
 const MAX_TILT = 6;
 
@@ -27,10 +30,12 @@ function EventCardItem({ ev, index }: { ev: UpcomingEvent; index: number }) {
     // Observe the <li>, animate the inner wrapper. Opacity + transform only (compositor), so
     // revealing cards never forces a repaint while the page is scrolling.
     <motion.li
-      className="w-[82vw] max-w-[360px] shrink-0 snap-start [perspective:1000px]"
+      // ~85% of the track on phones so the next card peeks in; fixed 360px from sm.
+      className="w-[85%] shrink-0 snap-start [perspective:1000px] sm:w-[360px]"
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, amount: 0.2 }}
+      // Low threshold: the peeking next card (~15% visible on a phone) must still fade in.
+      viewport={{ once: true, amount: 0.1 }}
     >
       <motion.div
         className="h-full"
@@ -62,7 +67,7 @@ function EventCardItem({ ev, index }: { ev: UpcomingEvent; index: number }) {
             <div className="flex items-center gap-2"><dt className="sr-only">Duration</dt><Clock aria-hidden="true" className="h-4 w-4 shrink-0 text-cream/60" /><dd>{ev.duration}</dd></div>
             <div className="flex items-center gap-2"><dt className="sr-only">{ev.format.label}</dt><Users aria-hidden="true" className="h-4 w-4 shrink-0 text-cream/60" /><dd>{ev.format.label === 'Team size' ? `Teams of ${ev.format.value}` : ev.format.value}</dd></div>
           </dl>
-          <Link to={ev.href} className="t-nav mt-2 inline-flex w-fit items-center gap-2 rounded-full border border-cream/30 px-4 py-2 font-bold text-cream transition-colors hover:border-cream hover:bg-cream hover:text-midnight">
+          <Link to={ev.href} className="t-nav mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-cream/30 px-4 py-2 font-bold text-cream transition-colors hover:border-cream hover:bg-cream hover:text-midnight sm:w-fit">
             Get tickets <span className="sr-only">for {ev.title}</span><ArrowRight aria-hidden="true" className="h-4 w-4" />
           </Link>
         </div>
@@ -74,12 +79,23 @@ function EventCardItem({ ev, index }: { ev: UpcomingEvent; index: number }) {
 
 export function EventCarousel() {
   const track = useRef<HTMLUListElement>(null);
+  const fine = useFinePointer();
   const page = (dir: 1 | -1) => track.current?.scrollBy({ left: dir * track.current.clientWidth * 0.8, behavior: 'smooth' });
+  // Touch: a "swipe" hint the first time the carousel is seen, gone after the first swipe (and on later visits).
+  const [hint, setHint] = useState(() => { try { return !localStorage.getItem(HINT_KEY); } catch { return false; } });
+  useEffect(() => {
+    const el = track.current;
+    if (!hint || !el) return;
+    const done = () => { if (el.scrollLeft < 24) return; setHint(false); try { localStorage.setItem(HINT_KEY, '1'); } catch { /* storage blocked */ } };
+    el.addEventListener('scroll', done, { passive: true });
+    return () => el.removeEventListener('scroll', done);
+  }, [hint]);
   return (
-    <section id="events" data-bg="events" data-theme="dark" tabIndex={-1} aria-labelledby="events-h" className="border-t border-cream/20 py-24 outline-none sm:py-32">
-      <div className="mx-auto flex max-w-7xl items-end justify-between gap-6 px-4 sm:px-8">
+    <section id="events" data-bg="events" data-theme="dark" tabIndex={-1} aria-labelledby="events-h" className="l-section border-t border-cream/20 outline-none">
+      <div className="l-gutter mx-auto flex max-w-7xl items-end justify-between gap-6">
         <SectionHeading id="events-h" script="upcoming" title="Events" />
-        <div className="hidden gap-2 sm:flex">
+        {/* Arrows for mouse users only; touch swipes. */}
+        <div className={`gap-2 ${fine ? 'hidden sm:flex' : 'hidden'}`}>
           <button type="button" onClick={() => page(-1)} aria-label="Previous events" className="grid h-11 w-11 place-items-center rounded-full border border-cream/40 text-cream transition-colors hover:border-cream hover:text-cream"><ArrowLeft className="h-5 w-5" /></button>
           <button type="button" onClick={() => page(1)} aria-label="Next events" className="grid h-11 w-11 place-items-center rounded-full border border-cream/40 text-cream transition-colors hover:border-cream hover:text-cream"><ArrowRight className="h-5 w-5" /></button>
         </div>
@@ -91,10 +107,15 @@ export function EventCarousel() {
         // handed every wheel event to the browser here, which made scrolling stall mid-page).
         data-lenis-prevent-horizontal
         aria-label="Upcoming events"
-        className="no-scrollbar mt-12 flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-4 px-4 pb-4 sm:scroll-px-8 sm:px-8 xl:px-[max(2rem,calc((100vw-80rem)/2+2rem))] xl:scroll-px-[max(2rem,calc((100vw-80rem)/2+2rem))]"
+        className="no-scrollbar mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain scroll-px-4 px-4 pb-4 sm:mt-12 sm:gap-5 md:scroll-px-6 md:px-6 lg:scroll-px-8 lg:px-8 xl:px-[max(2rem,calc((100vw-80rem)/2+2rem))] xl:scroll-px-[max(2rem,calc((100vw-80rem)/2+2rem))]"
       >
         {upcomingEvents.map((ev, i) => <EventCardItem key={ev.id} ev={ev} index={i} />)}
       </ul>
+      {!fine && hint && (
+        <p className="l-gutter t-label mx-auto mt-2 flex max-w-7xl items-center gap-2 text-cream/70" aria-hidden="true">
+          Swipe for more <motion.span animate={{ x: [0, 6, 0] }} transition={{ duration: 1.2, repeat: Infinity, ease: ease.inOut }}><MoveRight className="h-4 w-4" /></motion.span>
+        </p>
+      )}
     </section>
   );
 }

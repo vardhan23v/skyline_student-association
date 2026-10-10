@@ -2,27 +2,31 @@ import { useRef } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { pastEvents, type PastEvent } from '../../data/landing';
 import { SectionHeading } from './SectionHeading';
+import { useMediaQuery } from '../../hooks/useCursorFollow';
 import { fullDate } from './format';
 
-/** Bento placement and parallax speed per tile (px of travel across the viewport). */
+/** Bento placement (lg up) and parallax speed per tile (px of travel across the viewport). */
 const layout = [
-  { span: 'col-span-2 row-span-2', speed: 50 },
-  { span: 'col-span-1 row-span-1', speed: -35 },
-  { span: 'col-span-1 row-span-2', speed: 70 },
-  { span: 'col-span-1 row-span-1', speed: -55 },
-  { span: 'col-span-2 row-span-1 md:col-span-1', speed: 30 },
-  { span: 'col-span-2 row-span-1 md:col-span-3', speed: -40 },
+  { span: 'lg:col-span-2 lg:row-span-2', speed: 50 },
+  { span: 'lg:col-span-1 lg:row-span-1', speed: -35 },
+  { span: 'lg:col-span-1 lg:row-span-2', speed: 70 },
+  { span: 'lg:col-span-1 lg:row-span-1', speed: -55 },
+  { span: 'lg:col-span-1 lg:row-span-1', speed: 30 },
+  { span: 'sm:col-span-2 lg:col-span-3 lg:row-span-1', speed: -40 },
 ];
 
-function Tile({ ev, span, speed }: { ev: PastEvent; span: string; speed: number }) {
+function Tile({ ev, span, speed, parallax }: { ev: PastEvent; span: string; speed: number; parallax: boolean }) {
   const ref = useRef<HTMLElement>(null);
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotion() || !parallax;
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
   const y = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [-speed, speed]);
   return (
-    <figure ref={ref} tabIndex={0} className={`group relative overflow-hidden rounded-2xl border border-cream/20 outline-none focus-visible:ring-2 focus-visible:ring-cream ${span}`}>
+    <figure ref={ref} tabIndex={0} className={`group relative h-60 overflow-hidden rounded-2xl border border-cream/20 outline-none focus-visible:ring-2 focus-visible:ring-cream sm:h-64 lg:h-auto ${span}`}>
       <motion.img
         src={ev.image}
+        // 480px copy for phones (npm run media:prepare); the 900px original from sm.
+        srcSet={`${ev.image.replace(/\.jpg$/, '-480.jpg')} 480w, ${ev.image} 900w`}
+        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
         alt={ev.alt}
         width={900}
         height={1100}
@@ -44,12 +48,15 @@ function Tile({ ev, span, speed }: { ev: PastEvent; span: string; speed: number 
 }
 
 export function PastEventsGrid() {
+  // Parallax only from md: on phones the tiles are full-width and the drift just reads as lag.
+  const parallax = useMediaQuery('(min-width: 768px)');
   return (
-    <section id="past" data-bg="past" data-theme="dark" tabIndex={-1} aria-labelledby="past-h" className="border-t border-cream/20 py-24 outline-none sm:py-32">
-      <div className="mx-auto max-w-7xl px-4 sm:px-8">
+    <section id="past" data-bg="past" data-theme="dark" tabIndex={-1} aria-labelledby="past-h" className="l-section border-t border-cream/20 outline-none">
+      <div className="l-gutter mx-auto max-w-7xl">
         <SectionHeading id="past-h" script="past" title="Events" />
-        <div className="mt-12 grid auto-rows-[160px] grid-cols-2 gap-3 sm:auto-rows-[220px] sm:gap-4 md:grid-cols-4">
-          {pastEvents.slice(0, layout.length).map((ev, i) => <Tile key={ev.title} ev={ev} {...layout[i]} />)}
+        {/* 1 column on phones, 2 from sm, the bento from lg. */}
+        <div className="mt-8 grid grid-cols-1 gap-3 sm:mt-12 sm:grid-cols-2 sm:gap-4 lg:auto-rows-[220px] lg:grid-cols-4">
+          {pastEvents.slice(0, layout.length).map((ev, i) => <Tile key={ev.title} ev={ev} parallax={parallax} {...layout[i]} />)}
         </div>
       </div>
     </section>
