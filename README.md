@@ -4,16 +4,10 @@ The website and club app for the Skyline Student Association (SSA), a student cl
 - **Landing page:** upcoming events, past events, merch, the club story, a photo gallery and a join form.
 - **Behind it:** a Node/Express + MySQL API for memberships, event registration, merch orders, announcements and the club's finances.
 
-> **Status: Phases 1 and 2 of 3 are done.**
-> - **Phase 1, the API:** two roles, members-only event registration, and an orders API with a live admin feed. See [`docs/api.md`](docs/api.md).
-> - **Phase 2, the frontend:** the app now runs on that API.
->   - Standalone login and register pages.
->   - Role-based landing after login: admin → `/admin`, user → `/me`.
->   - A membership card that resumes the registration once paid.
->   - Demo checkout.
->   - A tabbed admin dashboard (`/admin?tab=…`) with a live Orders table.
->
-> Phase 3 brings every page onto the landing page's visual design.
+> **Status: all three phases are done.**
+> - **Phase 1:** the API, with two roles, members-only registration, and orders with a live admin feed. See [`docs/api.md`](docs/api.md).
+> - **Phase 2:** the frontend runs on that API, with standalone auth, role-based landing, the membership gate and the tabbed admin dashboard.
+> - **Phase 3:** one UI. Every page uses the landing page's palette, type, glass surfaces, motion and cursor. See [`docs/design.md`](docs/design.md); before/after screenshots are in [`docs/screenshots/`](docs/screenshots/).
 
 ## Roles
 
@@ -59,8 +53,14 @@ All copy, prices, dates and photo paths live in `frontend/src/data/landing.ts`. 
 
 ## Design
 
-- **Colours:** cream `#F6E9CE` for all text and fills, flame red `#FF6B5E` for the script accent words, midnight `#0B0B0D` base.
-- **Type:** Open Sauce Sans, self-hosted, for everything (uppercase for headings and UI, sentence case for reading text). Pinyon Script stands in for Rumble Brave as the lowercase accent script; see `frontend/src/styles/fonts.css` to switch.
+- **One UI everywhere:** the landing page, login, `/me`, the shop and the admin dashboard share one set of tokens (`frontend/src/index.css`, mirrored in `lib/palette.ts`).
+- **Colours:**
+  - midnight `#0B0B0D` base;
+  - cream `#F6E9CE` for all text;
+  - crimson `#C1121F` for fills, focus rings and active states, never text;
+  - flame `#FF6B5E` for red text and the script accents;
+  - toned green, amber and red for status only.
+- **Type:** Open Sauce Sans, self-hosted, for everything: uppercase for headings and UI, sentence case for reading text. Every page header pairs a lowercase script word with an uppercase title (*your* ACCOUNT). Pinyon Script stands in for Rumble Brave; see `frontend/src/styles/fonts.css` to switch.
 - **Backgrounds:** one photographic background per section, crossfading as you scroll, with a vignette, a heat glow and rising embers. Config is in `frontend/src/data/backgrounds.ts`, sources in `frontend/design/backgrounds-source/`, and they're rebuilt with `npm --prefix frontend run bg:prepare`.
 - **Motion:** framer-motion and Lenis smooth scroll, plus a custom "student" cursor on desktop. Everything respects `prefers-reduced-motion`.
 - **Logo:** `frontend/public/brand/` (original in `frontend/design/logo-source.png`).

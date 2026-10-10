@@ -1,42 +1,54 @@
-# SSA Portal — design direction
+# SSA — design system
 
-Inspired by the Sui brand/website case study (Behance, Holographik). We borrow its visual discipline, not its product category: no crypto copy, no reused marks or assets.
+One UI for every page: the landing page, login and register, the account and ticket pages, events, shop and the
+admin dashboard all share the same colours, type, glass surfaces and motion. Tokens live in
+`frontend/src/index.css` (`:root` and the landing `@theme` block), mirrored for JS in `frontend/src/lib/palette.ts`.
 
-## What the reference actually does
-- One canvas: near-black. One accent: electric blue. White text, a greyscale ramp. Nothing else.
-- Decoration is light, not shape: soft radial blue "horizon" glows, vertical striped gradient bars, stair-step pixel histograms, dot-matrix texture.
-- Type: a light grotesque at large display sizes with tight tracking; tiny monospace uppercase metadata labels pinned to layout corners.
-- Layout: strict grid, generous dark space, thin 1px borders, big-number stat tiles (label top-left, number large).
-- Buttons: compact blue pills; outline variant on dark.
-- Charts: blue gradient bars.
+## Colour
+| Role | Value | Use |
+|---|---|---|
+| Midnight | `#0B0B0D` | Page background, button text on cream |
+| Cream | `#F6E9CE` | All text; 70% secondary, 60% tertiary/labels, 22% strong hairlines, 10–12% hairlines |
+| Crimson | `#C1121F` | Fills, focus rings, selection, active-tab bar, danger buttons. **Never text** (3.2:1) |
+| Flame | `#FF6B5E` | Red text: script accent words, accent links and icons (7.0:1) |
+| Success / warning / danger | `#8FD0A4` / `#E8B86A` / `#FF7A70` | Status only, always with an icon and text |
 
-## Our translation (dark-first, single mode)
-- **Theme:** "Signal" — custom tokens in `frontend/src/index.css`. Background #070a12, surface #0d1220, accent #4d8dff (passes 4.5:1 on background as text; #1f6fff fill with white text passes for buttons).
-- **Fonts:** Instrument Sans (display + body), JetBrains Mono (labels, metrics, codes). Two families, swap display.
-- **Hero archetype:** the dashboard feature card carries the horizon glow; everything else is quiet.
-- **Nav:** liquid-glass sidebar on desktop (translucent, blur, 1px border, specular top edge); glass bottom bar on mobile with a "More" sheet.
-- **Rhythm:** page header → metric row → two-column modules. 24px gutters, 16px on phones.
-- **Cards:** `surface` fill, 1px `border`, 16px radius. Only `FeatureCard` gets gradient light. Status is never colour-only (icon + text).
-- **Motion level:** functional. 120/200/320ms, ease-out in, ease-in out; reduced-motion collapses all to 0.
-- **Decoration budget:** one glow per view, striped bars only in the brand lockup and empty states.
+Contrast on midnight (worst case over the dimmed photo backgrounds in brackets): cream 16.4:1 (14.4), cream/70 8.2
+(7.6), cream/60 6.2 (5.9), flame 7.0 (6.2), green 11.0, amber 10.8, danger 7.7. Cream on crimson is 5.2:1 and
+midnight on cream 16.4:1, so both button fills pass. No other hues anywhere.
 
-## Alternatives considered
-1. Light-first "Paper" variant of the same tokens (white canvas, same blue) — easy to switch by inverting the neutral ramp.
-2. Dual mode with a toggle — deferred; doubles verification surface.
+Primary buttons are cream (as on the landing page). To make them crimson everywhere, set `--btn-primary-bg` to
+`var(--accent)` and `--btn-primary-fg` to `var(--accent-foreground)` in `:root`: one change, and it still passes AA.
 
-## Public landing page ("/") — Crimson Horizon (superseded: see the cream-only notes below)
+## Type
+- **Open Sauce Sans** (self-hosted, OFL) for everything. Headings, nav, buttons, labels and table headers are
+  uppercase with 0.14–0.18em tracking; reading text, table cells and form inputs are sentence case (`--case-*`).
+- **Script accent**: `--font-script`, Rumble Brave once its file is added (see `src/styles/fonts.css`), Pinyon Script
+  until then. Always lowercase, one word per page header, in flame.
+- Every page header is the landing `SectionHeading` (`PageHeader` renders it): *welcome* BACK, *your* ACCOUNT,
+  *control* ROOM, *club* ORDERS, *what's* ON…
 
-The landing page has its own strict palette and type, scoped by the `.landing` class; the app shell and dashboards keep the Midnight/Electric-blue tokens above.
+## Surfaces
+- **Glass recipe** (the landing navbar): midnight at 45–55%, a cream 10% hairline, `rounded-2xl`.
+  - Fixed and floating layers (navbar, admin sidebar, modals, drawers, menus, toasts) add `backdrop-blur-xl`.
+  - Cards and tables don't: they scroll over a fixed photo, and backdrop-filter there re-blurs every frame (the old
+    landing events→past jank). The photo behind them is already dimmed, so the frost wouldn't show.
+- **Backgrounds** come from `BackgroundStage`:
+  - `stage`: the landing's scroll-linked crossfade.
+  - `still`: the hero photo with scrim, heat glow, vignette and embers, on login, register, `/me` and the public app pages.
+  - `dim`: the hero photo blurred under an 80% midnight overlay, with no embers, on `/admin`.
+- **Buttons**: the landing classes. `btn-l-primary` (cream solid), `btn-l-secondary` (cream outline, fills on hover),
+  plus `btn-danger` (crimson) and `btn-ghost`. `Button.tsx` maps its variants onto them.
+- **Fields**: transparent glass, cream 22% border, crimson focus ring; uppercase small labels.
+- **Tables** (`DataTable`): uppercase cream/60 headers, cream 8% dividers, cream 4% row hover; stacked cards under 768px.
 
-- Colours (Tailwind `@theme` in `frontend/src/index.css`, also `:root` vars): `midnight` #0B0B0D, `crimson` #C1121F, `ivory` #F5F1ED, `ash` #777780. Nothing else except alpha versions.
-- Contrast on midnight: ivory 17.6:1; ash 4.3:1, so ash is for hairlines, prices and large text, and small secondary text uses `ivory/65`; crimson 3.2:1, so it is for fills, focus rings and large or script text only. Ivory on crimson is 5.5:1.
-- Type: Pinyon Script for accent words of four or fewer words; Manrope for everything else, with `tracking-[0.2em]` on uppercase labels. Section headings pair a script word with an uppercase sans word.
-- Motion: framer-motion and Lenis; `MotionConfig reducedMotion="user"` plus CSS fallbacks turn off parallax, marquee, grain, glow drift and cursor follow under reduced motion.
-- Content and media: `frontend/src/data/landing.ts`, files under `frontend/public/media/`.
+## Motion and cursor
+- Page and admin-tab enter: fade + 12px rise, 0.4s, `ease.out` (`[0.22, 1, 0.36, 1]`); section headings rise as
+  they enter the viewport. `MotionConfig reducedMotion="user"` and CSS fallbacks turn motion off when asked.
+- The student cursor runs on every page. It hides over text fields and over the check-in camera
+  (`data-cursor="text"`), where the normal pointer returns.
 
-### Photographic backgrounds and type (Oct 2026)
-
-- Cream `#F6E9CE` is the only colour on the landing page, for text and accents alike (secondary 70%, hairlines 40%; fills use midnight text). Crimson was removed in Oct 2026. `ivory`/`ash` are aliases kept for old classes.
-- Type: Open Sauce Sans (OFL, self-hosted in `frontend/public/fonts/open-sauce/`) for everything; uppercase for headings/UI, sentence case for body and inputs (`--case-*` tokens). Script accent is `--font-script`: Rumble Brave when its file is added (see `src/styles/fonts.css`), Pinyon Script until then, always lowercase.
-- Backgrounds: `src/data/backgrounds.ts` + `components/landing/BackgroundStage.tsx`. Masters in `src/assets/backgrounds/`, originals and art direction in `design/backgrounds-source/` + `npm run bg:prepare`. Each section's `overlay` keeps 70% cream text at WCAG AA over the brightest part of its image.
-- Removed: the drifting crimson hero glow and the join-section glow (both fought the photography).
+## Content and media
+- Landing copy, prices and photo paths: `frontend/src/data/landing.ts`; files under `frontend/public/media/`.
+- Backgrounds: masters in `src/assets/backgrounds/`, originals in `design/backgrounds-source/`, rebuilt with
+  `npm run bg:prepare`. Each section's `overlay` keeps cream/70 text at AA over the brightest part of its image.
