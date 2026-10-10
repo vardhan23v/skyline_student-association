@@ -275,7 +275,7 @@ describe('admin surface', () => {
     ['get', '/overview'], ['get', '/users'],
     ['get', '/events'], ['post', '/events'], ['get', '/events/1'], ['patch', '/events/1'], ['get', '/events/1/report'], ['get', '/events/1/registrations'],
     ['post', '/checkin'],
-    ['get', '/members'], ['get', '/members/1/verify'], ['post', '/members/1/cash-payment'], ['get', '/members/1/dues'], ['patch', '/members/1/membership'], ['post', '/members/1/remind'],
+    ['get', '/members'], ['post', '/members/walk-in'], ['get', '/members/1/verify'], ['post', '/members/1/cash-payment'], ['get', '/members/1/dues'], ['patch', '/members/1/membership'], ['post', '/members/1/remind'],
     ['get', '/products'], ['post', '/products'], ['patch', '/products/1'], ['patch', '/variants/1'],
     ['get', '/orders'], ['get', '/orders/stream'], ['patch', '/orders/1'],
     ['post', '/announcements'],

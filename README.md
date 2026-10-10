@@ -61,6 +61,7 @@ Sign in with a demo account:
 ## 🧭 What's inside
 
 - **Events and ticketing:** member and non-member prices, members-only events, capacity under a row lock, 15-minute seat holds, signed QR tickets, cancellation with an automatic ledger reversal. A non-member can **pay the non-member price** or **join and pay the member price** in one flow.
+- **Walk-in sign-up:** an admin signs a student up at the campus table, records cash dues in the same step and the student gets an email to set their password.
 - **Memberships and dues:** buy or renew online (renewal opens 30 days before expiry), cash dues recorded by admins, dues history, expiry dates set by admins, reminder emails 14 days before expiry and on the day, and a membership QR.
 - **Door check-in:** rear-camera scanner with a ✓/✗ banner, vibration and a live count; a **Membership** mode verifies member QRs or student IDs at the door.
 - **Merch shop:** sizes with live stock, member pricing, cart sheet, reserved stock while paying, low-stock alerts, and a **live orders** feed for admins over Server-Sent Events.
@@ -255,7 +256,7 @@ Base path `/api`. JSON in and out; auth is `Authorization: Bearer <JWT>`. Errors
 |---|---|
 | Overview | `GET /overview` (members, registrations, orders today, balance, active and behind fundraisers) · `GET /users?role=admin` |
 | Events | `GET/POST /events` · `GET/PATCH /events/:id` · `GET /events/:id/report` (member / non-member split) · `GET /events/:id/registrations` · `POST /checkin` |
-| Members | `GET /members` · `GET /members/:id/verify` · `GET /members/:id/dues` · `PATCH /members/:id/membership` · `POST /members/:id/remind` · `POST /members/:id/cash-payment` |
+| Members | `GET /members` · `POST /members/walk-in` · `GET /members/:id/verify` · `GET /members/:id/dues` · `PATCH /members/:id/membership` · `POST /members/:id/remind` · `POST /members/:id/cash-payment` |
 | Shop | `GET/POST /products` · `PATCH /products/:id` · `PATCH /variants/:id` · `GET /orders` · `GET /orders/stream` (SSE) · `PATCH /orders/:id` |
 | Fundraisers | `GET/POST /fundraisers` · `GET/PATCH /fundraisers/:id` · `GET/POST /fundraisers/:id/tasks` · `POST /fundraisers/:id/cash-income` · `GET /tasks` · `PATCH /tasks/:id` |
 | Finance | `GET /finance/ledger` (`format=csv`) · `POST /finance/ledger/:id/reverse` · `POST/GET /expenses` · `GET /expenses/:id` · `PATCH /expenses/:id/review` · `PATCH /expenses/:id/pay` |

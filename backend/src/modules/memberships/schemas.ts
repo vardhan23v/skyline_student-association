@@ -20,3 +20,8 @@ export const MEMBERSHIP_BENEFITS = [
 ];
 /** What GET /api/membership/info and the MEMBERSHIP_REQUIRED error both show. */
 export const membershipOffer = () => ({ price: DEFAULT_DUES, currency: 'INR', benefits: MEMBERSHIP_BENEFITS });
+/** A walk-in sign-up at the club's table. `amount` (only with `pay_cash`) defaults to DEFAULT_DUES. */
+export const walkInSchema = z.object({
+  name: z.string().trim().min(1).max(120), email: z.string().trim().email().max(190), student_id: z.string().trim().min(1).max(40),
+  phone: z.string().trim().max(30).optional(), pay_cash: z.boolean(), amount: z.coerce.number().positive().max(1e6).optional(),
+});

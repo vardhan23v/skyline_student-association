@@ -41,6 +41,7 @@ Tokens minted before the two-role migration carry a retired role (`member`, `tre
 | `INVALID_TRANSITION` | 409 | Order status change not allowed (`from`, `to` and `allowed` included) |
 | `INSUFFICIENT_STOCK` | 409 | The stock behind the order is gone |
 | `PAYMENT_FAILED` | 409 | Payment failed; start a new checkout |
+| `DUPLICATE_MEMBER` | 409 | Walk-in email or student ID already belongs to someone; `field` says which |
 | `INVALID_TOKEN` | 400 | Password link unknown, already used or expired |
 | `BAD_REQUEST` | 400 | Validation failed (`details` has the field errors) |
 | `NOT_FOUND` | 404 | Not found |
@@ -142,6 +143,7 @@ Errors are **401** (signed out), **403** `MEMBERSHIP_REQUIRED` (members-only eve
 | GET | `/api/admin/events/:id/registrations` | Ticket holders with ticket and payment status | added |
 | POST | `/api/admin/checkin` | Body `{ qr_token, event_id? }`. Marks the ticket used, once | moved from `POST /checkin` (was volunteer) |
 | GET | `/api/admin/members` | Directory. Filters: `status`, `expiring_within_days`, `q` | moved from `GET /members` |
+| POST | `/api/admin/members/walk-in` | Sign-up at the club's table: `{ name, email, student_id, phone?, pay_cash, amount? }`. One transaction creates the user (random password) and member profile and, with `pay_cash`, records cash dues (`amount` defaults to the dues price; one payment, one ledger row, active membership). Then emails a 72-hour set-password link; if that fails the sign-up stands. Returns `{ user, member, membership \| null, setup_link_sent, qr_token }`. Duplicate email or student ID → 409 `DUPLICATE_MEMBER` with `field`. Audit `member_walk_in` | added |
 | GET | `/api/admin/members/:id/verify` | At-event membership check, by student ID or member QR | moved from `GET /members/:id/verify` (was volunteer) |
 | GET | `/api/admin/members/:id/dues` | Dues history: every membership period with its payment (`amount`, `method` online/cash, `paid`, `paid_at`) | new |
 | PATCH | `/api/admin/members/:id/membership` | Set the expiry date of the latest paid period, `{ expiry_date }` (today or later). Clears the reminder stamp | new |

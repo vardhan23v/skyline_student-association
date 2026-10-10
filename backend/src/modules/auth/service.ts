@@ -15,19 +15,31 @@ const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
 
 export type UserRow = { id: number; name: string; email: string; password_hash: string; role: Role; is_active: number | boolean };
 
+/** 409 when the email or student ID is taken; callers can swap in their own error (the walk-in names the field). */
+type DuplicateError = (field: 'email' | 'student_id') => Error;
+const defaultDuplicate: DuplicateError = (field) => conflict(field === 'email' ? 'Email already registered' : 'Student ID already registered');
+
+/**
+ * Create the `users` row and, with a student ID, the `members` row, inside the caller's transaction. Shared by
+ * self-registration and admin walk-ins (which pass an unusable password hash and send a set-password link).
+ */
+export async function createAccount(trx: Knex.Transaction, input: { name: string; email: string; password_hash: string; student_id?: string; phone?: string },
+  { role = 'user', duplicate = defaultDuplicate }: { role?: Role; duplicate?: DuplicateError } = {}) {
+  const email = input.email.toLowerCase();
+  if (await trx('users').where({ email }).first()) throw duplicate('email');
+  if (input.student_id && (await trx('members').where({ student_id: input.student_id }).first())) throw duplicate('student_id');
+  const [id] = await trx('users').insert({ name: input.name, email, password_hash: input.password_hash, role });
+  let member_id: number | null = null;
+  if (input.student_id) {
+    [member_id] = await trx('members').insert({ user_id: id, student_id: input.student_id, phone: input.phone ?? null, joined_at: todayYmd() }); // DATE column: a calendar day, not a timestamp
+  }
+  return { user: (await trx('users').where({ id }).first()) as UserRow, member_id: member_id === null ? null : Number(member_id) };
+}
+
 export async function register(input: { name: string; email: string; password: string; student_id?: string; phone?: string }, role: Role = 'user') {
-  const db = getDb();
-  const existing = await db('users').where({ email: input.email.toLowerCase() }).first();
-  if (existing) throw conflict('Email already registered');
   const password_hash = await bcrypt.hash(input.password, 10);
-  return db.transaction(async (trx) => {
-    const [id] = await trx('users').insert({ name: input.name, email: input.email.toLowerCase(), password_hash, role });
-    if (input.student_id) {
-      const dup = await trx('members').where({ student_id: input.student_id }).first();
-      if (dup) throw conflict('Student ID already registered');
-      await trx('members').insert({ user_id: id, student_id: input.student_id, phone: input.phone ?? null, joined_at: todayYmd() }); // DATE column: a calendar day, not a timestamp
-    }
-    const user = (await trx('users').where({ id }).first()) as UserRow;
+  return getDb().transaction(async (trx) => {
+    const { user } = await createAccount(trx, { ...input, password_hash }, { role });
     return { user: publicUser(user), token: signToken({ id: user.id, role: user.role, email: user.email }) };
   });
 }

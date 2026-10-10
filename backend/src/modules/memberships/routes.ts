@@ -4,7 +4,7 @@ import { requireAuth } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../middleware/errorHandler';
 import * as svc from './service';
-import { cashDuesSchema, idParam, listMembersQuery, membershipOffer, setExpirySchema, startDuesSchema, verifyQuery } from './schemas';
+import { cashDuesSchema, idParam, listMembersQuery, membershipOffer, setExpirySchema, startDuesSchema, verifyQuery, walkInSchema } from './schemas';
 import { academicYearEnd } from './service';
 
 export const membershipsRouter = Router();
@@ -22,6 +22,9 @@ membershipsRouter.post('/', requireAuth, validate({ body: startDuesSchema }), as
 
 adminMembersRouter.get('/', validate({ query: listMembersQuery }), asyncHandler(async (req, res) => {
   res.json(await svc.listMembers(req.query as any));
+}));
+adminMembersRouter.post('/walk-in', validate({ body: walkInSchema }), asyncHandler(async (req, res) => {
+  res.status(201).json(await svc.walkIn(req.user!.id, req.body, req.ip));
 }));
 adminMembersRouter.get('/:id/verify', validate({ params: z.object({ id: z.string() }), query: verifyQuery }), asyncHandler(async (req, res) => {
   res.json(await svc.verifyMember(req.params.id, (req.query as any).qr_token));

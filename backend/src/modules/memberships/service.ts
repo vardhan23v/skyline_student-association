@@ -8,6 +8,12 @@ import { recordEntry } from '../finance/service';
 import { sendMail, siteLink } from '../../lib/email';
 import { createCashPayment, createPendingPayment } from '../payments/service';
 import { DEFAULT_DUES } from './schemas';
+import bcrypt from 'bcryptjs';
+import { appUrl } from '../../config/env';
+import { randomToken } from '../../lib/hash';
+import { logger } from '../../lib/logger';
+import { createAccount, createPasswordToken, passwordLink, publicUser, SETUP_TTL_MINUTES } from '../auth/service';
+import { logAuditEvent } from '../audit/service';
 
 /** Today in the club's time zone (APP_TIMEZONE) — the UTC date lags IST until 05:30. */
 const today = todayYmd;
@@ -103,9 +109,9 @@ export async function activateMembership(trx: Knex.Transaction, membership_id: n
  * year ends, or `expiry_date`). With one it extends it: the new period starts the day after the current expiry and
  * runs to `expiry_date` or the following academic year end.
  */
-export async function recordCashDues(admin_id: number, member_id: number, amount: number, expiry_date?: string) {
+export async function recordCashDues(admin_id: number, member_id: number, amount: number, expiry_date?: string, db: Knex = getDb()) {
   if (expiry_date && expiry_date < today()) throw badRequest('expiry_date is in the past');
-  const db = getDb();
+  // Inside a caller's transaction (a walk-in sign-up) this is a savepoint, so it commits or rolls back with the caller.
   return db.transaction(async (trx) => {
     // Checks run under the member row lock so a double submit can't record the dues (and the ledger row) twice.
     const member = await lockRow(trx('members').where({ id: member_id })).first();
@@ -237,4 +243,45 @@ export async function sendReminder(member_id: number) {
   const sent = await sendMail({ to: member.email, subject: 'Renew your SSA membership', html });
   if (ms) await db('memberships').where({ id: ms.id }).update({ reminder_sent_at: new Date() });
   return { sent: sent > 0, email: member.email, expiry_date: exp };
+}
+
+/**
+ * POST /admin/members/walk-in — a student signs up at the club's table. One transaction: the account and member profile
+ * (shared createAccount, with a random password nobody knows), and with `pay_cash` the cash dues through recordCashDues
+ * (payment + ledger row + active membership). After the commit, a 72-hour set-password link is emailed; if that fails
+ * the sign-up still stands and `setup_link_sent` is false.
+ */
+export async function walkIn(admin_id: number, input: { name: string; email: string; student_id: string; phone?: string; pay_cash: boolean; amount?: number }, ip?: string) {
+  const db = getDb();
+  const password_hash = await bcrypt.hash(randomToken(32), 10);
+  const duplicate = (field: 'email' | 'student_id') =>
+    new HttpError(409, `A member with this ${field === 'email' ? 'email' : 'student ID'} already exists`, 'DUPLICATE_MEMBER', undefined, { field });
+  const { user, member_id, membership } = await db.transaction(async (trx) => {
+    const { user, member_id } = await createAccount(trx, { name: input.name, email: input.email, password_hash, student_id: input.student_id, phone: input.phone }, { duplicate });
+    const membership = input.pay_cash ? await recordCashDues(admin_id, member_id!, input.amount ?? DEFAULT_DUES, undefined, trx) : null;
+    return { user, member_id: member_id!, membership };
+  });
+
+  let setup_link_sent = false;
+  try {
+    const path = passwordLink(await createPasswordToken(user.id, 'setup', SETUP_TTL_MINUTES), 'setup');
+    if (!env.RESEND_API_KEY) logger.info({ to: user.email, url: appUrl(path) }, 'set-password link (email not configured)');
+    const accepted = await sendMail({
+      to: user.email,
+      subject: 'Welcome to SSA, set your password',
+      html: `<p>Hi ${esc(user.name)},</p><p>Welcome to the Skyline Student Association! ${membership ? `Your membership is active until ${ymdOf(membership.expiry_date)}.` : 'Your account is ready.'}</p>`
+        + `<p>Set a password to log in, see your tickets and show your membership QR at events. The link works once and expires in 72 hours.</p>`
+        + siteLink(path, 'Set your password'),
+    });
+    setup_link_sent = !!env.RESEND_API_KEY && accepted > 0;
+  } catch (err) {
+    logger.error({ err, user_id: user.id }, 'walk-in: set-password link failed');
+  }
+  await logAuditEvent({ userId: String(admin_id), action: 'member_walk_in', entityType: 'member', entityId: String(member_id), metadata: { admin_id, pay_cash: input.pay_cash, user_id: user.id }, ipAddress: ip ?? null });
+
+  const member = await db('members').where({ id: member_id }).first();
+  return {
+    user: publicUser(user), member, membership: membership ? { ...membership, expiry_date: ymdOf(membership.expiry_date) } : null,
+    setup_link_sent, qr_token: membership ? signMemberQr({ uid: user.id }) : null,
+  };
 }
