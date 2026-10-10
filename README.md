@@ -1,21 +1,23 @@
 # Skyline Student Association — Website
 
-The website and club app for the Skyline Student Association (SSA), a student club. Live at **https://skyline-student-association.up.railway.app**.
+The website and club app for the Skyline Student Association (SSA), a student club. Live at **https://web-production-2ba70.up.railway.app** (moving to `https://skyline-student-association.up.railway.app`; see [Domain](#domain)).
+
 - **Landing page:** upcoming events, past events, merch, the club story, a photo gallery and a join form.
-- **Behind it:** a Node/Express + MySQL API for memberships, event registration, merch orders, announcements and the club's finances.
+- **Behind it:** a Node/Express + MySQL API for memberships, event registration, merch orders, announcements and the club's finances (admin-only).
 
 > **Status: all four phases are done.**
 > - **Phase 1:** the API, with two roles, members-only registration, and orders with a live admin feed. See [`docs/api.md`](docs/api.md).
 > - **Phase 2:** the frontend runs on that API, with standalone auth, role-based landing, the membership gate and the tabbed admin dashboard.
 > - **Phase 3:** one UI. Every page uses the landing page's palette, type, glass surfaces, motion and cursor. See [`docs/design.md`](docs/design.md); before/after screenshots are in [`docs/screenshots/`](docs/screenshots/).
-> - **Phase 4:** mobile. Every page works from 320px phones to desktop: a hamburger sheet, a sticky admin tab strip, card-mode tables, bottom sheets, sticky action bars and touch-first landing sections. Checked by Playwright at four viewports (below); see the Responsive section of [`docs/design.md`](docs/design.md).
+> - **Phase 4:** mobile. Every page works from 320px phones to desktop: a hamburger sheet, a sticky admin tab strip, card-mode tables, bottom sheets, sticky action bars and touch-first landing sections. Checked by Playwright at four viewports (below); see the Responsive section of [`docs/design.md`](docs/design.md). The same release added `APP_URL` (one public origin for email links, with a 301 from old hostnames), Open Graph tags and year-long caching of built assets.
+> - **Since then:** finance is admin-only. Members and visitors no longer see a Finance link, `/finance` redirects (admins to Admin → Finance), and the finance summary API and the AI Secretary's finance tool need an admin.
 
 ## Roles
 
 | Role | Can do |
 |---|---|
-| **Admin** | Runs everything: events, registrations and check-in, members and cash dues, merch and stock, orders, announcements, the ledger and expenses, fundraisers |
-| **User** | Any registered student: browse, buy a membership, register for events **while a member**, order merch, see their own membership, tickets and orders |
+| **Admin** | Runs everything: events, registrations and check-in, members and cash dues, merch and stock, orders, announcements, the club's finances (summary, ledger, expenses), fundraisers and the AI Secretary |
+| **User** | Any registered student: browse events, the shop and news, buy a membership, register for events **while a member**, order merch, see their own membership, tickets and orders. No access to finances |
 
 Membership is a status, not a role. A non-member who tries to register for an event gets `403 MEMBERSHIP_REQUIRED`, with the price and benefits for the membership card; once they pay, they can register.
 
@@ -30,7 +32,7 @@ Created by the demo seed (`database/seeds/001_demo.ts`).
 | User (non-member) | `student@skyline.edu` | `Student@123` | No membership; has a student ID, so they can buy one |
 
 The seed also adds:
-- four upcoming events (CodeStorm 2026, Tech Trivia, Rhythm Unplugged, Spring Gala), with 1 of 2 Spring Gala seats left;
+- four upcoming events (CodeStorm 2026, Tech Trivia, Rhythm Unplugged, Spring Gala), with 1 of 2 Spring Gala seats left (on the live site an admin has since raised the Gala to 200 seats; a reseed puts it back to 2);
 - one past event;
 - the four merch products, with sizes, prices, member prices and stock.
 
@@ -42,8 +44,8 @@ The seed also adds:
 |---|---|---|
 | Hero | *skyline* STUDENT ASSOCIATION, tagline, two calls to action | `frontend/src/data/landing.ts` |
 | Upcoming events | CodeStorm 2026, Tech Trivia, Rhythm Unplugged, Lenscape, InnovateX: date, category, description, venue, duration, team size | `landing.ts` (typographic cards, no photos until the events happen) |
-| Past events | Six events with photo, date, hall and description | `landing.ts` + `frontend/public/media/past/` |
-| Merch | T-shirt ₹499, Bag ₹299, Water bottle ₹399, Stickers ₹99, with a cursor-follow preview | `landing.ts` + `frontend/public/media/merch/` |
+| Past events | Six events with photo, date, hall and description (1 column on phones, a bento grid from 1024px) | `landing.ts` + `frontend/public/media/past/` |
+| Merch | T-shirt ₹499, Bag ₹299, Water bottle ₹399, Stickers ₹99: a cursor-follow preview with a mouse, cards with inline video on touch | `landing.ts` + `frontend/public/media/merch/` |
 | About | What the club does, three feature tiles, stat counters | `landing.ts` |
 | Gallery | Twelve event photos in a two-row marquee with a lightbox | `landing.ts` + `frontend/public/media/gallery/` |
 | Join | Name, email and student ID, handed to `/register` | `JoinCTA.tsx` |
@@ -63,14 +65,15 @@ All copy, prices, dates and photo paths live in `frontend/src/data/landing.ts`. 
   - toned green, amber and red for status only.
 - **Type:** Open Sauce Sans, self-hosted, for everything: uppercase for headings and UI, sentence case for reading text. Every page header pairs a lowercase script word with an uppercase title (*your* ACCOUNT). Pinyon Script stands in for Rumble Brave; see `frontend/src/styles/fonts.css` to switch.
 - **Backgrounds:** one photographic background per section, crossfading as you scroll, with a vignette, a heat glow and rising embers. Config is in `frontend/src/data/backgrounds.ts`, sources in `frontend/design/backgrounds-source/`, and they're rebuilt with `npm --prefix frontend run bg:prepare`.
-- **Motion:** framer-motion and Lenis smooth scroll, plus a custom "student" cursor on desktop. Everything respects `prefers-reduced-motion`.
+- **Motion:** framer-motion and Lenis smooth scroll, plus a custom "student" cursor on desktop. Phones get lighter motion and native scrolling. Everything respects `prefers-reduced-motion`.
+- **Mobile:** every page is built mobile-first from 320px: a hamburger menu, bottom sheets, card-mode tables and sticky action bars (see the Responsive section of `docs/design.md`).
 - **Logo:** `frontend/public/brand/` (original in `frontend/design/logo-source.png`).
 
 Details and rationale: [`docs/design.md`](docs/design.md).
 
 ## Tech
 
-**Frontend:** React 18 · Vite 5 · TypeScript · Tailwind CSS v4 · TanStack Query · React Router 6 · framer-motion · Lenis · vite-imagetools (responsive AVIF/WebP/JPEG at build time).
+**Frontend:** React 18 · Vite 5 · TypeScript · Tailwind CSS v4 · TanStack Query · React Router 6 · framer-motion · Lenis · vite-imagetools (responsive AVIF/WebP/JPEG at build time) · Playwright (responsive checks).
 
 **Backend:** Node 22 · Express · TypeScript · Knex · MySQL (SQLite locally and in tests) · JWT + bcrypt · Razorpay, or demo payments · Resend email · vitest + supertest.
 
@@ -116,8 +119,8 @@ Web service variables:
 |---|---|
 | `DATABASE_URL` | `${{MySQL.MYSQL_URL}}` |
 | `NODE_ENV` | `production` |
-| `APP_URL` | `https://skyline-student-association.up.railway.app`: the public origin, no trailing slash. **Required**: the app won't start without it. Email links are built from it, and any other hostname gets a 301 to it |
-| `VITE_APP_URL` | Same value. Read at build time for the canonical and Open Graph URLs in `index.html` |
+| `APP_URL` | The public origin, no trailing slash; today `https://web-production-2ba70.up.railway.app`. **Required**: the app won't start without it. Email links are built from it, and any other hostname gets a 301 to it |
+| `VITE_APP_URL` | Same value as `APP_URL`. Read at build time for the canonical and Open Graph URLs in `index.html`, so redeploy after changing it |
 | `JWT_SECRET` / `QR_SECRET` | Random, 32+ and 16+ characters, and different from each other. The app refuses to start without them |
 | `DEMO_PAYMENTS` | `true` to take demo payments while no Razorpay keys are set. Leave it unset once real payments are on |
 | `ALLOW_DEMO_SEED` | `true` to seed the demo data on boot |
@@ -128,6 +131,20 @@ Web service variables:
 
 Railway injects `PORT`; don't set it. Keep `numReplicas` at 1: the cron jobs and the live orders feed run in-process.
 
+Express caches the hashed bundles under `/assets/` for a year (`immutable`) and serves `index.html` with `no-cache`, so a deploy shows up on the next page load.
+
+### Domain
+
+The site is moving to **https://skyline-student-association.up.railway.app** (or `https://skyline-ssa.up.railway.app` if that name is taken). Do it in this order so the site stays up:
+
+1. Railway → `web` → Settings → Networking → Public Networking: edit the generated domain to `skyline-student-association`. For a custom domain (e.g. `skylinessa.in`) choose **+ Custom Domain**, add the CNAME it shows at your registrar and wait for the certificate.
+2. Point both variables at the new origin, then redeploy:
+   `railway variables --service web --set "APP_URL=https://skyline-student-association.up.railway.app" --set "VITE_APP_URL=https://skyline-student-association.up.railway.app" --skip-deploys && railway up --service web`
+3. Update the outside services: the Razorpay webhook (`https://skyline-student-association.up.railway.app/api/webhooks/payment`), Resend's sender domain and `EMAIL_FROM` (custom domain only), Cloudinary allowed referrers (if restricted), and the GitHub repo's Website field.
+4. Check: the new URL loads over HTTPS; the old URL answers 301 with the path kept (if Railway dropped the old name on rename, it won't answer at all); `/api/health` is 200 on both; a test announcement and a ticket email link to the new domain; a Razorpay test webhook arrives; a link-preview debugger shows the right title and image.
+
+`/health`, `/api/health` and `/api/webhooks/*` answer on any hostname, so health checks and in-flight payment webhooks keep working during the switch.
+
 ## API
 
-[`docs/api.md`](docs/api.md) lists every route, with its role, purpose and how it changed in Phase 1. It also covers the error codes, the checkout flow and the database migration. [`docs/architecture.md`](docs/architecture.md) is the original product specification; its four-role model is superseded by the two roles above.
+[`docs/api.md`](docs/api.md) lists every route, with its role, purpose and how it changed in Phase 1, plus the later changes (domain handling, admin-only finance). It also covers the error codes, the checkout flow and the database migration. [`docs/architecture.md`](docs/architecture.md) is the original product specification; its four-role model is superseded by the two roles above.

@@ -1,13 +1,13 @@
 # Landing page media
 
-All paths are referenced from `frontend/src/data/landing.ts`. Replace a file with one of the same name, or change the path there.
+All paths are referenced from `frontend/src/data/landing.ts`. Replace a file with one of the same name, or change the path there. After replacing a past or gallery photo, run `npm --prefix frontend run media:prepare` to rebuild its `-480.jpg` phone copy.
 
 | Folder | Files | Used by | Size |
 |---|---|---|---|
-| `past/` | `past-1…6.jpg` | Past events bento grid | 900×1100 |
-| `gallery/` | `moment-1…12.jpg` | Gallery marquee and lightbox | 720×540 |
+| `past/` | `past-1…6.jpg` + `-480.jpg` phone copies | Past events bento grid | 900×1100 (480 wide) |
+| `gallery/` | `moment-1…12.jpg` + `-480.jpg` phone copies | Gallery marquee and lightbox | 720×540 (480 wide) |
 | `merch/` | `tshirt.jpg`, `bag.jpg`, `bottle.jpg`, `stickers.jpg` | Merch posters and mobile cards | 640×800 |
-| `merch/` | `tshirt.mp4`, `bag.mp4`, `bottle.mp4`, `stickers.mp4` | Cursor-follow preview video (not shipped yet) | 640×800, muted loop |
+| `merch/` | `tshirt.mp4`, `bag.mp4`, `bottle.mp4`, `stickers.mp4` | Cursor-follow preview (mouse) and inline card video (touch); not shipped yet | 640×800, muted loop |
 
 Upcoming events intentionally have no photos (the events haven't happened). Add an official poster per event later if wanted.
 

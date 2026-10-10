@@ -57,7 +57,7 @@ sideways at 320px (WCAG reflow). Checked by `frontend/tests/responsive.spec.ts` 
 - **Touch**: every control is ≥44×44px with ≥8px between neighbours. Custom `:hover` rules sit in
   `@media (hover: hover)`; the cursor-follow merch preview, the student cursor and the carousel arrows are for a fine
   pointer only. Fixed and sticky layers pad with `env(safe-area-inset-*)`; full-height sections use `svh`.
-- **Navigation**: below md the navbar is logo + hamburger; the sheet is full screen, traps focus, locks scroll and
+- **Navigation**: app pages link Events, Shop and News (Finance is admin-only, inside the dashboard). Below md the navbar is logo + hamburger; the sheet is full screen, traps focus, locks scroll and
   closes on a link, ✕, Esc or Back. Below lg the admin sidebar becomes a sticky, snap-scrolling tab strip under the
   navbar (faded edges, active tab centred).
 - **Tables** (`DataTable`): under md each row is a card. Columns choose a `mobile` slot: `primary` (title), `status`

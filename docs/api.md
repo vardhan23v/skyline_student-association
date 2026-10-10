@@ -101,7 +101,7 @@ Unpaid holds (a ticket seat, reserved stock) expire after `PENDING_HOLD_MINUTES`
 | GET | `/api/fundraisers`, `/api/fundraisers/:id` | user | Progress from the ledger | unchanged |
 | GET | `/api/expenses/:id/receipt` | signed link | Receipt file behind the HMAC link in admin expense rows | unchanged |
 | POST | `/api/webhooks/payment` | Razorpay (HMAC) | Settles payments, idempotent | changed (shared settle path; contract unchanged) |
-| POST | `/api/ai/ask` | user | AI Secretary. Tools are filtered by role: users get `getFinanceSummary`, admins get all | changed (two roles) |
+| POST | `/api/ai/ask` | user | AI Secretary. Tools are filtered by role: admins get all of them; users get none (finance is admin-only) and an "admins only" answer | changed (two roles; finance tool admin-only since Phase 4) |
 | POST | `/api/ai/confirm/:proposalId` | admin (requester only) | Execute a drafted announcement or expense review | changed (two roles) |
 | GET | `/api/expenses` | n/a | Old own-expense list for volunteers | **removed** (expenses are admin-only) |
 | PATCH | `/api/tasks/:id` | n/a | Old volunteer self-assign | **removed** (use `PATCH /admin/tasks/:id`) |
@@ -203,6 +203,20 @@ A Server-Sent Events stream for the admin dashboard.
 | `SEED_FORCE` | `false` | The seed wipes every table. With `ALLOW_DEMO_SEED=true` in production it skips a non-empty database unless `SEED_FORCE=true`. Set it for one boot, then remove it. |
 
 `SEED_DEMO` is retired; `ALLOW_DEMO_SEED` replaces it.
+
+Added in Phase 4:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `APP_URL` | `http://localhost:$PORT` (dev); **required in production** | The site's public origin, no trailing slash and no path. Absolute links in emails are built from it (`appUrl()` in `config/env.ts`, `siteLink()` in `lib/email.ts`). In production any other hostname gets a 301 to the same path on it. |
+| `VITE_APP_URL` | empty (relative URLs) | Frontend build only: fills the canonical and Open Graph URLs in `index.html`. |
+
+## Later changes (Phase 4 and after)
+
+- **Admin-only finance.** `GET /api/finance/summary` needs an admin (401 signed out, 403 for users); before, any signed-in user could read it. The AI Secretary's `getFinanceSummary` tool is admin-only too. The ledger and expenses were already under `/api/admin`.
+- **One public hostname.** In production, a request whose host isn't `APP_URL`'s gets `301` to the same path and query on `APP_URL` (`middleware/canonicalHost.ts`). `/health`, `/api/health` and `/api/webhooks/*` are exempt, so health checks and payment webhooks keep working on an old domain.
+- **Links in emails.** Announcements link to `/announcements`, renewal reminders to `/me`, ticket confirmations to `/tickets/:id` (the QR image is still attached; many mail clients drop `data:` images), expense decisions to the admin Finance tab, and low-stock alerts to Products. QR codes still carry the signed token, not a URL, so the scanner is unchanged.
+- **Caching.** Built bundles under `/assets/` are served with `Cache-Control: public, max-age=31536000, immutable`; a missing `/assets/` file is a 404. `index.html` is `no-cache`.
 
 ## Database changes (migration `20261012000000_two_roles`)
 
