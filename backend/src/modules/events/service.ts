@@ -53,7 +53,13 @@ async function viewerFor(db: Knex, user_id: number | undefined, ids: number[]): 
   };
 }
 
-const withAvailability = (e: any, held: number, viewer: Viewer) => ({ ...e, seats_left: Math.max(0, e.capacity - held), price: Number(e.member_price), viewer });
+/** The price this caller would pay: members the member price, others the non-member price, or null when only members can register. */
+const priceFor = (e: any, is_member: boolean) => (is_member ? Number(e.member_price) : e.members_only ? null : Number(e.non_member_price));
+/** `price` stays the member price (older clients read it); `price_for_you` is what the caller pays (signed-out callers see the non-member price). */
+const withAvailability = (e: any, held: number, viewer: Viewer) => ({
+  ...e, members_only: !!e.members_only, member_price: Number(e.member_price), non_member_price: Number(e.non_member_price),
+  seats_left: Math.max(0, e.capacity - held), price: Number(e.member_price), price_for_you: priceFor(e, viewer.is_member), viewer,
+});
 
 export async function createEvent(input: any) {
   const [id] = await getDb()('events').insert(input);
@@ -67,7 +73,8 @@ export async function updateEvent(id: number, input: any) {
 }
 
 /**
- * POST /events/:id/register — members only (requireMember ran first; re-checked under the lock). One ticket per user
+ * POST /events/:id/register — any signed-in user. Membership is checked under the lock: members get a 'member' ticket at
+ * member_price, others a 'non_member' ticket at non_member_price, or 403 MEMBERSHIP_REQUIRED on a members_only event. One ticket per user
  * per event (UNIQUE(event_id, holder_user_id)): a cancelled row is reused, a pending one resumes its checkout.
  * Capacity is enforced under the event row lock; the pending ticket holds the seat while the payment is created after.
  */
@@ -81,13 +88,18 @@ export async function registerForEvent(event_id: number, user_id: number) {
     if (new Date(e.starts_at) <= now) throw new HttpError(400, 'Event has already started', 'REGISTRATION_CLOSED');
     if (e.sales_open_at && new Date(e.sales_open_at) > now) throw new HttpError(400, 'Registration is not open yet', 'REGISTRATION_NOT_OPEN');
     if (e.sales_close_at && new Date(e.sales_close_at) < now) throw new HttpError(400, 'Registration has closed', 'REGISTRATION_CLOSED');
-    if (!(await isActiveMember(trx, user_id))) throw membershipRequired();
+    const is_member = await isActiveMember(trx, user_id);
+    if (!is_member && e.members_only) throw membershipRequired();
+    const ticket_type = is_member ? 'member' : 'non_member';
 
     const existing = await trx('tickets').where({ event_id, holder_user_id: user_id }).first();
     if (existing && ['confirmed', 'checked_in'].includes(existing.status)) throw conflict('You are already registered for this event', 'ALREADY_REGISTERED', { ticket_id: existing.id });
     if (existing?.status === 'pending') {
       const payment = existing.payment_id ? await trx('payments').where({ id: existing.payment_id }).first() : null;
-      if (payment?.status === 'pending') return { resume: existing, payment };
+      // Same price as before: resume that checkout. If the user has since become a member (or lapsed), the held seat
+      // is re-priced below and the stale checkout is dropped, so it can't settle at the old price.
+      if (payment?.status === 'pending' && existing.ticket_type === ticket_type) return { resume: existing, payment };
+      if (payment?.status === 'pending') await trx('payments').where({ id: payment.id }).update({ status: 'failed' });
     }
     if (existing?.status !== 'pending') {
       const [{ held }] = await trx('tickets').where({ event_id }).whereIn('status', HELD).count({ held: '*' });
@@ -95,8 +107,8 @@ export async function registerForEvent(event_id: number, user_id: number) {
     }
 
     const u = await trx('users').where({ id: user_id }).first();
-    const price = Number(e.member_price);
-    const row = { holder_name: u.name, holder_email: u.email, ticket_type: 'member', price, status: 'pending', payment_id: null, qr_token: null, checked_in_at: null, checked_in_by: null };
+    const price = Number(is_member ? e.member_price : e.non_member_price);
+    const row = { holder_name: u.name, holder_email: u.email, ticket_type, price, status: 'pending', payment_id: null, qr_token: null, checked_in_at: null, checked_in_by: null };
     let ticket_id: number;
     if (existing) {
       // created_at restarts the hold window (the expiry job compares it); fn.now() writes the DB's own format.
@@ -229,11 +241,19 @@ export async function eventReport(event_id: number) {
   const net = (pred: (r: any) => boolean) => sums.filter(pred).reduce((s, r: any) => s + (r.direction === 'in' ? 1 : -1) * Number(r.total ?? 0), 0);
   const revenue = round2(net((r) => r.category !== 'reimbursement'));
   const spent = round2(-net((r) => r.category === 'reimbursement'));
+  // Ticket revenue per type: the price of each ticket still held (refunded tickets are cancelled, so they drop out).
+  const typeRevenue = await db('tickets').where({ event_id }).whereIn('status', ['confirmed', 'checked_in']).select('ticket_type').sum({ total: 'price' }).groupBy('ticket_type');
+  const split = (type: string) => ({
+    sold: n((r) => r.ticket_type === type && ['confirmed', 'checked_in'].includes(r.status)),
+    checked_in: n((r) => r.ticket_type === type && r.status === 'checked_in'),
+    revenue: round2(Number(typeRevenue.find((r: any) => r.ticket_type === type)?.total ?? 0)),
+  });
   const sold = n((r) => ['confirmed', 'checked_in'].includes(r.status));
   const checked_in = n((r) => r.status === 'checked_in');
   return {
-    event: e, sold, checked_in, no_show: sold - checked_in, pending: n((r) => r.status === 'pending'), cancelled: n((r) => r.status === 'cancelled'),
+    event: { ...e, members_only: !!e.members_only }, sold, checked_in, no_show: sold - checked_in, pending: n((r) => r.status === 'pending'), cancelled: n((r) => r.status === 'cancelled'),
     by_type: { member: n((r) => r.ticket_type === 'member' && ['confirmed', 'checked_in'].includes(r.status)), non_member: n((r) => r.ticket_type === 'non_member' && ['confirmed', 'checked_in'].includes(r.status)) },
+    split: { member: split('member'), non_member: split('non_member') },
     revenue, spent, breakdown,
   };
 }

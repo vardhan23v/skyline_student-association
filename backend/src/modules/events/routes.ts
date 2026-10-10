@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireMember } from '../../middleware/auth';
+import { requireAuth } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../middleware/errorHandler';
 import * as svc from './service';
@@ -13,11 +13,11 @@ export const adminCheckinRouter = Router();
 
 eventsRouter.get('/', asyncHandler(async (req, res) => res.json(await svc.listEvents(req.user))));
 eventsRouter.get('/:id', validate({ params: idParam }), asyncHandler(async (req, res) => res.json(await svc.getEvent(Number(req.params.id), req.user))));
-eventsRouter.post('/:id/register', requireMember, validate({ params: idParam }), asyncHandler(async (req, res) => {
+// Any signed-in user: members pay member_price, others non_member_price (members_only events still need membership).
+eventsRouter.post('/:id/register', requireAuth, validate({ params: idParam }), asyncHandler(async (req, res) => {
   const r = await svc.registerForEvent(Number(req.params.id), req.user!.id);
   res.status(r.resumed ? 200 : 201).json(r);
 }));
-// Not requireMember: a lapsed member can still give their seat back.
 eventsRouter.delete('/:id/register', requireAuth, validate({ params: idParam }), asyncHandler(async (req, res) => {
   res.json(await svc.cancelRegistration(Number(req.params.id), req.user!.id));
 }));
