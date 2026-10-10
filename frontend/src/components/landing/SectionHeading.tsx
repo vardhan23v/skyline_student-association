@@ -12,10 +12,10 @@ export function SectionHeading({ script, title, id, align = 'left', className = 
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-15% 0px' }}
       transition={{ duration: dur.base, ease: ease.out }}
-      className={`flex flex-wrap items-baseline gap-x-4 ${align === 'center' ? 'justify-center text-center' : ''} ${className}`}
+      className={`lockup t-h2 text-cream ${align === 'center' ? 'justify-center text-center' : ''} ${className}`}
     >
-      <span className="font-script text-5xl leading-none text-crimson sm:text-6xl">{script}</span>
-      <span className="text-3xl font-extrabold uppercase tracking-[0.2em] text-ivory sm:text-4xl">{title}</span>
+      <span className="t-script">{script}</span>
+      <span className="lockup-sans">{title}</span>
     </motion.h2>
   );
 }

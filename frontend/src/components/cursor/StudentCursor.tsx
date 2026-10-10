@@ -17,7 +17,7 @@ const PRESS = 0.12;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /**
- * Two-layer cursor for the landing page: a precise crimson dot on the hotspot, plus a
+ * Two-layer cursor for the landing page: a precise cream dot on the hotspot, plus a
  * lagging student and a context ring/label. Elements opt in with `data-cursor` and
  * `data-cursor-label`. Renders nothing on touch devices or with reduced motion.
  */
@@ -32,18 +32,18 @@ function ringStyle(mode: CursorMode, theme: CursorTheme, label: string | null) {
   const hidden = { width: 12, height: 12, opacity: 0, borderColor: alpha('ash', 0), backgroundColor: alpha('ash', 0), color: palette.midnight };
   switch (mode) {
     case 'link':
-      return { ...hidden, width: 36, height: 36, opacity: 1, borderColor: palette.ash };
+      return { ...hidden, width: 36, height: 36, opacity: 1, borderColor: light ? alpha('midnight', 0.6) : alpha('cream', 0.7) };
     case 'button':
       return light
-        ? { ...hidden, width: 56, height: 56, opacity: 1, borderColor: palette.ash, backgroundColor: alpha('ash', 0.15) }
-        : { ...hidden, width: 56, height: 56, opacity: 1, borderColor: palette.crimson, backgroundColor: alpha('crimson', 0.15) };
+        ? { ...hidden, width: 56, height: 56, opacity: 1, borderColor: alpha('midnight', 0.6), backgroundColor: alpha('midnight', 0.12) }
+        : { ...hidden, width: 56, height: 56, opacity: 1, borderColor: palette.cream, backgroundColor: alpha('cream', 0.15) };
     case 'view':
     case 'join': {
       const width = Math.max(96, (label?.length ?? 4) * 13 + 40);
-      if (light) return { width, height: 48, opacity: 1, borderColor: palette.ash, backgroundColor: palette.ash, color: palette.midnight };
+      if (light) return { width, height: 48, opacity: 1, borderColor: palette.midnight, backgroundColor: palette.midnight, color: palette.cream };
       return mode === 'view'
-        ? { width, height: 48, opacity: 1, borderColor: palette.ivory, backgroundColor: palette.ivory, color: palette.midnight }
-        : { width, height: 48, opacity: 1, borderColor: palette.crimson, backgroundColor: palette.crimson, color: palette.ivory };
+        ? { width, height: 48, opacity: 1, borderColor: palette.cream, backgroundColor: palette.cream, color: palette.midnight }
+        : { width, height: 48, opacity: 1, borderColor: palette.cream, backgroundColor: palette.cream, color: palette.midnight };
     }
     default:
       return hidden;
@@ -197,12 +197,12 @@ function CursorLayer() {
 
   const ring = ringStyle(mode, theme, label);
   const scriptLabel = !!label && label.trim().split(/\s+/).length <= 2;
-  const ink = theme === 'light' ? palette.midnight : palette.ivory;
+  const ink = theme === 'light' ? palette.midnight : palette.cream;
 
   return (
     <motion.div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-[9999]"
+      className="pointer-events-none fixed inset-0 z-[9999] font-[family-name:var(--font-landing)]"
       initial={{ opacity: 0 }}
       animate={{ opacity: visible && mode !== 'text' ? 1 : 0 }}
       transition={{ duration: FADE }}
@@ -216,7 +216,7 @@ function CursorLayer() {
           transition={{ duration: dur.fast, ease: ease.out }}
         >
           {(mode === 'view' || mode === 'join') && label && (
-            <span className={scriptLabel ? 'font-script text-2xl leading-none' : 'text-[0.65rem] font-bold uppercase tracking-[0.2em]'}>{label}</span>
+            <span className={scriptLabel ? 't-script text-2xl' : 't-label !text-[0.65rem] font-bold'}>{label}</span>
           )}
         </motion.div>
       </motion.div>
@@ -245,7 +245,7 @@ function CursorLayer() {
       {/* Precision dot on the hotspot. */}
       <motion.div className="absolute left-0 top-0" style={{ x: dotX, y: dotY }}>
         <motion.div
-          className="-translate-x-1/2 -translate-y-1/2 rounded-full bg-crimson"
+          className="-translate-x-1/2 -translate-y-1/2 rounded-full bg-cream"
           initial={false}
           animate={{ width: pressed ? 4 : 6, height: pressed ? 4 : 6 }}
           transition={{ duration: PRESS }}

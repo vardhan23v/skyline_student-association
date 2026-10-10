@@ -24,7 +24,7 @@ Inspired by the Sui brand/website case study (Behance, Holographik). We borrow i
 1. Light-first "Paper" variant of the same tokens (white canvas, same blue) — easy to switch by inverting the neutral ramp.
 2. Dual mode with a toggle — deferred; doubles verification surface.
 
-## Public landing page ("/") — Crimson Horizon
+## Public landing page ("/") — Crimson Horizon (superseded: see the cream-only notes below)
 
 The landing page has its own strict palette and type, scoped by the `.landing` class; the app shell and dashboards keep the Midnight/Electric-blue tokens above.
 
@@ -33,3 +33,10 @@ The landing page has its own strict palette and type, scoped by the `.landing` c
 - Type: Pinyon Script for accent words of four or fewer words; Manrope for everything else, with `tracking-[0.2em]` on uppercase labels. Section headings pair a script word with an uppercase sans word.
 - Motion: framer-motion and Lenis; `MotionConfig reducedMotion="user"` plus CSS fallbacks turn off parallax, marquee, grain, glow drift and cursor follow under reduced motion.
 - Content and media: `frontend/src/data/landing.ts`, files under `frontend/public/media/`.
+
+### Photographic backgrounds and type (Oct 2026)
+
+- Cream `#F6E9CE` is the only colour on the landing page, for text and accents alike (secondary 70%, hairlines 40%; fills use midnight text). Crimson was removed in Oct 2026. `ivory`/`ash` are aliases kept for old classes.
+- Type: Open Sauce Sans (OFL, self-hosted in `frontend/public/fonts/open-sauce/`) for everything; uppercase for headings/UI, sentence case for body and inputs (`--case-*` tokens). Script accent is `--font-script`: Rumble Brave when its file is added (see `src/styles/fonts.css`), Pinyon Script until then, always lowercase.
+- Backgrounds: `src/data/backgrounds.ts` + `components/landing/BackgroundStage.tsx`. Masters in `src/assets/backgrounds/`, originals and art direction in `design/backgrounds-source/` + `npm run bg:prepare`. Each section's `overlay` keeps 70% cream text at WCAG AA over the brightest part of its image.
+- Removed: the drifting crimson hero glow and the join-section glow (both fought the photography).

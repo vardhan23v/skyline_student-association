@@ -16,7 +16,7 @@ function Row({ photos, offset, reverse, onOpen }: { photos: GalleryPhoto[]; offs
                 tabIndex={copy === 1 ? -1 : undefined}
                 data-cursor="view"
                 onClick={(e) => { e.currentTarget.focus(); onOpen(offset + i); }}
-                className="group block overflow-hidden rounded-2xl border border-ash/20"
+                className="group block overflow-hidden rounded-2xl border border-cream/20"
               >
                 <img src={p.image} alt={copy === 1 ? '' : p.alt} width={720} height={540} loading="lazy" decoding="async" className="h-40 w-[13.5rem] object-cover transition-transform duration-500 group-hover:scale-105 sm:h-56 sm:w-[19rem]" />
               </button>
@@ -32,10 +32,10 @@ export function GalleryMarquee() {
   const [open, setOpen] = useState<number | null>(null);
   const half = Math.ceil(gallery.length / 2);
   return (
-    <section id="gallery" data-theme="dark" tabIndex={-1} aria-labelledby="gallery-h" className="overflow-hidden border-t border-ash/20 py-24 outline-none sm:py-32">
+    <section id="gallery" data-bg="gallery" data-theme="dark" tabIndex={-1} aria-labelledby="gallery-h" className="overflow-hidden border-t border-cream/20 py-24 outline-none sm:py-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-8">
         <SectionHeading id="gallery-h" script="moments" title="Gallery" />
-        <p className="mt-4 text-ivory/65">Hover to pause. Select a photo to open it.</p>
+        <p className="t-body mt-4 text-cream/70">Hover to pause. Select a photo to open it.</p>
       </div>
       <div className="mt-12 space-y-4">
         <Row photos={gallery.slice(0, half)} offset={0} onOpen={setOpen} />

@@ -1,0 +1,20 @@
+/*
+ * Landing page fonts (self-hosted, stable URLs so index.html can preload the hero weight).
+ *
+ * Open Sauce Sans — SIL Open Font License 1.1 (public/fonts/open-sauce/OFL.txt), via @fontsource/open-sauce-sans.
+ * Latin subset only: glyphs outside it (e.g. ₹) fall back to Manrope in the stack.
+ */
+@font-face { font-family: 'Open Sauce Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/open-sauce/open-sauce-sans-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Open Sauce Sans'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/open-sauce/open-sauce-sans-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Open Sauce Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/open-sauce/open-sauce-sans-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Open Sauce Sans'; font-style: normal; font-weight: 800; font-display: swap; src: url('/fonts/open-sauce/open-sauce-sans-latin-800-normal.woff2') format('woff2'); }
+
+/*
+ * TODO(rumble-brave): Rumble Brave is a commercial script and no file has been supplied, so the
+ * stack falls back to Pinyon Script (Google Fonts, OFL). To switch:
+ *   1. Confirm the licence covers web embedding (a desktop-only licence does not).
+ *   2. Put the WOFF2 at public/fonts/rumble-brave/rumble-brave.woff2.
+ *   3. Uncomment the block below. Nothing else changes: --font-script already lists it first.
+ *
+ * @font-face { font-family: 'Rumble Brave'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/rumble-brave/rumble-brave.woff2') format('woff2'); }
+ */

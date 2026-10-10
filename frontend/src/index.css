@@ -194,42 +194,79 @@
 }
 
 /* ------------------------------------------------------------------
-   Landing page palette (public "/" only). Strict: these four plus alpha.
-   @theme emits them as :root variables (--color-midnight …) and as
-   Tailwind utilities (bg-midnight, text-ivory/60, border-ash/20 …).
-   Contrast on midnight: ivory 17.6:1 · ash 4.3:1 (large text, hairlines only)
-   · crimson 3.2:1 (large/script text and UI only) · ivory on crimson 5.5:1.
+   Landing page ("/") design tokens. Palette: two-tone text: cream for everything, flame red (#FF6B5E) for the script accent words,
+   midnight base. `ivory` and `ash` are retired as colours and alias the
+   cream variants so older classes keep working (text-ivory = cream,
+   text-ash / border-ash = cream at 70%; add /20 etc. for hairlines).
+   Contrast: cream on midnight 15.9:1; on the photo backgrounds it is held
+   at AA by per-section overlays (src/data/backgrounds.ts).
    ------------------------------------------------------------------ */
 @theme {
   --color-midnight: #0B0B0D;
-  --color-crimson: #C1121F;
-  --color-ivory: #F5F1ED;
-  --color-ash: #777780;
-  --font-script: "Pinyon Script", cursive;
+  --color-cream: #F6E9CE;
+  /* Accent text red. Chosen over #C1121F because it keeps ≥3:1 (large text) over the brightest
+     area of every background photo; the old crimson fell to 1.4:1 there. */
+  --color-flame: #FF6B5E;
+  --color-ivory: #F6E9CE;
+  --color-ash: color-mix(in srgb, #F6E9CE 70%, transparent);
+  --font-landing: 'Open Sauce Sans', 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-script: 'Rumble Brave', 'Pinyon Script', cursive;
 }
 :root {
   --midnight: var(--color-midnight);
-  --crimson: var(--color-crimson);
-  --ivory: var(--color-ivory);
-  --ash: var(--color-ash);
+  --cream: var(--color-cream);
+  --flame: var(--color-flame);
+  --cream-2: color-mix(in srgb, var(--cream) 70%, transparent); /* secondary text */
+  --cream-3: color-mix(in srgb, var(--cream) 40%, transparent); /* captions, hairlines */
+  --ivory: var(--cream);
+  --ash: var(--cream-2);
+  /* Case tokens: display/UI type is uppercase, reading text is sentence case, script is lowercase. */
+  --case-heading: uppercase;
+  --case-body: none;
+  --case-script: lowercase;
 }
 
 @layer components {
-  .landing { background: var(--midnight); color: var(--ivory); font-family: var(--font-sans); }
-  .landing :focus-visible { outline: 2px solid var(--crimson); outline-offset: 3px; border-radius: 6px; }
-  .landing ::selection { background: color-mix(in srgb, var(--crimson) 70%, transparent); color: var(--ivory); }
-  .label-wide { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
+  .landing { background: transparent; color: var(--cream); font-family: var(--font-landing); }
+  .landing :focus-visible { outline: 2px solid var(--cream); outline-offset: 3px; border-radius: 6px; }
+  .landing ::selection { background: var(--cream); color: var(--midnight); }
+  .landing input, .landing textarea { text-transform: var(--case-body); letter-spacing: 0; }
+
+  /* Type scale. Headings and UI text uppercase; body sentence case; script lowercase. */
+  .t-display { font-family: var(--font-landing); font-size: clamp(3rem, 8vw, 7.5rem); font-weight: 800; line-height: 0.95; letter-spacing: 0.02em; text-transform: var(--case-heading); }
+  .t-h2 { font-family: var(--font-landing); font-size: clamp(2rem, 4.5vw, 4rem); font-weight: 800; line-height: 1; letter-spacing: 0.02em; text-transform: var(--case-heading); }
+  .t-h3 { font-family: var(--font-landing); font-size: clamp(1.25rem, 1.1rem + 0.5vw, 1.5rem); font-weight: 700; line-height: 1.15; letter-spacing: 0.02em; text-transform: var(--case-heading); }
+  .t-body { font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem); font-weight: 400; line-height: 1.6; letter-spacing: 0; text-transform: var(--case-body); }
+  .t-label, .label-wide { font-size: clamp(0.75rem, 0.72rem + 0.1vw, 0.8rem); font-weight: 500; line-height: 1.3; letter-spacing: 0.18em; text-transform: var(--case-heading); }
+  .t-nav { font-size: 0.8rem; font-weight: 500; letter-spacing: 0.18em; text-transform: var(--case-heading); }
+  .t-script { font-family: var(--font-script); font-weight: 400; letter-spacing: 0; line-height: 1; text-transform: var(--case-script); }
+  /* Editorial lockup: script at 1.4x the paired sans, lifted 0.1em, set tight to the sans word (a negative overlap reads as a missing space with the Pinyon fallback; revisit with Rumble Brave). */
+  .lockup { display: inline-flex; flex-wrap: wrap; align-items: baseline; column-gap: 0; }
+  .lockup > .t-script { position: relative; top: -0.1em; font-size: 1.4em; margin-right: 0.16em; color: var(--flame); }
+  .lockup > .lockup-sans { position: relative; }
+
+  /* Buttons: primary solid cream + midnight text; secondary cream outline that fills cream on hover. */
+  .btn-l-primary, .btn-l-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.75rem; border-radius: 9999px; padding: 0.85rem 1.75rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.18em; text-transform: var(--case-heading); transition: background-color 200ms, color 200ms, border-color 200ms, filter 200ms, transform 120ms; }
+  .btn-l-primary { background: var(--cream); color: var(--midnight); }
+  .btn-l-primary:hover { background: color-mix(in srgb, var(--cream) 82%, transparent); }
+  .btn-l-secondary { border: 1px solid var(--cream); color: var(--cream); background: transparent; }
+  .btn-l-secondary:hover { background: var(--cream); color: var(--midnight); }
+  .btn-l-primary:active, .btn-l-secondary:active { transform: scale(0.98); }
+  .btn-l-sm { min-height: 2.5rem; padding: 0.6rem 1.1rem; font-size: 0.72rem; }
+
+  /* Glass surfaces over the photography: translucent midnight + hairline. No backdrop-filter here:
+     on scrolling content over a fixed background it re-blurs every frame (the events→past jank).
+     The fixed navbar keeps its blur (backdrop-blur-xl), which is cheap because it never moves. */
+  .glass-l { background: color-mix(in srgb, var(--midnight) 55%, transparent); border: 1px solid color-mix(in srgb, var(--cream) 12%, transparent); }
 
   /* Film grain: fixed SVG noise, ~4% opacity, never intercepts input. */
-  .grain { position: fixed; inset: -50%; z-index: 60; pointer-events: none; opacity: 0.04;
+  .grain { position: fixed; inset: -6%; z-index: 60; pointer-events: none; opacity: 0.04;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     animation: grain-shift 1.2s steps(6) infinite; }
   @keyframes grain-shift { 0% { transform: translate(0,0); } 25% { transform: translate(-3%,2%); } 50% { transform: translate(2%,-3%); } 75% { transform: translate(-2%,-1%); } 100% { transform: translate(0,0); } }
 
-  .hero-glow { background: radial-gradient(closest-side, color-mix(in srgb, var(--crimson) 42%, transparent), color-mix(in srgb, var(--crimson) 10%, transparent) 55%, transparent 75%);
-    animation: glow-drift 18s ease-in-out infinite alternate; }
-  @keyframes glow-drift { 0% { transform: translate(-12%, 6%) scale(1); } 50% { transform: translate(10%, -8%) scale(1.12); } 100% { transform: translate(-4%, -2%) scale(0.95); } }
-  .join-glow { background: radial-gradient(70% 90% at 50% 100%, color-mix(in srgb, var(--crimson) 55%, transparent), color-mix(in srgb, var(--crimson) 12%, transparent) 55%, transparent 80%); }
+  /* Legibility scrim over every background (per-section darkening is in backgrounds.ts). */
+  .bg-scrim { background: linear-gradient(180deg, rgba(11, 11, 13, 0.55) 0%, rgba(11, 11, 13, 0.35) 40%, rgba(11, 11, 13, 0.75) 100%); }
 
   .marquee-track { display: flex; width: max-content; gap: 1rem; animation: marquee 60s linear infinite; }
   .marquee-track[data-reverse] { animation-direction: reverse; }
@@ -243,7 +280,7 @@
   .no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
 
   @media (prefers-reduced-motion: reduce) {
-    .grain, .hero-glow { animation: none; }
+    .grain { animation: none; }
     .marquee-track { animation: none; }
     .marquee-row { overflow-x: auto; }
   }

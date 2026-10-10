@@ -9,12 +9,12 @@ const icons = { ticket: Ticket, clipboard: ClipboardList, scale: Scale };
 
 export function AboutSection() {
   return (
-    <section id="about" data-theme="dark" tabIndex={-1} aria-labelledby="about-h" className="border-t border-ash/20 py-24 outline-none sm:py-32">
+    <section id="about" data-bg="about" data-theme="dark" tabIndex={-1} aria-labelledby="about-h" className="border-t border-cream/20 py-24 outline-none sm:py-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-8">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-20">
           <div>
             <SectionHeading id="about-h" script="our" title="Story" />
-            <p className="mt-8 max-w-xl text-lg leading-relaxed text-ivory/80 sm:text-xl">{about.paragraph}</p>
+            <p className="t-body mt-8 max-w-[60ch] text-cream">{about.paragraph}</p>
           </div>
           <ul className="grid gap-4">
             {about.features.map((f, i) => {
@@ -26,12 +26,12 @@ export function AboutSection() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: '-10% 0px' }}
                   transition={{ duration: dur.base, ease: ease.out, delay: i * 0.1 }}
-                  className="flex gap-5 rounded-2xl border border-ash/20 bg-ivory/[0.03] p-6 transition-colors hover:border-crimson/60"
+                  className="glass-l flex gap-5 rounded-2xl p-6 transition-colors hover:border-cream/60"
                 >
-                  <Icon aria-hidden="true" strokeWidth={1.5} className="h-8 w-8 shrink-0 text-crimson" />
+                  <Icon aria-hidden="true" strokeWidth={1.5} className="h-8 w-8 shrink-0 text-cream" />
                   <div>
-                    <h3 className="text-lg font-bold text-ivory">{f.title}</h3>
-                    <p className="mt-1 text-ivory/65">{f.body}</p>
+                    <h3 className="t-h3 text-cream">{f.title}</h3>
+                    <p className="t-body mt-1 text-cream/70">{f.body}</p>
                   </div>
                 </motion.li>
               );

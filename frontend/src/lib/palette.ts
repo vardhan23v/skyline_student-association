@@ -4,11 +4,12 @@
  */
 export const palette = {
   midnight: '#0B0B0D',
-  crimson: '#C1121F',
-  ivory: '#F5F1ED',
-  ash: '#777780',
+  cream: '#F6E9CE',
+  /** Retired colours, aliased to cream so older call sites keep working. Use alpha('cream', 0.7) for secondary. */
+  ivory: '#F6E9CE',
+  ash: '#F6E9CE',
 } as const;
 
-/** Alpha version of a palette colour, e.g. alpha('crimson', 0.15). */
+/** Alpha version of a palette colour, e.g. alpha('cream', 0.15). */
 export const alpha = (c: keyof typeof palette, a: number) =>
   `${palette[c]}${Math.round(a * 255).toString(16).padStart(2, '0')}`;

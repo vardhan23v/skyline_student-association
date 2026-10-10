@@ -6,6 +6,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { ToastProvider } from './components/Toast';
 import { App } from './App';
 import { RouteErrorBoundary } from './components/ErrorBoundary';
+import './styles/fonts.css';
 import './index.css';
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });

@@ -82,8 +82,8 @@ export const gallery: GalleryPhoto[] = [
 ].map((alt, i) => ({ image: `/media/gallery/moment-${i + 1}.jpg`, alt }));
 
 export const join = {
-  script: 'Interested?',
-  title: 'Join Skyline',
+  script: 'join',
+  title: 'Skyline',
   benefits: ['member ticket prices', 'merch discounts', 'vote in club decisions'],
 };
 

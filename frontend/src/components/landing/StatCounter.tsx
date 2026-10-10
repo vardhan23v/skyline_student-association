@@ -19,12 +19,12 @@ export function StatCounter({ stat }: { stat: Stat }) {
   }, [inView, reduce, stat.value]);
   const final = `${stat.prefix ?? ''}${fmt(stat.value, stat.decimals)}${stat.suffix ?? ''}`;
   return (
-    <div className="border-t border-ash/20 pt-5">
-      <p ref={ref} className="text-4xl font-extrabold tabular-nums text-ivory sm:text-5xl">
+    <div className="border-t border-cream/20 pt-5">
+      <p ref={ref} className="t-h2 tabular-nums text-cream">
         <span aria-hidden="true">{stat.prefix}{fmt(value, stat.decimals)}{stat.suffix}</span>
         <span className="sr-only">{final}</span>
       </p>
-      <p className="label-wide mt-2 text-ivory/65">{stat.label}</p>
+      <p className="t-label mt-2 text-cream/70">{stat.label}</p>
     </div>
   );
 }

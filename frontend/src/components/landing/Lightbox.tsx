@@ -54,8 +54,8 @@ export function Lightbox({ photos, index, onChange }: Props) {
           onClick={(e) => { if (e.target === e.currentTarget) onChange(null); }}
         >
           <div className="flex items-center justify-between p-4">
-            <p className="label-wide text-ivory/65" aria-live="polite">{index! + 1} / {photos.length}</p>
-            <button ref={closeBtn} type="button" onClick={() => onChange(null)} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full border border-ivory/15 text-ivory hover:border-crimson"><X className="h-5 w-5" /></button>
+            <p className="t-label text-cream/70" aria-live="polite">{index! + 1} / {photos.length}</p>
+            <button ref={closeBtn} type="button" onClick={() => onChange(null)} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full border border-cream/15 text-cream hover:border-cream"><X className="h-5 w-5" /></button>
           </div>
           <div className="relative flex flex-1 items-center justify-center px-4 pb-6" onClick={(e) => { if (e.target === e.currentTarget) onChange(null); }}>
             <AnimatePresence mode="wait" initial={false}>
@@ -72,11 +72,11 @@ export function Lightbox({ photos, index, onChange }: Props) {
                 className="flex max-h-full max-w-5xl cursor-grab flex-col items-center active:cursor-grabbing"
               >
                 <img src={photo.image} alt={photo.alt} draggable={false} className="max-h-[72svh] w-auto rounded-2xl object-contain" />
-                <figcaption className="mt-4 text-center text-ivory/80">{photo.alt}</figcaption>
+                <figcaption className="t-body mt-4 text-center text-cream">{photo.alt}</figcaption>
               </motion.figure>
             </AnimatePresence>
-            <button type="button" onClick={() => step(-1)} aria-label="Previous photo" className="absolute left-2 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-midnight/60 text-ivory hover:text-crimson sm:left-6"><ChevronLeft className="h-6 w-6" /></button>
-            <button type="button" onClick={() => step(1)} aria-label="Next photo" className="absolute right-2 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-midnight/60 text-ivory hover:text-crimson sm:right-6"><ChevronRight className="h-6 w-6" /></button>
+            <button type="button" onClick={() => step(-1)} aria-label="Previous photo" className="absolute left-2 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-midnight/60 text-cream hover:text-cream sm:left-6"><ChevronLeft className="h-6 w-6" /></button>
+            <button type="button" onClick={() => step(1)} aria-label="Next photo" className="absolute right-2 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-midnight/60 text-cream hover:text-cream sm:right-6"><ChevronRight className="h-6 w-6" /></button>
           </div>
         </motion.div>
       )}
