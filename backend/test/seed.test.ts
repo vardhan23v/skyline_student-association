@@ -46,7 +46,8 @@ describe('demo seed', () => {
     const upcoming = events.filter((e: any) => e.status === 'published' && new Date(e.starts_at) > new Date());
     expect(upcoming).toHaveLength(4);
     expect(events.filter((e: any) => new Date(e.starts_at) < new Date())).toHaveLength(1);
-    expect(upcoming.find((e: any) => e.title === 'Spring Gala')).toMatchObject({ capacity: 2, seats_left: 1 });
+    expect(upcoming.find((e: any) => e.title === 'Spring Gala')).toMatchObject({ capacity: 2, seats_left: 1, member_price: 299, non_member_price: 499, members_only: false });
+    expect(upcoming.find((e: any) => e.title === 'CodeStorm 2026')).toMatchObject({ members_only: true, price_for_you: null });
     const products = (await request(app).get('/api/products')).body;
     expect(products.map((p: any) => p.name).sort()).toEqual(['Bag', 'Stickers', 'T-shirt', 'Water bottle']);
     expect(products.find((p: any) => p.name === 'T-shirt').variants.map((v: any) => v.size)).toEqual(['S', 'M', 'L', 'XL']);

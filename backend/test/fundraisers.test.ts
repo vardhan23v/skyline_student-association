@@ -154,9 +154,10 @@ describe('fundraisers: progress and health', () => {
 describe('fundraiser_status migration', () => {
   it('maps planning → planned and closed → completed, and back on rollback', async () => {
     const db = await freshDb();
-    await db.migrate.down(); // undo the latest migration: fundraiser_status
+    const name = '20261013000000_fundraiser_status.ts';
+    await db.migrate.down({ name });
     await db('fundraisers').insert([{ name: 'p', status: 'planning' }, { name: 'a', status: 'active' }, { name: 'c', status: 'closed' }]);
-    await db.migrate.latest();
+    await db.migrate.up({ name });
     expect(await db('fundraisers').orderBy('id').pluck('status')).toEqual(['planned', 'active', 'completed']);
     await expect(db('fundraisers').insert({ name: 'x', status: 'planning' })).rejects.toThrow();
     // The table rebuild kept the foreign keys working.
@@ -165,7 +166,7 @@ describe('fundraiser_status migration', () => {
     const idx = (await db.raw('PRAGMA index_list(`tasks`)')).map((i: any) => i.name);
     expect(idx).toEqual(expect.arrayContaining(['tasks_fundraiser_status_index', 'tasks_assignee_index']));
     await db('fundraisers').insert({ name: 'gone', status: 'cancelled' });
-    await db.migrate.down();
+    await db.migrate.down({ name });
     expect(await db('fundraisers').orderBy('id').pluck('status')).toEqual(['planning', 'active', 'closed', 'planning', 'closed']);
   });
 });

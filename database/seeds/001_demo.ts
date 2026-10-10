@@ -3,6 +3,7 @@ import bcrypt from '../../backend/node_modules/bcryptjs/index.js';
 import { signTicketQr } from '../../backend/src/lib/qr';
 import { academicYearEnd } from '../../backend/src/modules/memberships/service';
 import { recordFundraiserCash } from '../../backend/src/modules/finance/service';
+import { addDaysYmd, todayYmd } from '../../backend/src/lib/dates';
 
 /**
  * Demo data for the two-role model. Logins (change them before real use):
@@ -60,16 +61,16 @@ export async function seed(k: Knex): Promise<void> {
   await k('memberships').where({ id: msId }).update({ status: 'active', payment_id: duesPay });
   await income(duesPay, 500, 'dues', 'Dues SKY2026001', now - 40 * day);
 
-  // Four upcoming published events (names match the landing page) and one past event.
+  // Four upcoming published events (names match the landing page) and one past event. Members pay less; CodeStorm is members only.
   const events = [
-    { title: 'CodeStorm 2026', description: 'A 24-hour hackathon: build solutions to real-world problems with software, AI and emerging tech, then pitch them to a panel of judges. Teams of 2–4.', starts_at: upcoming('2026-10-24', 14), venue: 'Main Auditorium', capacity: 120, member_price: 0, status: 'published' },
-    { title: 'Tech Trivia', description: 'Programming, computer science, cybersecurity and tech trends across rapid-fire and problem-solving rounds. Individual entry.', starts_at: upcoming('2026-10-28', 18), venue: 'Seminar Hall 2', capacity: 80, member_price: 0, status: 'published' },
-    { title: 'Rhythm Unplugged', description: 'Music, dance and artistic expression: solo performances, group dance battles and live acts.', starts_at: upcoming('2026-10-31', 21), venue: 'Open-Air Theatre', capacity: 300, member_price: 99, status: 'published' },
-    { title: 'Spring Gala', description: 'The formal evening of the year: dinner, a live band and the club awards. Seats are limited.', starts_at: new Date(now + 30 * day), venue: 'Convention Hall', capacity: 2, member_price: 299, status: 'published' },
-    { title: 'CodeStorm 2025: Kick-off', description: 'Problem statements, team formation and mentor intros for last year’s hackathon.', starts_at: new Date(now - 45 * day), venue: 'Seminar Hall 2', capacity: 100, member_price: 0, status: 'closed' },
+    { title: 'CodeStorm 2026', description: 'A 24-hour hackathon: build solutions to real-world problems with software, AI and emerging tech, then pitch them to a panel of judges. Teams of 2–4.', starts_at: upcoming('2026-10-24', 14), venue: 'Main Auditorium', capacity: 120, member_price: 0, non_member_price: 0, members_only: true, status: 'published' },
+    { title: 'Tech Trivia', description: 'Programming, computer science, cybersecurity and tech trends across rapid-fire and problem-solving rounds. Individual entry.', starts_at: upcoming('2026-10-28', 18), venue: 'Seminar Hall 2', capacity: 80, member_price: 0, non_member_price: 49, status: 'published' },
+    { title: 'Rhythm Unplugged', description: 'Music, dance and artistic expression: solo performances, group dance battles and live acts.', starts_at: upcoming('2026-10-31', 21), venue: 'Open-Air Theatre', capacity: 300, member_price: 99, non_member_price: 199, status: 'published' },
+    { title: 'Spring Gala', description: 'The formal evening of the year: dinner, a live band and the club awards. Seats are limited.', starts_at: new Date(now + 30 * day), venue: 'Convention Hall', capacity: 2, member_price: 299, non_member_price: 499, status: 'published' },
+    { title: 'CodeStorm 2025: Kick-off', description: 'Problem statements, team formation and mentor intros for last year’s hackathon.', starts_at: new Date(now - 45 * day), venue: 'Seminar Hall 2', capacity: 100, member_price: 0, non_member_price: 0, status: 'closed' },
   ];
   const ids: number[] = [];
-  for (const e of events) { const [id] = await k('events').insert({ ...e, non_member_price: 0 }); ids.push(id as number); }
+  for (const e of events) { const [id] = await k('events').insert(e); ids.push(id as number); }
   const [codestorm, , , gala, kickoff] = ids;
 
   // Meera: registered for CodeStorm (free), holds 1 of the 2 Spring Gala seats (paid), attended the kick-off.
@@ -123,16 +124,18 @@ export async function seed(k: Knex): Promise<void> {
 
   // Fundraisers: an active bake sale split between both admins (one task done, one overdue, ₹3,500 cash so far)
   // and a completed one. Cash goes through the finance service, so it lands in the ledger like a real entry.
+  // Club calendar days (APP_TIMEZONE), like the API's days_left and overdue checks; the UTC date is a day behind before 05:30 IST.
+  const clubDay = (days: number) => addDaysYmd(todayYmd(), days);
   const fundraiser = async (f: { name: string; description: string; target_amount: number; starts_on: string; ends_on: string; status: 'active' | 'completed' },
     tasks: [string, number, number, 'todo' | 'doing' | 'done'][], cash: [number, string][]) => {
     const [fid] = await k('fundraisers').insert(f);
-    for (const [title, assignee_id, dueIn, status] of tasks) await k('tasks').insert({ fundraiser_id: fid, title, assignee_id, due_on: ymd(now + dueIn * day), status, done_at: status === 'done' ? new Date(now + (dueIn - 1) * day) : null });
+    for (const [title, assignee_id, dueIn, status] of tasks) await k('tasks').insert({ fundraiser_id: fid, title, assignee_id, due_on: clubDay(dueIn), status, done_at: status === 'done' ? new Date(now + (dueIn - 1) * day) : null });
     for (const [amount, memo] of cash) await recordFundraiserCash(adminId, fid as number, amount, memo, k);
   };
-  await fundraiser({ name: 'Bake Sale', description: 'Cakes and cookies at the main gate to fund the CodeStorm prizes.', target_amount: 10000, starts_on: ymd(now - 5 * day), ends_on: ymd(now + 10 * day), status: 'active' },
+  await fundraiser({ name: 'Bake Sale', description: 'Cakes and cookies at the main gate to fund the CodeStorm prizes.', target_amount: 10000, starts_on: clubDay(-5), ends_on: clubDay(10), status: 'active' },
     [['Bake cakes', adminId, 9, 'doing'], ['Buy supplies', coreId, -2, 'todo'], ['Manage the table', coreId, 10, 'todo'], ['Promote on campus', adminId, -3, 'done']],
     [[2000, 'Bake sale day 1'], [1500, 'Bake sale day 2']]);
-  await fundraiser({ name: 'Freshers Car Wash', description: 'Weekend car wash in the staff car park for the freshers welcome.', target_amount: 5000, starts_on: ymd(now - 40 * day), ends_on: ymd(now - 30 * day), status: 'completed' },
+  await fundraiser({ name: 'Freshers Car Wash', description: 'Weekend car wash in the staff car park for the freshers welcome.', target_amount: 5000, starts_on: clubDay(-40), ends_on: clubDay(-30), status: 'completed' },
     [['Book the car park', adminId, -42, 'done'], ['Buckets and soap', coreId, -35, 'done']],
     [[5200, 'Car wash takings']]);
 }

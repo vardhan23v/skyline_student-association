@@ -23,9 +23,9 @@ async function makeUser(name: string, role: Role, member = false) {
   users[name] = { id: id as number, token: signToken({ id: id as number, role, email: `${name}@p1.test` }) };
 }
 
-const newEvent = async (capacity: number, member_price = 0) => {
+const newEvent = async (capacity: number, member_price = 0, extra: Record<string, unknown> = {}) => {
   const r = await request(app).post('/api/admin/events').set(auth('admin'))
-    .send({ title: `E${Math.random()}`, starts_at: new Date(Date.now() + 864e5).toISOString(), capacity, member_price, status: 'published' });
+    .send({ title: `E${Math.random()}`, starts_at: new Date(Date.now() + 864e5).toISOString(), capacity, member_price, status: 'published', ...extra });
   expect(r.status).toBe(201);
   return r.body.id as number;
 };
@@ -86,8 +86,8 @@ describe('GET /api/me and /api/membership/info', () => {
 });
 
 describe('event registration', () => {
-  it('anonymous 401, non-member 403 MEMBERSHIP_REQUIRED (with the offer), member 201, repeat 409 ALREADY_REGISTERED', async () => {
-    const eid = await newEvent(5);
+  it('members_only: anonymous 401, non-member 403 MEMBERSHIP_REQUIRED (with the offer), member 201, repeat 409 ALREADY_REGISTERED', async () => {
+    const eid = await newEvent(5, 0, { members_only: true });
     expect((await request(app).post(`/api/events/${eid}/register`)).status).toBe(401);
     const nm = await request(app).post(`/api/events/${eid}/register`).set(auth('student'));
     expect(nm.status).toBe(403); expect(nm.body.code).toBe('MEMBERSHIP_REQUIRED');
