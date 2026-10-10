@@ -430,7 +430,6 @@ One token set across every page ([`frontend/src/index.css`](frontend/src/index.c
 | [`docs/api.md`](docs/api.md) | Every route with its role and purpose, error codes, the checkout flow, migrations and later changes |
 | [`docs/architecture.md`](docs/architecture.md) | Product specification, data model, money rules, fundraiser health |
 | [`docs/design.md`](docs/design.md) | Tokens, type, surfaces, motion and the responsive system |
-| [`docs/DATABASE_MAINTENANCE.md`](docs/DATABASE_MAINTENANCE.md) | Indexes, backups and maintenance |
 | [`frontend/public/media/README.md`](frontend/public/media/README.md) | Landing photos and videos: sizes, sources, replacing them |
 
 ---
