@@ -1,5 +1,7 @@
 # Student Organization System — Architecture
 
+> **Superseded in part (Phase 1).** The four roles below (member, volunteer, admin, treasurer) were replaced by two: `admin` and `user`, with membership as a status. Volunteer and treasurer duties now belong to admins, and admin routes live under `/api/admin/*`. Event tickets are members-only registrations. The current routes, roles and error codes are in [`api.md`](api.md); the data model and money rules here still apply.
+
 **Target:** Skyline Student Association (SSA). One platform for memberships, event ticketing, announcements, merchandise, fundraisers/volunteer tasks, and club finances.
 **Style:** Modular monolith, 3-tier (React SPA → Express REST API → MySQL), deployed as one Node service + MySQL on Railway, with payment, email, object-storage and LLM providers as external services.
 

@@ -1,8 +1,38 @@
 # Skyline Student Association — Website
 
-The public website and app frontend for the Skyline Student Association (SSA), a student club. The landing page covers upcoming events, past events, merch, the club story, a photo gallery and a join form.
+The website and club app for the Skyline Student Association (SSA), a student club.
+- **Landing page:** upcoming events, past events, merch, the club story, a photo gallery and a join form.
+- **Behind it:** a Node/Express + MySQL API for memberships, event registration, merch orders, announcements and the club's finances.
 
-> **Status: frontend only.** The previous Express + MySQL backend was removed so it can be rebuilt from scratch. The landing page is fully static and works on its own. The app pages (login, register, dashboards, shop checkout, event details, tickets, volunteer and treasurer tools) still call `/api/...` and show their error states until a new backend exists. The old backend is recoverable from git history, at commit `b2a07a4` and earlier.
+> **Status: Phase 1 of 3 is done (backend).** The API now uses two roles, members-only event registration, and a merch orders API with a live admin feed. See [`docs/api.md`](docs/api.md).
+>
+> Phase 2 connects the app pages to it. Until then, some older pages still call routes that moved under `/api/admin/*` or were replaced by `POST /api/events/:id/register`.
+
+## Roles
+
+| Role | Can do |
+|---|---|
+| **Admin** | Runs everything: events, registrations and check-in, members and cash dues, merch and stock, orders, announcements, the ledger and expenses, fundraisers |
+| **User** | Any registered student: browse, buy a membership, register for events **while a member**, order merch, see their own membership, tickets and orders |
+
+Membership is a status, not a role. A non-member who tries to register for an event gets `403 MEMBERSHIP_REQUIRED`, with the price and benefits for the membership card; once they pay, they can register.
+
+## Demo logins
+
+Created by the demo seed (`database/seeds/001_demo.ts`).
+
+| Role | Email | Password | State |
+|---|---|---|---|
+| Admin | `admin@skyline.edu` | `Admin@123` | Full control |
+| User (member) | `member@skyline.edu` | `Member@123` | Active membership until the end of the academic year (30 June); registered for CodeStorm 2026 and the Spring Gala; three orders (fulfilled, paid, pending) |
+| User (non-member) | `student@skyline.edu` | `Student@123` | No membership; has a student ID, so they can buy one |
+
+The seed also adds:
+- four upcoming events (CodeStorm 2026, Tech Trivia, Rhythm Unplugged, Spring Gala), with 1 of 2 Spring Gala seats left;
+- one past event;
+- the four merch products, with sizes, prices, member prices and stock.
+
+**These passwords are public. Change them, or delete the accounts, before real use.** The seed wipes the database, and in production it refuses to run unless `ALLOW_DEMO_SEED=true`.
 
 ## What's on the landing page
 
@@ -15,6 +45,8 @@ The public website and app frontend for the Skyline Student Association (SSA), a
 | About | What the club does, three feature tiles, stat counters | `landing.ts` |
 | Gallery | Twelve event photos in a two-row marquee with a lightbox | `landing.ts` + `frontend/public/media/gallery/` |
 | Join | Name, email and student ID, handed to `/register` | `JoinCTA.tsx` |
+
+The landing page is static. The event and merch data behind the app pages come from the API.
 
 All copy, prices, dates and photo paths live in `frontend/src/data/landing.ts`. To replace a photo, overwrite the file with the same name; sources and sizes are listed in `frontend/public/media/README.md`.
 
@@ -30,40 +62,56 @@ Details and rationale: [`docs/design.md`](docs/design.md).
 
 ## Tech
 
-React 18 · Vite 5 · TypeScript · Tailwind CSS v4 · TanStack Query · React Router 6 · framer-motion · Lenis · vite-imagetools (responsive AVIF/WebP/JPEG at build time). Production is served by `serve.mjs`, a dependency-free static server with single-page-app fallback.
+**Frontend:** React 18 · Vite 5 · TypeScript · Tailwind CSS v4 · TanStack Query · React Router 6 · framer-motion · Lenis · vite-imagetools (responsive AVIF/WebP/JPEG at build time).
+
+**Backend:** Node 22 · Express · TypeScript · Knex · MySQL (SQLite locally and in tests) · JWT + bcrypt · Razorpay, or demo payments · Resend email · vitest + supertest.
+
+In production, Express serves the API and the built frontend from one origin.
 
 ## Run locally
 
 ```bash
-npm --prefix frontend install
-npm run dev                      # http://localhost:5173
+npm --prefix backend install && npm --prefix frontend install
+cp backend/.env.example backend/.env     # leave DATABASE_URL empty to use SQLite at backend/dev.sqlite
+npm --prefix backend run migrate && npm --prefix backend run seed
+npm run dev:backend                      # API  → http://localhost:3000/api
+npm run dev:frontend                     # Site → http://localhost:5173 (proxies /api)
 ```
 
-Production build and local preview:
+Set `DEMO_PAYMENTS=true` in `backend/.env` to complete payments without Razorpay.
+
+Tests use an in-memory database:
 
 ```bash
-npm run build
-npm start                        # http://localhost:8080
+npm test
 ```
 
 ## Deploy (Railway)
 
-The web service builds with `npm run build` and starts with `npm start`. The health check is `/health`, and Railway injects `PORT`. No environment variables are needed while there's no backend.
+One project with two services: **MySQL** and **web** (this repo).
+- `railway.json` sets the build (`npm run build`) and start (`npm start`), with a health check at `/health`.
+- Start runs the migrations, then the demo seed if enabled, then serves the API and the frontend.
 
 ```bash
 railway up --service web
 ```
 
-The Railway project still has a MySQL service holding the old backend's data. It's unused now; keep it for the rebuild or delete it in the Railway dashboard.
+Web service variables:
 
-## Rebuilding the backend
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | `${{MySQL.MYSQL_URL}}` |
+| `NODE_ENV` | `production` |
+| `JWT_SECRET` / `QR_SECRET` | Random, 32+ and 16+ characters, and different from each other. The app refuses to start without them |
+| `DEMO_PAYMENTS` | `true` to take demo payments while no Razorpay keys are set. Leave it unset once real payments are on |
+| `ALLOW_DEMO_SEED` | `true` to seed the demo data on boot |
+| `SEED_FORCE` | `true` for **one** boot to wipe an existing database and reseed it, then remove it |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `PAYMENT_WEBHOOK_SECRET` | From Razorpay, when ready |
+| `APP_TIMEZONE` | Optional, default `Asia/Kolkata` |
+| `RESEND_API_KEY`, `CLOUDINARY_URL` | Optional |
 
-[`docs/architecture.md`](docs/architecture.md) is the original product specification: roles, money rules, ticketing, check-in and the data model. Use it as the brief for the new backend.
+Railway injects `PORT`; don't set it. Keep `numReplicas` at 1: the cron jobs and the live orders feed run in-process.
 
-The frontend expects:
+## API
 
-- a REST API at the same origin under `/api` (the client is in `frontend/src/api/client.ts`);
-- bearer-token auth;
-- the response shapes in `frontend/src/api/types.ts`.
-
-In development, Vite proxies `/api` to `http://localhost:3000` (see `frontend/vite.config.ts`).
+[`docs/api.md`](docs/api.md) lists every route, with its role, purpose and how it changed in Phase 1. It also covers the error codes, the checkout flow and the database migration. [`docs/architecture.md`](docs/architecture.md) is the original product specification; its four-role model is superseded by the two roles above.
