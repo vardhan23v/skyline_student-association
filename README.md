@@ -8,7 +8,7 @@
 
 <br />
 
-[![Live demo](https://img.shields.io/badge/LIVE_DEMO-web--production--2ba70.up.railway.app-C1121F?style=for-the-badge&logo=railway&logoColor=F6E9CE&labelColor=0B0B0D)](https://web-production-2ba70.up.railway.app)
+[![Live demo](https://img.shields.io/badge/LIVE-skyline--student--association.up.railway.app-C1121F?style=for-the-badge&logo=railway&logoColor=F6E9CE&labelColor=0B0B0D)](https://skyline-student-association.up.railway.app)
 [![Deployed on Railway](https://img.shields.io/badge/DEPLOYED_ON-RAILWAY-0B0B0D?style=for-the-badge&logo=railway&logoColor=white)](https://railway.com)
 [![Status](https://img.shields.io/badge/STATUS-ALL_4_PHASES_SHIPPED-8FD0A4?style=for-the-badge&labelColor=0B0B0D)](#roadmap)
 
@@ -30,7 +30,7 @@
 
 <br />
 
-[**Live site**](https://web-production-2ba70.up.railway.app) · [Architecture](#architecture) · [Getting started](#getting-started) · [Deployment](#deployment) · [API reference](docs/api.md) · [Design system](docs/design.md)
+[**Live site**](https://skyline-student-association.up.railway.app) · [Architecture](#architecture) · [Getting started](#getting-started) · [Deployment](#deployment) · [API reference](docs/api.md) · [Design system](docs/design.md)
 
 </div>
 
@@ -181,7 +181,7 @@ Backend settings come from `backend/.env` locally and from Railway variables in 
 |---|---|---|
 | `DATABASE_URL` | prod | MySQL connection; `${{MySQL.MYSQL_URL}}` on Railway. Empty locally to use SQLite |
 | `NODE_ENV` | prod | `production` on Railway |
-| `APP_URL` | **prod** | Public origin, no trailing slash, e.g. `https://web-production-2ba70.up.railway.app`. Email links are built from it and other hostnames get a 301 to it. **The app won't start without it** |
+| `APP_URL` | **prod** | Public origin, no trailing slash, e.g. `https://skyline-student-association.up.railway.app`. Email links are built from it and other hostnames get a 301 to it. **The app won't start without it** |
 | `VITE_APP_URL` | build | Same value. Fills the canonical and Open Graph URLs in `index.html` at build time |
 | `JWT_SECRET` / `QR_SECRET` | **prod** | Random, 32+ and 16+ characters, different from each other |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `PAYMENT_WEBHOOK_SECRET` | for payments | From the Razorpay dashboard |
@@ -204,25 +204,18 @@ railway up --service web
 
 Hashed bundles under `/assets/` are cached for a year (`immutable`); `index.html` is `no-cache`, so a deploy is picked up on the next page load. GitHub isn't connected to the Railway project, so pushing doesn't deploy.
 
-### Moving to the new domain
+### Domain
 
-Target: **`https://skyline-student-association.up.railway.app`**, or `skyline-ssa` if that name is taken. The same steps apply to a custom domain such as `skylinessa.in`. Follow this order so the site stays up:
+Live at **`https://skyline-student-association.up.railway.app`** (renamed from the generated `web-production-2ba70` name, which Railway released and now returns *Not Found*). `APP_URL` and `VITE_APP_URL` are set to it. To change the domain again, or add a custom one such as `skylinessa.in`:
 
-1. **Rename.** Railway → `web` → Settings → Networking → Public Networking → edit the generated domain to `skyline-student-association`. For a custom domain, choose **+ Custom Domain**, add the CNAME at the registrar and wait for the certificate.
-2. **Point the app at it and redeploy:**
+1. Railway → `web` → Settings → Networking → Public Networking: edit the domain, or choose **+ Custom Domain** and add the CNAME it shows at the registrar.
+2. Point the app at it and redeploy:
    ```bash
-   railway variables --service web --set "APP_URL=https://skyline-student-association.up.railway.app" --set "VITE_APP_URL=https://skyline-student-association.up.railway.app" --skip-deploys && railway up --service web
+   railway variables --service web --set "APP_URL=https://<new-domain>" --set "VITE_APP_URL=https://<new-domain>" --skip-deploys && railway up --service web
    ```
-3. **Update external services.** Set the Razorpay webhook to `https://skyline-student-association.up.railway.app/api/webhooks/payment`. Update Resend's sender domain and `EMAIL_FROM` (custom domain only), Cloudinary's allowed referrers (if restricted), and the repo's Website field.
-4. **Verify.**
-   - The site loads over HTTPS.
-   - The old URL returns 301 with the path kept. If Railway dropped the old name on rename, it won't answer at all.
-   - `/api/health` returns 200 on both domains.
-   - Emails link to the new domain.
-   - A Razorpay test webhook arrives.
-   - A link-preview debugger shows the right title and image.
+3. Update the Razorpay webhook (`https://<new-domain>/api/webhooks/payment`), Resend's sender domain and `EMAIL_FROM` (custom domain only), Cloudinary referrers (if restricted) and the repo's Website field.
 
-`/health`, `/api/health` and `/api/webhooks/*` answer on any hostname, so health checks and in-flight webhooks survive the switch.
+Any hostname other than `APP_URL`'s that still reaches the service gets a 301 to it; `/health`, `/api/health` and `/api/webhooks/*` answer on any hostname.
 
 ## Design system
 
@@ -268,7 +261,7 @@ Full rationale, contrast figures and the responsive rules: [`docs/design.md`](do
 </details>
 
 **Next up**
-- [ ] Move to `skyline-student-association.up.railway.app` ([steps](#moving-to-the-new-domain))
+- [x] Move to `skyline-student-association.up.railway.app`
 - [ ] Turn on Razorpay live keys and switch off `DEMO_PAYMENTS`
 - [ ] Rotate or remove the public demo accounts
 - [ ] Prerender the landing and login shells to bring cold-load LCP under 3 s
