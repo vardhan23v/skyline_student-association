@@ -99,7 +99,7 @@ export const merchShopHref = '/shop';
 
 export const about = {
   paragraph:
-    'Skyline Student Association is run by students, for students. We host the events that fill the campus calendar, manage events on behalf of the college, run memberships, and keep the club’s finances open for anyone to read.',
+    'Skyline Student Association is run by students, for students. We host the events that fill the campus calendar, manage events on behalf of the college, run memberships, and keep the club’s books in order.',
   features: [
     { icon: 'ticket', title: 'Host events', body: 'Venues, ticketing and QR check-in at the door.' },
     { icon: 'clipboard', title: 'Manage events for the college', body: 'Planning, volunteers and budgets, end to end.' },

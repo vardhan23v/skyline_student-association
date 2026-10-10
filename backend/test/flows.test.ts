@@ -156,8 +156,11 @@ describe('merch, fundraisers, announcements, AI', () => {
     expect((await request(app).get('/api/announcements').set(auth('member'))).body.length).toBe(1);
   });
   it('AI secretary answers from tools and gates proposals by role', async () => {
-    const r = await request(app).post('/api/ai/ask').set(auth('member')).send({ prompt: 'what is our balance?' });
+    const r = await request(app).post('/api/ai/ask').set(auth('admin')).send({ prompt: 'what is our balance?' });
     expect(r.body.answer).toMatch(/balance is ₹2850/); expect(r.body.numbers_verified).toBe(true);
+    // Finance is admin-only, so a member gets no figures from the secretary either.
+    const m = await request(app).post('/api/ai/ask').set(auth('member')).send({ prompt: 'what is our balance?' });
+    expect(m.body.answer).toMatch(/only available to admins/); expect(m.body.answer).not.toMatch(/₹/);
     const d = await request(app).post('/api/ai/ask').set(auth('admin')).send({ prompt: 'draft an announcement about the gala' });
     expect(d.body.proposal).toBeTruthy();
     expect((await request(app).post(`/api/ai/confirm/${d.body.proposal.id}`).set(auth('member'))).status).toBe(403);

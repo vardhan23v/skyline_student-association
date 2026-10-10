@@ -71,6 +71,7 @@ async function keywordRouter(prompt: string, tools: Tool[], run: (t: Tool, a: an
     await run(pick('draftAnnouncement')!, { topic: prompt });
     return 'I drafted an announcement. Review the proposal and confirm to publish it.';
   }
+  if (!tools.length) return 'The AI Secretary works on club admin data (finances, expenses, members, events), so it is only available to admins.';
   return `I can help with: finance summary, flagged expenses, expiring memberships, overdue tasks, event reports, and drafting announcements. Available to your role: ${tools.map((t) => t.name).join(', ')}.`;
 }
 

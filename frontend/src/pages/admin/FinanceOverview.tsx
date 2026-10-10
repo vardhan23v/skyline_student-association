@@ -68,7 +68,7 @@ function FinanceSummary({ onOpen }: { onOpen: (v: View) => void }) {
   const flagged = queue.data?.filter((x) => x.flags.length).length ?? 0;
   return (
     <>
-      <PageHeader script="club" title="Finances" description="Every payment and reimbursement is in one append-only ledger. Members see the summary on the Finance page." />
+      <PageHeader script="club" title="Finances" description="Every payment and reimbursement is in one append-only ledger. Only admins can see the club's finances." />
       <ErrorState error={s.error} onRetry={() => s.refetch()} className="mb-4" />
       {/* Summary figures first: 2-up on phones, 4 from lg. */}
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">

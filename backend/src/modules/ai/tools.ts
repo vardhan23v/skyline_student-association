@@ -22,7 +22,7 @@ export type Tool = {
 
 export function buildTools(db: Knex, user: AuthUser): Tool[] {
   return [
-    { name: 'getFinanceSummary', description: 'Balance and totals by category/event/fundraiser', roles: ['user'], input_schema: { type: 'object', properties: { from: { type: 'string' }, to: { type: 'string' } } },
+    { name: 'getFinanceSummary', description: 'Balance and totals by category/event/fundraiser', roles: ['admin'], input_schema: { type: 'object', properties: { from: { type: 'string' }, to: { type: 'string' } } },
       run: (a) => summary({ from: ymd(a?.from), to: ymd(a?.to) }) },
     { name: 'getFlaggedExpenses', description: 'Submitted expenses with anomaly flags', roles: ['admin'], input_schema: { type: 'object', properties: {} },
       // Explicit columns: receipt_url can be a multi-MB data: URL, which blew the LLM request size.

@@ -156,9 +156,9 @@ describe('AI secretary proposals', () => {
 });
 
 describe('AI secretary roles', () => {
-  it('users get the finance summary only; admins get the admin tools', async () => {
-    const u = await request(app).post('/api/ai/ask').set(auth('member')).send({ prompt: 'any flagged expenses?' });
-    expect(u.body.answer).not.toMatch(/flagged expenses:/); expect(u.body.answer).toMatch(/getFinanceSummary/); expect(u.body.answer).not.toMatch(/getFlaggedExpenses/);
+  it('users get no finance tools (finance is admin-only); admins get the admin tools', async () => {
+    const u = await request(app).post('/api/ai/ask').set(auth('member')).send({ prompt: 'what is our balance?' });
+    expect(u.body.tool_calls ?? []).toEqual([]); expect(u.body.answer).not.toMatch(/getFinanceSummary|getFlaggedExpenses|₹/);
     const a = await request(app).post('/api/ai/ask').set(auth('admin')).send({ prompt: 'any flagged expenses?' });
     expect(a.body.tool_calls.map((c: any) => c.name)).toEqual(['getFlaggedExpenses']);
   });
