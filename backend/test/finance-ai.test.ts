@@ -104,10 +104,10 @@ describe('ledger & summary', () => {
 
   it('fundraiser raised/spent are net of reversals; reversing twice is a 409', async () => {
     const cash = await request(app).post(`/api/admin/fundraisers/${fid}/cash-income`).set(auth('admin')).send({ amount: 400 });
-    expect((await request(app).get(`/api/fundraisers/${fid}`).set(auth('member'))).body.raised).toBe(400);
+    expect((await request(app).get(`/api/admin/fundraisers/${fid}`).set(auth('admin'))).body.raised).toBe(400);
     expect((await request(app).post(`/api/admin/finance/ledger/${cash.body.id}/reverse`).set(auth('admin')).send({ memo: 'typo' })).status).toBe(201);
     expect((await request(app).post(`/api/admin/finance/ledger/${cash.body.id}/reverse`).set(auth('admin')).send({ memo: 'again' })).status).toBe(409);
-    const f = (await request(app).get(`/api/fundraisers/${fid}`).set(auth('member'))).body;
+    const f = (await request(app).get(`/api/admin/fundraisers/${fid}`).set(auth('admin'))).body;
     expect(f.raised).toBe(0); expect(f.spent).toBe(0); expect(f.progress).toBe(0);
   });
 });

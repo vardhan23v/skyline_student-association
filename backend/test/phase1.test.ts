@@ -63,7 +63,7 @@ describe('two-role migration', () => {
       expect(await db('tickets').count({ n: '*' })).toEqual([{ n: 2 }]);
       await expect(db('tickets').insert({ ...t, status: 'pending' })).rejects.toThrow(/UNIQUE/);
 
-      await db.migrate.down();
+      await db.migrate.down({ name: '20261012000000_two_roles.ts' });
       const back = Object.fromEntries((await db('users').select('email', 'role')).map((u) => [u.email, u.role]));
       expect(back).toEqual({ 'admin@m.test': 'admin', 'treasurer@m.test': 'admin', 'volunteer@m.test': 'member', 'member@m.test': 'member' });
     } finally {
@@ -272,7 +272,7 @@ describe('merch orders', () => {
 describe('admin surface', () => {
   /** Every route on the admin router, with params filled in. Checked against the router itself below. */
   const ROUTES: [string, string][] = [
-    ['get', '/overview'],
+    ['get', '/overview'], ['get', '/users'],
     ['get', '/events'], ['post', '/events'], ['get', '/events/1'], ['patch', '/events/1'], ['get', '/events/1/report'], ['get', '/events/1/registrations'],
     ['post', '/checkin'],
     ['get', '/members'], ['get', '/members/1/verify'], ['post', '/members/1/cash-payment'], ['get', '/members/1/dues'], ['patch', '/members/1/membership'], ['post', '/members/1/remind'],
@@ -281,8 +281,8 @@ describe('admin surface', () => {
     ['post', '/announcements'],
     ['get', '/finance/ledger'], ['post', '/finance/ledger/1/reverse'],
     ['post', '/expenses'], ['get', '/expenses'], ['get', '/expenses/1'], ['patch', '/expenses/1/review'], ['patch', '/expenses/1/pay'],
-    ['post', '/fundraisers'], ['patch', '/fundraisers/1'], ['get', '/fundraisers/1/tasks'], ['post', '/fundraisers/1/tasks'], ['post', '/fundraisers/1/cash-income'],
-    ['patch', '/tasks/1'],
+    ['get', '/fundraisers'], ['post', '/fundraisers'], ['get', '/fundraisers/1'], ['patch', '/fundraisers/1'], ['get', '/fundraisers/1/tasks'], ['post', '/fundraisers/1/tasks'], ['post', '/fundraisers/1/cash-income'],
+    ['get', '/tasks'], ['patch', '/tasks/1'],
   ];
 
   it('the list above covers every admin route', () => {

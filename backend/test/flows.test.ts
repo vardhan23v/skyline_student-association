@@ -147,7 +147,8 @@ describe('merch, fundraisers, announcements, AI', () => {
     await request(app).post(`/api/admin/fundraisers/${f.body.id}/cash-income`).set(auth('admin')).send({ amount: 250 });
     const t = await request(app).post(`/api/admin/fundraisers/${f.body.id}/tasks`).set(auth('admin')).send({ title: 'Posters', due_on: '2020-01-01' });
     expect((await request(app).patch(`/api/admin/tasks/${t.body.id}`).set(auth('member')).send({ status: 'done' })).status).toBe(403);
-    const g = await request(app).get(`/api/fundraisers/${f.body.id}`).set(auth('member'));
+    expect((await request(app).get(`/api/fundraisers/${f.body.id}`).set(auth('member'))).status).toBe(403);
+    const g = await request(app).get(`/api/admin/fundraisers/${f.body.id}`).set(auth('admin'));
     expect(g.body.raised).toBe(250); expect(g.body.progress).toBe(0.25); expect(g.body.tasks_overdue).toBe(1);
   });
   it('announcement audience filtering', async () => {

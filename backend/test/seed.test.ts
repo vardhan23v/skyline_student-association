@@ -52,7 +52,15 @@ describe('demo seed', () => {
     expect(products.find((p: any) => p.name === 'T-shirt').variants.map((v: any) => v.size)).toEqual(['S', 'M', 'L', 'XL']);
     const orders = (await request(app).get('/api/orders/mine').set(await login('member@skyline.edu', 'Member@123'))).body;
     expect(orders.map((o: any) => o.status).sort()).toEqual(['fulfilled', 'paid', 'pending']);
-    // The ledger agrees with the paid things: dues 500 + gala 299 + orders (449 + 2×79) + 359.
-    expect((await request(app).get('/api/admin/overview').set(await login('admin@skyline.edu', 'Admin@123'))).body.balance).toBe(500 + 299 + 607 + 359);
+    // The ledger agrees with the paid things: dues 500 + gala 299 + orders (449 + 2×79) + 359, plus fundraiser cash 3,500 + 5,200.
+    expect((await request(app).get('/api/admin/overview').set(await login('admin@skyline.edu', 'Admin@123'))).body.balance).toBe(500 + 299 + 607 + 359 + 3500 + 5200);
+  });
+
+  it('seeds a second admin and the Bake Sale: ₹3,500 of ₹10,000, 1 of 4 tasks done, 1 overdue, behind', async () => {
+    const core = await login('core@skyline.edu', 'Core@123');
+    expect((await request(app).get('/api/me').set(core)).body.user.role).toBe('admin');
+    const list = (await request(app).get('/api/admin/fundraisers').set(core)).body;
+    expect(list.find((f: any) => f.name === 'Bake Sale')).toMatchObject({ status: 'active', raised: 3500, target_amount: 10000, progress_pct: 35, tasks_total: 4, tasks_done: 1, tasks_overdue: 1, days_left: 10, health: 'behind', assignees: ['Asha Rao', 'Core Admin'] });
+    expect(list.find((f: any) => f.status === 'completed')).toMatchObject({ health: 'completed' });
   });
 });

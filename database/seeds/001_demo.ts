@@ -2,10 +2,12 @@ import type { Knex } from 'knex';
 import bcrypt from '../../backend/node_modules/bcryptjs/index.js';
 import { signTicketQr } from '../../backend/src/lib/qr';
 import { academicYearEnd } from '../../backend/src/modules/memberships/service';
+import { recordFundraiserCash } from '../../backend/src/modules/finance/service';
 
 /**
  * Demo data for the two-role model. Logins (change them before real use):
  *   admin@skyline.edu / Admin@123      admin
+ *   core@skyline.edu / Core@123        a second admin, so fundraiser tasks can be split between admins
  *   member@skyline.edu / Member@123    user with an active membership until the academic year ends
  *   student@skyline.edu / Student@123  user without a membership
  * WIPES every table first.
@@ -35,6 +37,7 @@ export async function seed(k: Knex): Promise<void> {
     return id as number;
   };
   const adminId = await user('Asha Rao', 'admin@skyline.edu', 'Admin@123', 'admin');
+  const coreId = await user('Core Admin', 'core@skyline.edu', 'Core@123', 'admin');
   const memberId = await user('Meera Iyer', 'member@skyline.edu', 'Member@123', 'user');
   const studentId = await user('Rohan Das', 'student@skyline.edu', 'Student@123', 'user');
 
@@ -117,4 +120,19 @@ export async function seed(k: Knex): Promise<void> {
   await order('fulfilled', [['T-shirt:M', 1, 449], ['Stickers:Pack of 5', 2, 79]], now - 20 * day, 'o1');
   await order('paid', [['Water bottle:750 ml', 1, 359]], now - 1 * day, 'o2');
   await order('pending', [['Bag:One size', 1, 269]], now, 'o3');
+
+  // Fundraisers: an active bake sale split between both admins (one task done, one overdue, ₹3,500 cash so far)
+  // and a completed one. Cash goes through the finance service, so it lands in the ledger like a real entry.
+  const fundraiser = async (f: { name: string; description: string; target_amount: number; starts_on: string; ends_on: string; status: 'active' | 'completed' },
+    tasks: [string, number, number, 'todo' | 'doing' | 'done'][], cash: [number, string][]) => {
+    const [fid] = await k('fundraisers').insert(f);
+    for (const [title, assignee_id, dueIn, status] of tasks) await k('tasks').insert({ fundraiser_id: fid, title, assignee_id, due_on: ymd(now + dueIn * day), status, done_at: status === 'done' ? new Date(now + (dueIn - 1) * day) : null });
+    for (const [amount, memo] of cash) await recordFundraiserCash(adminId, fid as number, amount, memo, k);
+  };
+  await fundraiser({ name: 'Bake Sale', description: 'Cakes and cookies at the main gate to fund the CodeStorm prizes.', target_amount: 10000, starts_on: ymd(now - 5 * day), ends_on: ymd(now + 10 * day), status: 'active' },
+    [['Bake cakes', adminId, 9, 'doing'], ['Buy supplies', coreId, -2, 'todo'], ['Manage the table', coreId, 10, 'todo'], ['Promote on campus', adminId, -3, 'done']],
+    [[2000, 'Bake sale day 1'], [1500, 'Bake sale day 2']]);
+  await fundraiser({ name: 'Freshers Car Wash', description: 'Weekend car wash in the staff car park for the freshers welcome.', target_amount: 5000, starts_on: ymd(now - 40 * day), ends_on: ymd(now - 30 * day), status: 'completed' },
+    [['Book the car park', adminId, -42, 'done'], ['Buckets and soap', coreId, -35, 'done']],
+    [[5200, 'Car wash takings']]);
 }
