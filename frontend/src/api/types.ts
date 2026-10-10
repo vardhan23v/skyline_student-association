@@ -1,6 +1,7 @@
 export type Role = 'admin' | 'user';
 export type User = { id: number; name: string; email: string; role: Role };
-export type Event = { id: number; title: string; description?: string; starts_at: string; venue?: string; capacity: number; member_price: number; status: 'draft' | 'published' | 'closed'; seats_left: number; price: number; viewer: EventViewer; sales_open_at?: string; sales_close_at?: string };
+/** `price` is the member price (kept for older code); `price_for_you` is what this caller pays, null when only members can register. */
+export type Event = { id: number; title: string; description?: string; starts_at: string; venue?: string; capacity: number; member_price: number; non_member_price: number; members_only: boolean; status: 'draft' | 'published' | 'closed'; seats_left: number; price: number; price_for_you: number | null; viewer: EventViewer; sales_open_at?: string; sales_close_at?: string };
 export type EventViewer = { logged_in: boolean; is_member: boolean; registered: boolean; ticket: { id: number; status: string } | null };
 export type Ticket = { id: number; event_id: number; event_title?: string; starts_at?: string; venue?: string; holder_name: string; ticket_type: string; price: number; status: string; qr_token?: string; qr_data_url?: string; checked_in_at?: string };
 export type Checkout = { provider: string; order_id: string; amount: number; currency: string; key_id?: string; payment_id: number; demo: boolean } | null;
@@ -24,7 +25,7 @@ export type Summary = { balance: number; total_in: number; total_out: number; by
 export type LedgerRow = { id: number; occurred_at: string; direction: 'in' | 'out'; amount: number; category: string; source_type: string; source_id: number; event_title?: string; fundraiser_name?: string; memo?: string; entered_by_name?: string };
 export type Member = { id: number; student_id: string; phone?: string; name: string; email: string; role: Role; membership_status: string | null; expiry_date: string | null; start_date?: string | null; joined_at?: string | null;
   /** Dues for the latest membership period. */ dues_amount: number | string | null; dues_provider: string | null; dues_status: string | null; dues_paid_at: string | null };
-export type EventReport = { event: Event; sold: number; checked_in: number; no_show: number; pending: number; cancelled: number; by_type: { member: number; non_member: number }; revenue: number; spent: number; breakdown?: { ticket_type: string; status: string; n: number | string }[] };
+export type EventReport = { event: Event; sold: number; checked_in: number; no_show: number; pending: number; cancelled: number; by_type: { member: number; non_member: number }; split: Record<'member' | 'non_member', { sold: number; checked_in: number; revenue: number }>; revenue: number; spent: number; breakdown?: { ticket_type: string; status: string; n: number | string }[] };
 export type MembershipOffer = { price: number; currency: string; benefits: string[]; valid_until?: string };
 /** 403 body from members-only endpoints (POST /events/:id/register). */
 export type MembershipRequired = { code: 'MEMBERSHIP_REQUIRED'; message: string; membership: MembershipOffer };

@@ -29,12 +29,23 @@ export function EventReportPage({ id }: { id: number }) {
         <MetricCard label="No-shows" icon={UserX} value={r.no_show} hint={`${r.cancelled} cancelled`} tone={r.no_show ? 'warning' : 'default'} />
         <MetricCard label="Revenue" icon={Wallet} value={money(r.revenue)} hint={`spent ${money(r.spent)} · net ${money(r.revenue - r.spent)}`} />
       </div>
+      <section className="mt-6" aria-labelledby="split-h">
+        <SectionHeader title={<span id="split-h">Members vs non-members</span>} meta={r.event.members_only ? 'members only' : undefined} />
+        <DataTable rows={(['member', 'non_member'] as const).map((k) => ({ key: k, label: k === 'member' ? 'Members' : 'Non-members', price: k === 'member' ? r.event.member_price : r.event.non_member_price, ...r.split[k] }))} rowKey={(x) => x.key} caption="Attendance and revenue by ticket type"
+          columns={[
+            { key: 'type', header: 'Ticket', mobile: 'primary', render: (x) => <><span className="font-medium">{x.label}</span><span className="block t-caption t-num">{Number(x.price) === 0 ? 'Free' : money(x.price)} each</span></> },
+            { key: 'sold', header: 'Registered', align: 'right', render: (x) => <span className="t-num">{x.sold}</span> },
+            { key: 'in', header: 'Checked in', align: 'right', render: (x) => <span className="t-num">{x.checked_in}{x.sold ? <span className="t-caption"> · {Math.round((x.checked_in / x.sold) * 100)}%</span> : null}</span> },
+            { key: 'rev', header: 'Ticket revenue', align: 'right', render: (x) => <span className="t-num font-medium">{money(x.revenue)}</span> },
+          ]} />
+      </section>
       <section className="mt-6">
         <SectionHeader title="Registrations" meta={regs.data ? `${regs.data.length}` : undefined} />
         <DataTable rows={regs.data} loading={regs.isLoading} error={regs.error} onRetry={() => regs.refetch()} rowKey={(t) => t.id} caption="Event registrations" empty={<EmptyState title="Nobody has registered yet" />}
           columns={[
             { key: 'who', header: 'Member', mobile: 'primary', render: (t) => <><span className="font-medium">{t.user_name ?? t.holder_name}</span><span className="block t-caption">{t.holder_email}</span></> },
             { key: 'when', header: 'Registered', render: (t) => datetime(t.created_at), hideOnMobile: true },
+            { key: 'type', header: 'Type', render: (t) => <span className="capitalize">{t.ticket_type.replace('_', '-')}</span>, hideOnMobile: true },
             { key: 'price', header: 'Paid', render: (t) => <span className="t-num">{Number(t.price) === 0 ? 'Free' : money(t.price)}</span>, align: 'right' },
             { key: 'pay', header: 'Payment', render: (t) => <StatusBadge status={t.payment_status} />, hideOnMobile: true },
             { key: 'status', header: 'Ticket', mobile: 'status', render: (t) => <StatusBadge status={t.status} /> },

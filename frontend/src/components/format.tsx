@@ -13,4 +13,12 @@ const parse = (s: string) => {
 };
 export const date = (s?: string | null) => (s ? parse(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 export const datetime = (s?: string | null) => (s ? parse(s).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
+/** An event's prices in one line: "₹199 · members ₹99", "₹49 · members free", "Free", or "Members only · ₹99". */
+export const eventPrice = (e: { member_price: number; non_member_price: number; members_only: boolean }) => {
+  const m = Number(e.member_price), nm = Number(e.non_member_price);
+  const p = (n: number) => (n === 0 ? 'Free' : money(n));
+  if (e.members_only) return `Members only · ${p(m)}`;
+  if (m === nm) return p(m);
+  return `${p(nm)} · members ${m === 0 ? 'free' : money(m)}`;
+};
 export const compact = (n: number) => (n >= 100000 ? `${(n / 100000).toFixed(1)}L` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));

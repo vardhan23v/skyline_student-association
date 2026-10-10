@@ -4,11 +4,11 @@ import type { Event } from '@/api/types';
 import { loginUrl } from '@/auth/redirect';
 import { registerBlock } from '@/pages/public/EventDetailPage';
 import { StatusBadge } from './StatusBadge';
-import { datetime, money } from './format';
+import { datetime, eventPrice } from './format';
 import { EventArt } from './Skyline';
 
 /**
- * Discovery card: date block, title, venue, member price, capacity bar and a Register button.
+ * Discovery card: date block, title, venue, prices (non-member · member), capacity bar and a Register button.
  * The title link covers the card; the button sits above it. Registering hands off to the event page with
  * `?action=register` (or to /login first), which runs the shared useAuthAction flow.
  */
@@ -39,7 +39,7 @@ export function EventCard({ event: e, to = `/events/${e.id}`, preview = false }:
       {e.description && <p className="line-clamp-2 text-sm text-text-secondary">{e.description}</p>}
       <div className="mt-auto">
         <div className="flex items-end justify-between gap-3 text-sm">
-          <span className="font-medium t-num">{e.price === 0 ? 'Free' : money(e.price)}<span className="ml-1.5 t-label">members</span></span>
+          <span className="font-medium t-num">{eventPrice(e)}</span>
           <span className="inline-flex items-center gap-1 t-caption"><Ticket className="size-3" aria-hidden />{soldOut ? 'Sold out' : `${e.seats_left} of ${e.capacity} left`}</span>
         </div>
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-elevated" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${pct}% of seats taken`}>

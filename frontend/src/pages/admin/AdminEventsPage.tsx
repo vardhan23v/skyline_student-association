@@ -13,9 +13,9 @@ import { DataTable } from '@/components/DataTable';
 import { EmptyState, ErrorState } from '@/components/EmptyState';
 import { Modal } from '@/components/Modal';
 import { useToast } from '@/components/Toast';
-import { datetime, money } from '@/components/format';
+import { datetime, eventPrice } from '@/components/format';
 
-const blank = { title: '', description: '', starts_at: '', venue: '', capacity: '100', member_price: '0', status: 'draft' };
+const blank = { title: '', description: '', starts_at: '', venue: '', capacity: '100', member_price: '0', non_member_price: '0', members_only: false, status: 'draft' };
 
 /** `datetime-local` holds wall-clock time with no zone. Show the stored instant in the admin's local time... */
 const toLocalInput = (v: string | number | null | undefined) => {
@@ -42,16 +42,16 @@ function EventsList() {
   const save = useMutation({ mutationFn: () => { const body = { ...f, starts_at: toIso(f.starts_at) }; return editing ? patch(`/admin/events/${editing}`, body) : post('/admin/events', body); }, onSuccess: () => { toast.success(editing ? 'Event updated' : 'Event created'); close(); refresh(); } });
   const setStatus = useMutation({ mutationFn: ({ id, status }: { id: number; status: string }) => patch(`/admin/events/${id}`, { status }), onSuccess: (_r, v) => { toast.success(`Event ${v.status}`); refresh(); }, onError: (e: any) => toast.error('Update failed', e.message) });
   const openNew = () => { save.reset(); setF(blank); setEditing(null); setOpen(true); };
-  const edit = (e: Event) => { save.reset(); setEditing(e.id); setF({ title: e.title, description: e.description ?? '', starts_at: toLocalInput(e.starts_at), venue: e.venue ?? '', capacity: String(e.capacity), member_price: String(e.member_price), status: e.status }); setOpen(true); };
+  const edit = (e: Event) => { save.reset(); setEditing(e.id); setF({ title: e.title, description: e.description ?? '', starts_at: toLocalInput(e.starts_at), venue: e.venue ?? '', capacity: String(e.capacity), member_price: String(e.member_price), non_member_price: String(e.non_member_price), members_only: e.members_only, status: e.status }); setOpen(true); };
   return (
     <>
-      <PageHeader script="manage" title="Events" description="Only members can register, at the member price." actions={<Button onClick={openNew} icon={<Plus className="size-4" aria-hidden />}>New event</Button>} />
+      <PageHeader script="manage" title="Events" description="Members pay the member price and everyone else the non-member price, unless an event is members only." actions={<Button onClick={openNew} icon={<Plus className="size-4" aria-hidden />}>New event</Button>} />
       <DataTable rows={q.data} loading={q.isLoading} error={q.error} onRetry={() => q.refetch()} rowKey={(e) => e.id} caption="All events including drafts" empty={<EmptyState title="No events yet" action={<Button onClick={openNew}>Create the first event</Button>} />}
         columns={[
           { key: 'event', header: 'Event', mobile: 'primary', render: (e) => <><span className="font-medium">{e.title}</span><span className="block t-caption">{e.venue}</span></> },
           { key: 'when', header: 'When', render: (e) => datetime(e.starts_at) },
           { key: 'seats', header: 'Seats', render: (e) => <span className="t-num">{e.capacity - e.seats_left}<span className="text-text-tertiary">/{e.capacity}</span></span>, align: 'right' },
-          { key: 'price', header: 'Price', render: (e) => <span className="t-num">{Number(e.member_price) === 0 ? 'Free' : money(e.member_price)}</span>, hideOnMobile: true },
+          { key: 'price', header: 'Price', render: (e) => <span className="t-num">{eventPrice(e)}</span>, hideOnMobile: true },
           { key: 'status', header: 'Status', mobile: 'status', render: (e) => <StatusBadge status={e.status} /> },
           { key: 'actions', header: '', align: 'right', mobile: 'actions', render: (e) => (
             // Phones: a 2-up grid of full-width 44px buttons at the bottom of the card. Desktop: one compact row.
@@ -63,7 +63,7 @@ function EventsList() {
             </span>
           ) },
         ]} />
-      <Modal open={open} onClose={close} variant="drawer" size="lg" title={editing ? `Edit event #${editing}` : 'New event'} description="Published events are visible and open for member registration immediately."
+      <Modal open={open} onClose={close} variant="drawer" size="lg" title={editing ? `Edit event #${editing}` : 'New event'} description="Published events are visible and open for registration immediately."
         footer={<><Button variant="secondary" onClick={close} type="button">Cancel</Button><Button form="event-form" type="submit" loading={save.isPending}>{editing ? 'Save changes' : 'Create event'}</Button></>}>
         {/* One column on phones, two from lg; native date-time picker; Save is in the sheet's pinned footer. */}
         <form id="event-form" className="grid gap-4 lg:grid-cols-2" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
@@ -73,7 +73,13 @@ function EventsList() {
           <LabeledInput label="Starts" type="datetime-local" required value={f.starts_at} onChange={(e) => setF({ ...f, starts_at: e.target.value })} />
           <LabeledSelect label="Status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option>draft</option><option>published</option><option>closed</option></LabeledSelect>
           <LabeledInput label="Capacity" type="number" inputMode="numeric" enterKeyHint="next" min="1" step="1" required value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} />
-          <LabeledInput label="Price ₹ (members, 0 = free)" type="number" inputMode="decimal" enterKeyHint="done" min="0" step="0.01" required value={f.member_price} onChange={(e) => setF({ ...f, member_price: e.target.value })} />
+          <LabeledInput label="Member price ₹ (0 = free)" type="number" inputMode="decimal" enterKeyHint="next" min="0" step="0.01" required value={f.member_price} onChange={(e) => setF({ ...f, member_price: e.target.value })} />
+          <LabeledInput label="Non-member price ₹ (0 = free)" type="number" inputMode="decimal" enterKeyHint="done" min="0" step="0.01" required disabled={f.members_only} value={f.non_member_price} onChange={(e) => setF({ ...f, non_member_price: e.target.value })}
+            hint={f.members_only ? 'Not used: only members can register.' : undefined} />
+          <label className="inline-flex min-h-12 cursor-pointer items-center gap-3 self-end rounded-full border border-border-strong px-4 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent-soft lg:col-span-2 lg:justify-self-start">
+            <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={f.members_only} onChange={(e) => setF({ ...f, members_only: e.target.checked })} />
+            Members only<span className="t-caption">non-members are asked to join first</span>
+          </label>
           <ErrorState error={save.error} className="lg:col-span-2" />
         </form>
       </Modal>
