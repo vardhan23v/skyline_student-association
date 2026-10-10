@@ -41,3 +41,25 @@ npm --prefix frontend run dev             # Site → http://localhost:5173
 Dark-first "Signal" visual system: tokens in `frontend/src/index.css`, primitives in `frontend/src/components/` (AppShell, LiquidGlassNav, PageHeader, MetricCard, FeatureCard, StatusBadge, DataTable, EmptyState, EventCard, TaskCard, TransactionRow, Button, Input, Modal, Toast). Direction and rationale: [`docs/design.md`](docs/design.md).
 
 Full architecture: [`docs/architecture.md`](docs/architecture.md)
+
+## Deploy on Railway
+
+One Railway project, two services: **MySQL** (Railway template) and this repo as a **web service**. The repo's `railway.json` already sets the build (`npm run build`), start (`npm start`) and health check (`/api/health`). Start runs migrations, optionally seeds, then serves the API and the built frontend from one port.
+
+1. New project → **Deploy from GitHub repo** → pick this repo, root directory `/`.
+2. In the same project, **+ New → Database → MySQL**.
+3. On the web service → **Variables**, add:
+
+   | Variable | Value |
+   |---|---|
+   | `DATABASE_URL` | `${{MySQL.MYSQL_URL}}` (reference, resolves to the private URL) |
+   | `NODE_ENV` | `production` |
+   | `JWT_SECRET` | random, 32+ chars |
+   | `QR_SECRET` | random, 16+ chars |
+   | `SEED_DEMO` | `true` for the first deploy only, then remove it |
+   | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `PAYMENT_WEBHOOK_SECRET` | from Razorpay, when ready |
+   | `RESEND_API_KEY`, `CLOUDINARY_URL` | optional |
+
+   Do not set `PORT`; Railway injects it.
+4. **Settings → Networking → Generate Domain**. Open `https://<domain>/api/health`, then `/`.
+5. Demo logins after seeding: `admin@ssa.test`, `treasurer@ssa.test`, `volunteer@ssa.test`, `member1@ssa.test`, password `password123`. Change or delete them before real use.
