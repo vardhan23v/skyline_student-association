@@ -34,3 +34,21 @@ export async function overview() {
     as_of: today,
   };
 }
+
+/**
+ * GET /api/stats — public headline numbers for the landing page, all counted from the database (no money: finance is
+ * admin-only). Events hosted = non-draft events that have started; members = active memberships covering today.
+ */
+export async function publicStats() {
+  const db = getDb();
+  const today = todayYmd();
+  const now = new Date();
+  const [[{ hosted }], [{ upcoming }], [{ members }], [{ students }], [{ tickets }]] = await Promise.all([
+    db('events').whereNot('status', 'draft').where('starts_at', '<=', now).count({ hosted: '*' }),
+    db('events').where('status', 'published').where('starts_at', '>', now).count({ upcoming: '*' }),
+    db('memberships').where({ status: 'active' }).where('start_date', '<=', today).where('expiry_date', '>=', today).countDistinct({ members: 'member_id' }),
+    db('users').where({ role: 'user', is_active: true }).count({ students: '*' }),
+    db('tickets').whereIn('status', ['confirmed', 'checked_in']).count({ tickets: '*' }),
+  ]);
+  return { events_hosted: Number(hosted), upcoming_events: Number(upcoming), members: Number(members), students: Number(students), tickets_issued: Number(tickets), as_of: today };
+}

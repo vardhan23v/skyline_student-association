@@ -76,6 +76,7 @@ Unpaid holds (a ticket seat, reserved stock) expire after `PENDING_HOLD_MINUTES`
 |---|---|---|---|---|
 | GET | `/health` (no `/api`) | public | Railway health check, plain `ok` | changed (now served by Express) |
 | GET | `/api/health` | public | JSON health | unchanged |
+| GET | `/api/stats` | public | Landing-page counts from the database: `{ events_hosted, upcoming_events, members, students, tickets_issued, as_of }`. No money. Cached 60 s | added |
 | POST | `/api/auth/register` | public | Create an account. Always role `user`; optional `student_id` creates the member profile | changed (role `user`) |
 | POST | `/api/auth/login` | public | Returns `{ user, token }` | unchanged |
 | GET | `/api/me` | user | Account, membership (`is_member`, `membership_expires`, member QR) and tickets | changed (+`is_member`, `membership_expires`) |

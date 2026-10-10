@@ -3,6 +3,10 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { get } from '@/api/client';
+import type { Product } from '@/api/types';
+import { money } from '@/components/format';
 import { merch, merchShopHref, type MerchItem } from '../../data/landing';
 import { useCursorFollow, useFinePointer, useMediaQuery } from '../../hooks/useCursorFollow';
 import { SectionHeading } from './SectionHeading';
@@ -82,7 +86,24 @@ function MerchCard({ item, playing, observe }: { item: MerchItem; playing: boole
   );
 }
 
+/**
+ * The landing's merch with live prices: each item is matched to an active shop product by name, priced from its
+ * variants ("from ₹X" when sizes differ). Items with no active product are hidden once the shop has loaded.
+ */
+function useLiveMerch(): MerchItem[] {
+  const q = useQuery({ queryKey: ['products'], queryFn: () => get<Product[]>('/products') });
+  if (!q.data) return merch;
+  return merch.flatMap((m) => {
+    const p = q.data.find((x) => x.is_active !== false && x.name.trim().toLowerCase() === m.name.toLowerCase());
+    if (!p?.variants.length) return [];
+    const prices = p.variants.map((v) => Number(v.price));
+    const min = Math.min(...prices);
+    return [{ ...m, price: `${prices.some((n) => n !== min) ? 'from ' : ''}${money(min)}` }];
+  });
+}
+
 export function MerchSection() {
+  const items = useLiveMerch();
   // The editorial list with the cursor-follow video is for a mouse on a wide screen; touch and narrow get cards.
   const fine = useFinePointer();
   const wide = useMediaQuery('(min-width: 768px)');
@@ -122,7 +143,7 @@ export function MerchSection() {
         {desktop ? (<>
           {/* Desktop: editorial list with the cursor-follow preview. */}
           <ul className="mt-14 border-t border-cream/20" onPointerLeave={() => setActiveId(null)}>
-            {merch.map((m) => (
+            {items.map((m) => (
               <li key={m.id} className="border-b border-cream/20">
                 <Link
                   to={merchShopHref}
@@ -144,7 +165,7 @@ export function MerchSection() {
         </>) : (
           /* Touch and narrow screens: one card per item; 1 column on phones, 2 from sm, 4 on a wide touch screen. */
           <ul className="mt-8 grid gap-4 sm:mt-12 sm:grid-cols-2 lg:grid-cols-4">
-            {merch.map((m) => <MerchCard key={m.id} item={m} playing={playing === m.id} observe={observe} />)}
+            {items.map((m) => <MerchCard key={m.id} item={m} playing={playing === m.id} observe={observe} />)}
           </ul>
         )}
       </div>

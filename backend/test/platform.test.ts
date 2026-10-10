@@ -222,3 +222,20 @@ describe('cash dues extension', () => {
     expect(await db('ledger_entries').where({ category: 'dues' }).whereIn('source_id', await db('payments').where({ user_id: r.body.user.id }).pluck('id'))).toHaveLength(2);
   });
 });
+
+describe('GET /api/stats (landing page)', () => {
+  it('counts hosted and upcoming events, active members, students and tickets from the database', async () => {
+    const db = getDb();
+    const before = (await request(app).get('/api/stats')).body;
+    expect(before).toEqual(expect.objectContaining({ events_hosted: expect.any(Number), upcoming_events: expect.any(Number), members: expect.any(Number), students: expect.any(Number), tickets_issued: expect.any(Number) }));
+    await db('events').insert([
+      { title: 'past-stat', starts_at: new Date(Date.now() - 864e5), capacity: 5, status: 'closed' },
+      { title: 'draft-stat', starts_at: new Date(Date.now() - 864e5), capacity: 5, status: 'draft' },
+      { title: 'next-stat', starts_at: new Date(Date.now() + 864e5), capacity: 5, status: 'published' },
+    ]);
+    const after = (await request(app).get('/api/stats')).body;
+    expect(after.events_hosted).toBe(before.events_hosted + 1);
+    expect(after.upcoming_events).toBe(before.upcoming_events + 1);
+    expect(Object.keys(after)).not.toContain('balance');
+  });
+});

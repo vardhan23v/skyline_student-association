@@ -24,6 +24,7 @@ import { adminRouter } from './modules/admin/routes';
 import { aiRouter } from './modules/ai/routes';
 import { myMembership } from './modules/memberships/service';
 import { myTickets } from './modules/events/service';
+import { publicStats } from './modules/admin/service';
 
 export function createApp() {
   const app = express();
@@ -44,6 +45,8 @@ export function createApp() {
   api.use(parseAuth);
 
   api.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
+  // Landing-page numbers; cached briefly so a busy homepage doesn't run five COUNTs per visit.
+  api.get('/stats', asyncHandler(async (_req, res) => { res.set('Cache-Control', 'public, max-age=60'); res.json(await publicStats()); }));
   api.use('/auth', authRouter);
   api.get('/me', requireAuth, asyncHandler(async (req, res) => {
     const user = await getDb()('users').where({ id: req.user!.id }).first('id', 'name', 'email', 'role', 'is_active');

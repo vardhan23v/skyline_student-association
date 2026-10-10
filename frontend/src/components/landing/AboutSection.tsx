@@ -1,13 +1,19 @@
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import { get } from '@/api/client';
 import { ClipboardList, Scale, Ticket } from 'lucide-react';
-import { about, stats } from '../../data/landing';
+import { about, statLabels, type StatKey } from '../../data/landing';
 import { SectionHeading } from './SectionHeading';
 import { StatCounter } from './StatCounter';
 import { dur, ease } from '../../lib/motion';
 
 const icons = { ticket: Ticket, clipboard: ClipboardList, scale: Scale };
 
+type PublicStats = Record<StatKey, number> & { upcoming_events: number; as_of: string };
+
 export function AboutSection() {
+  // Counted live from the database (GET /api/stats); nothing is shown until the real numbers arrive.
+  const q = useQuery({ queryKey: ['stats'], queryFn: () => get<PublicStats>('/stats'), staleTime: 60_000 });
   return (
     <section id="about" data-bg="about" data-theme="dark" tabIndex={-1} aria-labelledby="about-h" className="l-section border-t border-cream/20 outline-none">
       <div className="l-gutter mx-auto max-w-7xl">
@@ -38,9 +44,11 @@ export function AboutSection() {
             })}
           </ul>
         </div>
-        <div className="mt-14 grid grid-cols-2 gap-x-4 gap-y-8 md:mt-20 md:gap-x-6 md:gap-y-10 lg:grid-cols-4">
-          {stats.map((s) => <StatCounter key={s.label} stat={s} />)}
-        </div>
+        {q.data && (
+          <div className="mt-14 grid grid-cols-2 gap-x-4 gap-y-8 md:mt-20 md:gap-x-6 md:gap-y-10 lg:grid-cols-4">
+            {statLabels.map((s) => <StatCounter key={s.key} stat={{ ...s, value: q.data[s.key] }} />)}
+          </div>
+        )}
       </div>
     </section>
   );

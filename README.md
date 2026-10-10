@@ -68,6 +68,7 @@ Sign in with a demo account:
 - **Finance (admin-only):** append-only ledger with reversals and CSV export, expense submission with receipts, a two-person review rule, and rule-based anomaly flags.
 - **Announcements:** public or members-only posts, mailed to the list.
 - **AI Secretary (admin-only):** answers from live data through role-filtered tools, with no text-to-SQL; any action it proposes needs explicit confirmation.
+- **Landing page from the database:** upcoming and past events, the stats and merch prices are read live from the API, so the homepage always matches what admins publish.
 - **UI:** one design system on every page (landing, auth, account, shop, admin), mobile-first from 320 px, card-mode tables, bottom sheets, `prefers-reduced-motion` safe.
 
 ---
@@ -219,6 +220,7 @@ Base path `/api`. JSON in and out; auth is `Authorization: Bearer <JWT>`. Errors
 | POST | `/auth/register` · `/auth/login` | public | Always role `user`; optional `student_id` creates the member profile |
 | GET | `/me` | user | Account, membership (`is_member`, `days_left`, `can_renew`, `dues`), member QR, tickets |
 | GET | `/membership/info` | public | Price, benefits, valid until |
+| GET | `/stats` | public | Landing-page counts from the database (events hosted, members, students, tickets); no money; cached 60 s |
 | POST | `/memberships` | user | Start or renew (within 30 days of expiry); returns a checkout |
 | POST | `/payments/demo-confirm/:paymentId` | payer | Demo mode only; same settle path as the webhook |
 </details>
