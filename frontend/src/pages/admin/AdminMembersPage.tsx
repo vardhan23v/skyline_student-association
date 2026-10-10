@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, UserRound, Wallet } from 'lucide-react';
-import { get, post } from '@/api/client';
-import type { Member } from '@/api/types';
+import { BellRing, CalendarClock, Search, UserRound, Wallet } from 'lucide-react';
+import { get, patch, post } from '@/api/client';
+import type { DuesRow, Member } from '@/api/types';
 import { Button } from '@/components/Button';
 import { LabeledInput } from '@/components/Input';
 import { useToast } from '@/components/Toast';
@@ -14,13 +14,33 @@ import { Input, Select } from '@/components/Input';
 import { Modal } from '@/components/Modal';
 import { date, money } from '@/components/format';
 
-/** Admin › Members: searchable directory; the drawer records cash dues to add or extend a membership. */
+/** Dues for the latest period, as shown in the directory: paid (how and when), awaiting payment, or none. */
+function DuesCell({ m }: { m: Member }) {
+  if (!m.dues_status) return <span className="t-caption">No dues</span>;
+  if (m.dues_status !== 'paid') return <StatusBadge status="pending">{m.dues_status === 'pending' ? 'unpaid' : m.dues_status}</StatusBadge>;
+  return <span className="whitespace-nowrap"><span className="t-num font-medium">{money(m.dues_amount)}</span><span className="block t-caption">{m.dues_provider === 'cash' ? 'cash' : 'online'}{m.dues_paid_at ? ` · ${date(m.dues_paid_at)}` : ''}</span></span>;
+}
+
+/** Admin › Members: searchable directory with dues status. The drawer shows dues history, records cash dues (add or
+ *  extend), sets the expiry date and sends a renewal reminder. */
 export function AdminMembersPage() {
   const qc = useQueryClient(); const toast = useToast();
   const [f, setF] = useState({ q: '', status: '', expiring: false });
   const [open, setOpen] = useState<Member | null>(null);
   const [dues, setDues] = useState({ amount: '500', expiry_date: '' });
-  const show = (m: Member | null) => { cash.reset(); setDues({ amount: '500', expiry_date: '' }); setOpen(m); };
+  const [expiry, setExpiry] = useState('');
+  const show = (m: Member | null) => { cash.reset(); setExp.reset(); remind.reset(); setDues({ amount: '500', expiry_date: '' }); setExpiry(m?.expiry_date ? String(m.expiry_date).slice(0, 10) : ''); setOpen(m); };
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['admin', 'overview'] }); };
+  const history = useQuery({ queryKey: ['members', open?.id, 'dues'], queryFn: () => get<DuesRow[]>(`/admin/members/${open!.id}/dues`), enabled: !!open });
+  const setExp = useMutation({
+    mutationFn: (m: Member) => patch(`/admin/members/${m.id}/membership`, { expiry_date: expiry }),
+    onSuccess: () => { refresh(); toast.success('Expiry updated', `Membership now runs until ${date(expiry)}.`); setOpen(null); },
+  });
+  const remind = useMutation({
+    mutationFn: (m: Member) => post<{ sent: boolean; email: string }>(`/admin/members/${m.id}/remind`),
+    onSuccess: (r) => toast.success(r.sent ? 'Reminder sent' : 'Reminder queued', `Renewal email to ${r.email}.`),
+    onError: (e: Error) => toast.error('Could not send the reminder', e.message),
+  });
   const cash = useMutation({
     mutationFn: (m: Member) => post<{ expiry_date: string; extended: boolean }>(`/admin/members/${m.id}/cash-payment`, { amount: Number(dues.amount), expiry_date: dues.expiry_date || undefined }),
     onSuccess: (r) => { qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['admin', 'overview'] }); toast.success(r.extended ? 'Membership extended' : 'Membership activated', `Active until ${date(r.expiry_date)}. Ledger entry written.`); setOpen(null); },
@@ -45,6 +65,7 @@ export function AdminMembersPage() {
           { key: 'email', header: 'Email', render: (m) => <span className="text-text-secondary">{m.email}</span>, hideOnMobile: true },
           { key: 'status', header: 'Membership', mobile: 'status', render: (m) => <StatusBadge status={m.membership_status} /> },
           { key: 'exp', header: 'Expires', render: (m) => { const d = days(m.expiry_date); return <span className={d != null && d <= 14 && d >= 0 ? 'text-warning' : ''}>{date(m.expiry_date)}{d != null && d >= 0 && d <= 14 && <span className="block t-caption">in {d}d</span>}</span>; } },
+          { key: 'dues', header: 'Dues', render: (m) => <DuesCell m={m} /> },
           { key: 'joined', header: 'Joined', render: (m) => date(m.joined_at), hideOnMobile: true },
         ]} />
       <Modal open={!!open} onClose={() => show(null)} variant="drawer" title={open?.name ?? ''} description={open?.email}
@@ -58,6 +79,34 @@ export function AdminMembersPage() {
             <div><dt className="t-label">Membership</dt><dd className="mt-1"><StatusBadge status={open.membership_status} /></dd></div>
             <div><dt className="t-label">Expires</dt><dd className="mt-0.5">{date(open.expiry_date)}</dd></div>
           </dl>
+        )}
+        {open && (
+          <section className="mt-6 border-t border-border pt-5" aria-labelledby="dues-h">
+            <h3 id="dues-h" className="t-section">Dues history</h3>
+            {history.isLoading ? <p className="t-caption mt-2">Loading…</p> : !history.data?.length ? <p className="t-caption mt-2">No dues recorded yet.</p> : (
+              <ul className="mt-2 divide-y divide-border text-sm">
+                {history.data.map((d) => (
+                  <li key={d.membership_id} className="flex items-start justify-between gap-3 py-2">
+                    <span><span className="block">{date(d.start_date)} – {date(d.expiry_date)}</span><span className="t-caption">{d.paid ? `Paid ${d.method === 'cash' ? 'in cash' : 'online'}${d.paid_at ? ` on ${date(d.paid_at)}` : ''}` : 'Not paid'}</span></span>
+                    <span className="shrink-0 text-right"><span className="block t-num font-medium">{d.amount != null ? money(d.amount) : '—'}</span><StatusBadge status={d.status} /></span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+        {open && (open.membership_status === 'active' || open.membership_status === 'expired') && (
+          <form className="mt-6 space-y-3 border-t border-border pt-5" onSubmit={(e) => { e.preventDefault(); setExp.mutate(open); }}>
+            <h3 className="t-section">Set expiry date</h3>
+            <p className="t-caption">Changes the end of the latest paid period: correct a date, extend it, or end it early. No ledger entry is written; use cash dues above to record money.</p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="flex-1"><LabeledInput label="Membership ends" type="date" required min={new Date().toISOString().slice(0, 10)} value={expiry} onChange={(e) => setExpiry(e.target.value)} /></div>
+              <Button type="submit" variant="secondary" loading={setExp.isPending} disabled={!expiry} icon={<CalendarClock className="size-4" aria-hidden />}>Set expiry</Button>
+            </div>
+            <ErrorState error={setExp.error} />
+            <Button type="button" variant="ghost" className="w-full sm:w-auto" loading={remind.isPending} onClick={() => remind.mutate(open)} icon={<BellRing className="size-4" aria-hidden />}>Send renewal reminder now</Button>
+            <p className="t-caption">Reminders also go out automatically 14 days before expiry and on the day.</p>
+          </form>
         )}
         {open && (
           <form id="dues-form" className="mt-6 space-y-3 border-t border-border pt-5" onSubmit={(e) => { e.preventDefault(); cash.mutate(open); }}>

@@ -10,7 +10,11 @@ import { Button } from '@/components/Button';
 import { Input, LabeledSelect } from '@/components/Input';
 import { ErrorState } from '@/components/EmptyState';
 
-type Result = { ok: boolean; reason?: string; ticket?: { holder_name: string; ticket_type: string; status: string }; membership_active?: boolean };
+type Result = { ok: boolean; reason?: string; ticket?: { holder_name: string; ticket_type: string; status: string }; membership_active?: boolean;
+  /** Membership mode: who the member QR (or student ID) belongs to and until when they're covered. */
+  member?: { name: string; student_id: string; expiry_date?: string | null } };
+/** Tickets admit people to the selected event (once each); Membership checks a member QR or student ID, any number of times. */
+type Mode = 'tickets' | 'members';
 
 /** The camera decodes ~8 frames/s, so a code held in view is read many times; ignore repeats of it for this long. */
 const SAME_CODE_MS = 4000;
@@ -54,6 +58,9 @@ export function ScannerPage() {
   const inFlight = useRef(false);
   const lastRead = useRef<{ token: string; at: number } | null>(null);
   const eventRef = useRef<number | ''>('');
+  const [mode, setModeState] = useState<Mode>('tickets');
+  const modeRef = useRef<Mode>('tickets');
+  const setMode = (m: Mode) => { modeRef.current = m; setModeState(m); setLast(null); lastRead.current = null; };
   const seq = useRef(0);
 
   // The camera callback is bound once per start; read the event lock through a ref instead of restarting the camera.
@@ -69,11 +76,22 @@ export function ScannerPage() {
     inFlight.current = true; setBusyState(true);
     let r: Result;
     try {
+      if (modeRef.current === 'members') {
+        // A member QR is a signed token (three dot-separated parts); anything else is treated as a student ID.
+        const jwt = /^[\w-]+\.[\w-]+\.[\w-]+$/.test(token);
+        const url = jwt ? `/api/admin/members/x/verify?qr_token=${encodeURIComponent(token)}` : `/api/admin/members/${encodeURIComponent(token)}/verify`;
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${getToken()}` } });
+        const body = await res.json().catch(() => null);
+        r = res.ok && body
+          ? { ok: !!body.valid, reason: body.valid ? undefined : body.reason, member: body.member ? { ...body.member, expiry_date: body.expiry_date } : undefined }
+          : { ok: false, reason: res.status === 401 ? 'Session expired. Sign in again.' : res.status === 429 ? 'Too many scans. Wait a few seconds.' : body?.error || `Check failed (${res.status}).` };
+      } else {
       const res = await fetch('/api/admin/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ qr_token: token, event_id: eventRef.current || undefined }) });
       const body = await res.json().catch(() => null);
       // 200 and 409 carry a check-in result; anything else (401/403/429/400) is an error envelope or plain text.
       if ((res.ok || res.status === 409) && body && typeof body.ok === 'boolean') r = { ...body, reason: localTimes(body.reason) };
-      else r = { ok: false, reason: res.status === 401 ? 'Session expired. Sign in again.' : res.status === 429 ? 'Too many scans. Wait a few seconds.' : res.status === 400 ? 'Not a ticket QR code.' : body?.error || `Check-in failed (${res.status}).` };
+      else r = { ok: false, reason: res.status === 401 ? 'Session expired. Sign in again.' : res.status === 429 ? 'Too many scans. Wait a few seconds.' : res.status === 400 ? 'Not a ticket QR code. Switch to Membership to check a member QR.' : body?.error || `Check-in failed (${res.status}).` };
+      }
     } catch {
       r = { ok: false, reason: 'Network error. Try again.' };
       lastRead.current = null; // let the camera retry the same code
@@ -81,7 +99,7 @@ export function ScannerPage() {
     if (navigator.vibrate) navigator.vibrate(r.ok ? 40 : [60, 40, 60]);
     const entry = { ...r, at: new Date().toLocaleTimeString(), id: ++seq.current };
     setLast(r); setLog((l) => [entry, ...l].slice(0, 20));
-    if (r.ok && eventRef.current) qc.invalidateQueries({ queryKey: ['admin', 'events', eventRef.current, 'report'] });
+    if (r.ok && !r.member && eventRef.current) qc.invalidateQueries({ queryKey: ['admin', 'events', eventRef.current, 'report'] });
   };
   /** Clear the result and start reading again (the camera paused on the last code). */
   const scanNext = () => {
@@ -115,19 +133,24 @@ export function ScannerPage() {
     <div role="status" aria-live="assertive" aria-atomic="true" className={`flex flex-col items-center justify-center rounded-[var(--radius-xl)] border p-5 text-center transition-colors ${!last ? 'card-sunken min-h-40 text-text-tertiary lg:min-h-56' : last.ok ? 'border-success/50 bg-success-soft text-success' : 'border-danger/50 bg-danger-soft text-danger'} ${last && camera ? 'absolute inset-0 z-10 !bg-midnight/90 backdrop-blur-sm' : 'min-h-40'}`} style={{ transitionDuration: 'var(--dur-base)' }}>
       {!last ? <><Camera className="size-8" aria-hidden /><p className="mt-2 text-sm">Waiting for the first scan</p></> : (<>
         {last.ok ? <CheckCircle2 className="size-16" aria-hidden /> : <XCircle className="size-16" aria-hidden />}
-        <p className="mt-3 font-display text-3xl font-bold uppercase leading-tight tracking-wide text-text-primary">{last.ok ? 'Admit' : 'Stop'}</p>
-        <p className="mt-1 text-xl">{last.ok ? last.ticket?.holder_name : last.reason}</p>
+        <p className="mt-3 font-display text-3xl font-bold uppercase leading-tight tracking-wide text-text-primary">{mode === 'members' ? (last.ok ? 'Member' : 'Not a member') : last.ok ? 'Admit' : 'Stop'}</p>
+        <p className="mt-1 text-xl">{mode === 'members' ? last.member?.name ?? last.reason : last.ok ? last.ticket?.holder_name : last.reason}</p>
+        {mode === 'members' && last.member && <p className="mt-1 text-sm opacity-90"><span className="font-mono">{last.member.student_id}</span>{last.ok && last.member.expiry_date ? ` · active until ${new Date(last.member.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : !last.ok && last.reason ? ` · ${last.reason}` : ''}</p>}
         {last.ticket && <p className="mt-1 text-sm opacity-90 capitalize">{!last.ok && `${last.ticket.holder_name} · `}{last.ticket.ticket_type.replace('_', ' ')}{last.ok && (last.membership_active ? ' · active member' : ' · non-member')}</p>}
       </>)}
     </div>
   );
   return (
     <>
-      <PageHeader eyebrow="Check-in" script="door" title="Scanner" description="Pick the event, then scan. Each QR works exactly once." className="!mb-4 md:!mb-8" />
+      <PageHeader eyebrow="Check-in" script="door" title="Scanner" description={mode === 'tickets' ? 'Pick the event, then scan tickets. Each ticket QR works exactly once.' : 'Scan a member QR (from their account page) or type a student ID to check their membership.'} className="!mb-4 md:!mb-8" />
+      <div role="radiogroup" aria-label="What to scan" className="mb-4 flex gap-2">
+        <button type="button" role="radio" aria-checked={mode === 'tickets'} className="chip" onClick={() => setMode('tickets')}>Tickets</button>
+        <button type="button" role="radio" aria-checked={mode === 'members'} className="chip" onClick={() => setMode('members')}>Membership</button>
+      </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-3">
           <div className="card space-y-3 !p-4 sm:!p-5">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+            {mode === 'tickets' && <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
               <LabeledSelect label="Event" value={eventId} onChange={(e) => setEventId(e.target.value ? Number(e.target.value) : '')} hint={!eventId ? 'Locking to an event rejects tickets for other events.' : undefined}>
                 <option value="">Any event (not recommended)</option>{live.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
               </LabeledSelect>
@@ -137,6 +160,7 @@ export function ScannerPage() {
                 <span className="t-num font-display text-lg font-bold leading-none">{eventId && r ? <>{r.checked_in}<span className="text-sm font-medium text-text-tertiary">/{r.sold}</span></> : '—'}</span>
               </div>
             </div>
+            }
             <Button variant={camera ? 'danger' : 'primary'} className="w-full !min-h-12" onClick={() => { setCamErr(null); setCamera((c) => !c); }} icon={camera ? <CameraOff className="size-4" aria-hidden /> : <Camera className="size-4" aria-hidden />}>{camera ? 'Stop camera' : 'Start camera'}</Button>
             <ErrorState error={camErr ? new Error(camErr) : null} />
             {/* Square, full width (capped in landscape so the result and controls stay on screen). */}
@@ -150,14 +174,14 @@ export function ScannerPage() {
           {/* Keep the typed token if a check is already running, instead of silently discarding it. */}
           <form className="card flex gap-2 !p-3" onSubmit={(e) => { e.preventDefault(); const t = manual.trim(); if (!t || inFlight.current) return; setManual(''); void submit(t); }}>
             <label htmlFor="manual" className="sr-only">QR token</label>
-            <Input id="manual" placeholder="…or paste a QR token" value={manual} onChange={(e) => setManual(e.target.value)} autoComplete="off" autoCapitalize="none" spellCheck={false} enterKeyHint="go" />
+            <Input id="manual" placeholder={mode === 'tickets' ? '…or paste a QR token' : '…or type a student ID / paste a member QR'} value={manual} onChange={(e) => setManual(e.target.value)} autoComplete="off" autoCapitalize="none" spellCheck={false} enterKeyHint="go" />
             <Button type="submit" variant="secondary" loading={busyState} className="shrink-0">Check</Button>
           </form>
         </div>
         <div className="card self-start">
           <SectionHeader title="Recent scans" meta={`${log.length}`} as="h3" />
           {log.length === 0 ? <p className="t-caption">Nothing scanned yet.</p> : (
-            <ol className="divide-y divide-border text-sm">{log.map((x) => <li key={x.id} className="flex items-center gap-2 py-2"><span className={`font-mono text-xs ${x.ok ? 'text-success' : 'text-danger'}`}>{x.at}</span>{x.ok ? <CheckCircle2 className="size-3.5 shrink-0 text-success" aria-hidden /> : <XCircle className="size-3.5 shrink-0 text-danger" aria-hidden />}<span className="truncate">{x.ticket?.holder_name ?? ''}{x.reason ? <span className="text-text-secondary"> {x.reason}</span> : null}</span></li>)}</ol>
+            <ol className="divide-y divide-border text-sm">{log.map((x) => <li key={x.id} className="flex items-center gap-2 py-2"><span className={`font-mono text-xs ${x.ok ? 'text-success' : 'text-danger'}`}>{x.at}</span>{x.ok ? <CheckCircle2 className="size-3.5 shrink-0 text-success" aria-hidden /> : <XCircle className="size-3.5 shrink-0 text-danger" aria-hidden />}<span className="truncate">{x.ticket?.holder_name ?? x.member?.name ?? ''}{x.reason ? <span className="text-text-secondary"> {x.reason}</span> : null}</span></li>)}</ol>
           )}
         </div>
       </div>
