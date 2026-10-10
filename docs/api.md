@@ -98,7 +98,7 @@ Unpaid holds (a ticket seat, reserved stock) expire after `PENDING_HOLD_MINUTES`
 | GET | `/api/orders` | n/a | Old list | **removed** (use `/orders/mine` or `/admin/orders`) |
 | PATCH | `/api/orders/:id/fulfil` | n/a | Old fulfil | **removed** (use `PATCH /admin/orders/:id`) |
 | GET | `/api/finance/summary` | admin | Balance and totals (admin Finance tab) | admin-only (was any signed-in user) |
-| GET | `/api/fundraisers`, `/api/fundraisers/:id` | user | Progress from the ledger | unchanged |
+| GET | `/api/fundraisers`, `/api/fundraisers/:id` | admin | Same as `/api/admin/fundraisers` | admin-only since Phase 2.5 (was any signed-in user) |
 | GET | `/api/expenses/:id/receipt` | signed link | Receipt file behind the HMAC link in admin expense rows | unchanged |
 | POST | `/api/webhooks/payment` | Razorpay (HMAC) | Settles payments, idempotent | changed (shared settle path; contract unchanged) |
 | POST | `/api/ai/ask` | user | AI Secretary. Tools are filtered by role: admins get all of them; users get none (finance is admin-only) and an "admins only" answer | changed (two roles; finance tool admin-only since Phase 4) |
@@ -157,12 +157,15 @@ Errors are **401** (signed out), **403** `MEMBERSHIP_REQUIRED`, **409** `ALREADY
 | GET | `/api/admin/expenses/:id` | One expense | moved from `GET /expenses/:id` |
 | PATCH | `/api/admin/expenses/:id/review` | Approve or reject. **Not your own**: another admin reviews | moved from `PATCH /expenses/:id/review` (was treasurer) |
 | PATCH | `/api/admin/expenses/:id/pay` | Mark paid, writing a ledger `out` row | moved from `PATCH /expenses/:id/pay` (was treasurer) |
+| GET | `/api/admin/users?role=admin` | Active accounts `[{ id, name, email }]` for the assignee picker | added (Phase 2.5) |
+| GET | `/api/admin/fundraisers`, `/api/admin/fundraisers/:id` | Progress, task counts, `days_left`, `assignees`, `health` (rules in architecture.md) | added (Phase 2.5) |
 | POST | `/api/admin/fundraisers` | Create | moved from `POST /fundraisers` |
 | PATCH | `/api/admin/fundraisers/:id` | Edit | moved from `PATCH /fundraisers/:id` |
-| GET | `/api/admin/fundraisers/:id/tasks` | Task board with `overdue` | moved from `GET /fundraisers/:id/tasks` (was volunteer) |
+| GET | `/api/admin/fundraisers/:id/tasks` | Task board: `assignee: { id, name } \| null`, `overdue`, overdue first then by due date | moved from `GET /fundraisers/:id/tasks` (was volunteer) |
+| GET | `/api/admin/tasks` | Same rows, filtered by `fundraiser_id`, `assignee_id`, `status`, `overdue=true` | added (Phase 2.5) |
 | POST | `/api/admin/fundraisers/:id/tasks` | Add a task | moved from `POST /fundraisers/:id/tasks` |
 | POST | `/api/admin/fundraisers/:id/cash-income` | Record cash income to the ledger | moved from `POST /fundraisers/:id/cash-income` (was treasurer) |
-| PATCH | `/api/admin/tasks/:id` | Assign, change status, set due date | moved from `PATCH /tasks/:id` |
+| PATCH | `/api/admin/tasks/:id` | Assign, change status, set due date. The assignee must be an active admin or `null`, else 400 `INVALID_ASSIGNEE` (also on create) | moved from `PATCH /tasks/:id` |
 
 #### `GET /api/admin/orders`
 

@@ -126,8 +126,8 @@ Types abbreviated; all tables have `id BIGINT PK AUTO_INCREMENT`, `created_at`, 
 | `product_variants` | product_id, size, price, member_price, stock, reserved | `UNIQUE(product_id, size)`. Available = `stock - reserved`. |
 | `orders` | user_id, subtotal, total, payment_id, status ENUM(pending, paid, fulfilled, cancelled), fulfilled_at | |
 | `order_items` | order_id, variant_id, qty, unit_price | Price snapshot at order time. |
-| `fundraisers` | name, description, target_amount, starts_on, ends_on, status ENUM(planning, active, closed) | Raised so far = ledger sum, not a stored column. |
-| `tasks` | fundraiser_id, title, assignee_id (nullable), due_on, status ENUM(todo, doing, done), done_at | Overdue = `due_on < today AND status != 'done'`. |
+| `fundraisers` | name, description, target_amount, starts_on, ends_on, status ENUM(planned, active, completed, cancelled) | Raised so far = ledger sum, not a stored column. Status values renamed in Phase 2.5 (planning → planned, closed → completed). |
+| `tasks` | fundraiser_id, title, assignee_id (nullable, an active admin), due_on, status ENUM(todo, doing, done), done_at | Overdue = `due_on < today AND status != 'done'`. Indexed on (fundraiser_id, status) and assignee_id. |
 | `expenses` | submitted_by, event_id (nullable), fundraiser_id (nullable), amount, category, description, receipt_url, receipt_hash, status ENUM(submitted, approved, rejected, paid), reviewed_by, reviewed_at, review_note, flags JSON | `receipt_hash` = SHA-256 of the uploaded file; duplicates are a flag. |
 | `ledger_entries` | direction ENUM(in, out), amount, category ENUM(dues, ticket, merch, fundraiser, reimbursement, other), source_type, source_id, event_id (nullable), fundraiser_id (nullable), memo, entered_by, occurred_at | **Append-only.** `UNIQUE(source_type, source_id)` guarantees one entry per paid payment / paid expense. Balance = `SUM(in) - SUM(out)`. Corrections are reversing entries, never updates. |
 | `ai_audit` | user_id, prompt, tool_calls JSON, response, proposal_id, confirmed_at | Every secretary interaction is logged. |
@@ -173,10 +173,10 @@ Base path `/api`. All routes except `auth/*`, `GET events`, `GET announcements`,
 | GET | `/orders` · `GET /orders/:id` | owner/admin | |
 | PATCH | `/orders/:id/fulfil` | admin | Mark handed over |
 | **Fundraisers & tasks** | | | |
-| GET/POST | `/fundraisers` | member / admin | List with progress (raised vs target, tasks done/total) |
-| GET/POST | `/fundraisers/:id/tasks` | volunteer / admin | Board |
-| PATCH | `/tasks/:id` | assignee/admin | Status, reassign, due date |
-| POST | `/fundraisers/:id/cash-income` | treasurer | Record bake-sale cash → ledger |
+| GET/POST | `/admin/fundraisers` · `GET/PATCH /admin/fundraisers/:id` | admin | List with progress, task counts, days left and health (below) |
+| GET/POST | `/admin/fundraisers/:id/tasks` · `GET /admin/tasks?fundraiser_id=&assignee_id=&status=&overdue=true` | admin | Board, overdue first |
+| PATCH | `/admin/tasks/:id` | admin | Status, reassign (admins only, else 400 `INVALID_ASSIGNEE`), due date |
+| POST | `/admin/fundraisers/:id/cash-income` | admin | Record bake-sale cash → ledger |
 | **Finance** | | | |
 | POST | `/expenses` | volunteer | Submit reimbursement with receipt upload |
 | GET | `/expenses` | treasurer (own: any) | Filter by status/flagged |
@@ -278,6 +278,7 @@ Result: the semester report can answer "every expense a volunteer was reimbursed
 | Payment confirmed only by provider | Webhook with HMAC; `payments.status` flips to `paid` nowhere else |
 | No double-counting | `UNIQUE(provider_payment_id)`; `UNIQUE(ledger_entries.source_type, source_id)` |
 | Cash is still recorded | Treasurer-only "record cash" endpoints create `payments(provider='cash')` and ledger rows like any other income |
+| Fundraiser health is derived on the server | See *Fundraiser health* below |
 | Reports are derived, never stored | Balance, event revenue, fundraiser progress are all `SUM()` over `ledger_entries`; no column can drift |
 | Mistakes are visible | Ledger is append-only; a correction is a reversing entry with a memo |
 | Everything links back | Each ledger row has `source_type/source_id`; the treasurer's report drills into the payment, ticket, order or expense (with receipt) |
@@ -446,3 +447,19 @@ Railway settings: Root Directory = repo root (so the build can see both folders)
 10. **Hardening** — permission tests, webhook idempotency, concurrency tests, CSV export.
 
 Hackathon cut: steps 1–4 fully, 9 (both), a minimal 6; stub 5 and 7 with seeded read-only screens if time runs out.
+
+## Fundraiser health
+
+`fundraiserProgress()` (backend/src/modules/fundraisers/routes.ts) returns each fundraiser with `raised` and `spent`
+(ledger sums, net of reversals; never stored or accepted from the client), `progress_pct` (raised / target × 100, one
+decimal, uncapped, `null` when the target is 0), task counts (`tasks_total`, `tasks_todo`, `tasks_doing`, `tasks_done`,
+`tasks_overdue`), `task_completion_pct` (`null` with no tasks), `days_left` (to `ends_on` in the club time zone, negative
+once past, `null` without an end date), `assignees` and `health`. Health rules, first match wins (`fundraiserHealth()`):
+
+| `health` | Rule |
+|---|---|
+| `completed` | `status = 'completed'` |
+| `cancelled` | `status = 'cancelled'` |
+| `no_data` | `target_amount = 0` and `tasks_total = 0` |
+| `behind` | `tasks_overdue > 0`, or (`days_left < 0` and `raised < target_amount`) |
+| `on_track` | otherwise |
