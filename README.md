@@ -4,9 +4,16 @@ The website and club app for the Skyline Student Association (SSA), a student cl
 - **Landing page:** upcoming events, past events, merch, the club story, a photo gallery and a join form.
 - **Behind it:** a Node/Express + MySQL API for memberships, event registration, merch orders, announcements and the club's finances.
 
-> **Status: Phase 1 of 3 is done (backend).** The API now uses two roles, members-only event registration, and a merch orders API with a live admin feed. See [`docs/api.md`](docs/api.md).
+> **Status: Phases 1 and 2 of 3 are done.**
+> - **Phase 1, the API:** two roles, members-only event registration, and an orders API with a live admin feed. See [`docs/api.md`](docs/api.md).
+> - **Phase 2, the frontend:** the app now runs on that API.
+>   - Standalone login and register pages.
+>   - Role-based landing after login: admin → `/admin`, user → `/me`.
+>   - A membership card that resumes the registration once paid.
+>   - Demo checkout.
+>   - A tabbed admin dashboard (`/admin?tab=…`) with a live Orders table.
 >
-> Phase 2 connects the app pages to it. Until then, some older pages still call routes that moved under `/api/admin/*` or were replaced by `POST /api/events/:id/register`.
+> Phase 3 brings every page onto the landing page's visual design.
 
 ## Roles
 

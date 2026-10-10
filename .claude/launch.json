@@ -2,6 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     { "name": "backend", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "cwd": "backend", "port": 3000 },
-    { "name": "frontend", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev", "--", "--port", "5174", "--strictPort"], "cwd": "frontend", "port": 5174 }
+    { "name": "frontend", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev", "--", "--port", "5174", "--strictPort"], "cwd": "frontend", "port": 5174 },
+    { "name": "app-demo", "runtimeExecutable": "bash", "runtimeArgs": ["-c", "npm --prefix backend run build && DEMO_PAYMENTS=true ALLOW_DEMO_SEED=true PORT=8099 npm start"], "port": 8099 }
   ]
 }

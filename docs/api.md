@@ -82,7 +82,7 @@ Unpaid holds (a ticket seat, reserved stock) expire after `PENDING_HOLD_MINUTES`
 | GET | `/api/membership/info` | public | `{ price, currency, benefits[], valid_until }` for the membership card | added |
 | POST | `/api/memberships` | user | Start a membership purchase. Body `{ student_id?, phone? }`. Returns `{ membership_id, payment_id, amount, expiry_date, checkout }` | changed (any user; takes `student_id`; `ALREADY_MEMBER` is 409) |
 | POST | `/api/payments/demo-confirm/:paymentId` | user (payer only) | Confirm a pending payment in demo mode. 404 unless `DEMO_PAYMENTS=true` and no Razorpay keys | added |
-| GET | `/api/events` | public | Published and closed events. Each has `seats_left`, `price` (member price) and `viewer: { logged_in, is_member, registered, ticket }` | changed (`viewer`; drafts moved to admin) |
+| GET | `/api/events` | public | Published and closed events. Each has `seats_left`, `price` (member price) and `viewer: { logged_in, is_member, registered, ticket }`. The temporary `price_for_you` and `you_are_member` fields were removed in Phase 2 | changed (`viewer`; drafts moved to admin) |
 | GET | `/api/events/:id` | public | One event, same shape | changed |
 | POST | `/api/events/:id/register` | member | Register; details below | added |
 | DELETE | `/api/events/:id/register` | user (holder) | Cancel before the event starts. Frees the seat; a paid ticket gets a reversing ledger row and its payment is marked refunded | added |
@@ -138,7 +138,7 @@ Errors are **401** (signed out), **403** `MEMBERSHIP_REQUIRED`, **409** `ALREADY
 | POST | `/api/admin/checkin` | Body `{ qr_token, event_id? }`. Marks the ticket used, once | moved from `POST /checkin` (was volunteer) |
 | GET | `/api/admin/members` | Directory. Filters: `status`, `expiring_within_days`, `q` | moved from `GET /members` |
 | GET | `/api/admin/members/:id/verify` | At-event membership check, by student ID or member QR | moved from `GET /members/:id/verify` (was volunteer) |
-| POST | `/api/admin/members/:id/cash-payment` | Record cash dues: activates the membership and writes a ledger row | moved from `POST /members/:id/cash-payment` (was treasurer) |
+| POST | `/api/admin/members/:id/cash-payment` | Record cash dues, `{ amount, expiry_date? }`. **Add:** with no active membership it starts one today. **Extend:** with one, it adds a period starting the day after the current expiry; `expiry_date` must be later. Either way it writes a ledger row and returns `extended` | moved from `POST /members/:id/cash-payment` (was treasurer); extend added in Phase 2 |
 | GET | `/api/admin/products` | All products including inactive | added |
 | POST | `/api/admin/products` | Create with variants (`size, price, member_price, stock`) | moved from `POST /products` |
 | PATCH | `/api/admin/products/:id` | Edit or hide | moved from `PATCH /products/:id` |
