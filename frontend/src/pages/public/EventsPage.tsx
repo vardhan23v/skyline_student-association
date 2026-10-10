@@ -19,7 +19,7 @@ export function EventsPage() {
     .sort((a, b) => (filter === 'past' ? +new Date(b.starts_at) - +new Date(a.starts_at) : +new Date(a.starts_at) - +new Date(b.starts_at)));
   return (
     <>
-      <PageHeader eyebrow="Events" title="What's on" description={me ? (me.is_member ? 'Your membership is active: register for anything below.' : 'Event registration is for members. Become one from any event.') : 'Event registration is for SSA members. Log in to register.'}
+      <PageHeader script="what's" title="On" description={me ? (me.is_member ? 'Your membership is active: register for anything below.' : 'Event registration is for members. Become one from any event.') : 'Event registration is for SSA members. Log in to register.'}
         actions={<div role="tablist" aria-label="Filter events" className="card-sunken flex p-1">{(['upcoming', 'past', 'all'] as Filter[]).map((f) => <button key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)} className={`interactive min-h-10 rounded-[var(--radius-sm)] px-3 text-xs font-medium capitalize ${filter === f ? 'bg-surface-elevated text-text-primary' : 'text-text-secondary hover:text-text-primary'}`}>{f}</button>)}</div>} />
       {q.isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map((i) => <div key={i} className="card h-52 skeleton" />)}</div>

@@ -28,7 +28,7 @@ export function FinancePublicPage() {
   const group = <T extends { direction: string; total: number }>(rows: T[], key: (r: T) => string | number) => Array.from(new Map(rows.map((r) => [key(r), rows.filter((x) => key(x) === key(r))])).values());
   return (
     <>
-      <PageHeader eyebrow="Finance · transparency" title="Club finances" description="Derived from the append-only ledger. Nothing here is typed in by hand."
+      <PageHeader eyebrow="Transparency" script="club" title="Finances" description="Derived from the append-only ledger. Nothing here is typed in by hand."
         actions={<div className="flex gap-2"><LabeledInput label="From" type="date" value={period.from} onChange={(e) => setPeriod({ ...period, from: e.target.value })} className="!w-40" /><LabeledInput label="To" type="date" value={period.to} onChange={(e) => setPeriod({ ...period, to: e.target.value })} className="!w-40" /></div>} />
       {q.error && <ErrorState error={q.error} onRetry={() => q.refetch()} />}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:gap-4">

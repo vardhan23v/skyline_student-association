@@ -14,7 +14,7 @@ import { datetime, money } from '@/components/format';
 export function EventReportPage({ id }: { id: number }) {
   const q = useQuery({ queryKey: ['admin', 'events', id, 'report'], queryFn: () => get<EventReport>(`/admin/events/${id}/report`) });
   const regs = useQuery({ queryKey: ['admin', 'events', id, 'registrations'], queryFn: () => get<EventRegistrationRow[]>(`/admin/events/${id}/registrations`) });
-  const back = <Link to="/admin?tab=events" className="t-label mb-3 inline-flex items-center gap-1 hover:text-accent"><ArrowLeft className="size-3" aria-hidden />All events</Link>;
+  const back = <Link to="/admin?tab=events" className="t-label mb-3 inline-flex items-center gap-1 hover:text-accent-text"><ArrowLeft className="size-3" aria-hidden />All events</Link>;
   if (q.isLoading) return <>{back}<div className="card"><Skeleton rows={6} /></div></>;
   if (!q.data) return <>{back}<ErrorState error={q.error} onRetry={() => q.refetch()} /></>;
   const r = q.data;
@@ -22,7 +22,7 @@ export function EventReportPage({ id }: { id: number }) {
   return (
     <>
       {back}
-      <PageHeader eyebrow={<>{datetime(r.event.starts_at)}{r.event.venue && ` · ${r.event.venue}`}</>} title={`${r.event.title} — report`} actions={<StatusBadge status={r.event.status} />} />
+      <PageHeader eyebrow={<>{datetime(r.event.starts_at)}{r.event.venue && ` · ${r.event.venue}`}</>} script="report" title={r.event.title} actions={<StatusBadge status={r.event.status} />} />
       <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
         <MetricCard label="Registered" icon={Ticket} value={r.sold} hint={`${r.pending} awaiting payment`} />
         <MetricCard label="Checked in" icon={UserCheck} value={r.checked_in} hint={r.sold ? `${attendance}% attendance` : undefined} tone="accent" />

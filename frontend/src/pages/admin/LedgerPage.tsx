@@ -44,7 +44,7 @@ export function LedgerPage() {
   const reversed = new Set((q.data ?? []).filter((r) => r.source_type === 'reversal').map((r) => Number(r.source_id)));
   return (
     <>
-      <PageHeader eyebrow="Finance" title="Ledger" description="Append-only. Mistakes are fixed with reversing entries, never edits." actions={<Button variant="secondary" onClick={exportCsv} loading={exporting} icon={<Download className="size-4" aria-hidden />}>Export CSV</Button>} />
+      <PageHeader eyebrow="Finance" script="the" title="Ledger" description="Append-only. Mistakes are fixed with reversing entries, never edits." actions={<Button variant="secondary" onClick={exportCsv} loading={exporting} icon={<Download className="size-4" aria-hidden />}>Export CSV</Button>} />
       <div className="card mb-4 flex flex-wrap items-end gap-2 !py-3">
         <LabeledInput label="From" type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} className="!w-40" />
         <LabeledInput label="To" type="date" min={f.from || undefined} value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} className="!w-40" />

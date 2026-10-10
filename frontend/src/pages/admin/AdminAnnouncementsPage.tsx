@@ -21,7 +21,7 @@ export function AdminAnnouncementsPage() {
   const pub = useMutation({ mutationFn: () => post<Announcement>('/admin/announcements', f), onSuccess: (a) => { setF({ title: '', body: '', audience: 'all' }); setConfirm(false); qc.invalidateQueries({ queryKey: ['announcements'] }); toast.success('Published', `Emailed to ${a.email_recipient_count ?? 0} recipients.`); }, onError: () => setConfirm(false) });
   return (
     <>
-      <PageHeader eyebrow="Announcements" title="Compose" description="One post goes to the website archive and the mailing list together. Published posts are permanent." />
+      <PageHeader eyebrow="Announcements" script="compose" title="A post" description="One post goes to the website archive and the mailing list together. Published posts are permanent." />
       <div className="grid gap-5 lg:grid-cols-5">
         <form className="card space-y-4 lg:col-span-3" onSubmit={(e) => { e.preventDefault(); setConfirm(true); }}>
           <LabeledInput label="Title" required maxLength={200} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />

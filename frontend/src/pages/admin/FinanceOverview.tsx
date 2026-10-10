@@ -13,8 +13,8 @@ import { LedgerPage } from './LedgerPage';
 import { ExpenseQueuePage } from './ExpenseQueuePage';
 import { SubmitExpensePage } from './SubmitExpensePage';
 
-/* Greyscale ramp + one accent, as in the reference; category identity comes from the legend text. */
-const palette = ['var(--accent)', '#9aa6c2', '#5f6b88', '#3a4461', '#c7d0e6', '#7cc4ff'];
+/* Crimson, then a cream ramp and flame: the site palette only. Category identity comes from the legend text. */
+const palette = ['var(--accent)', 'rgba(246, 233, 206, 0.85)', 'var(--accent-text)', 'rgba(246, 233, 206, 0.5)', 'rgba(246, 233, 206, 0.28)', 'rgba(193, 18, 31, 0.55)'];
 const tip = { contentStyle: { background: 'var(--surface-elevated)', border: '1px solid var(--border-strong)', borderRadius: 12, fontSize: 12 }, itemStyle: { color: 'var(--text-primary)' } };
 
 /** Module-level so each FinanceSummary re-render doesn't create a new component type and remount the chart. */
@@ -68,7 +68,7 @@ function FinanceSummary({ onOpen }: { onOpen: (v: View) => void }) {
   const flagged = queue.data?.filter((x) => x.flags.length).length ?? 0;
   return (
     <>
-      <PageHeader eyebrow="Finance" title="Club finances" description="Every payment and reimbursement is in one append-only ledger. Members see the summary on the Finance page." />
+      <PageHeader script="club" title="Finances" description="Every payment and reimbursement is in one append-only ledger. Members see the summary on the Finance page." />
       <ErrorState error={s.error} onRetry={() => s.refetch()} className="mb-4" />
       <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
         <MetricCard label="Balance" icon={Wallet} loading={s.isLoading} value={money(s.data?.balance)} tone="accent" />
@@ -80,7 +80,7 @@ function FinanceSummary({ onOpen }: { onOpen: (v: View) => void }) {
         <div className="space-y-5">
           <div className="grid gap-5 md:grid-cols-2"><Donut title="Income by category" data={pie('in')} /><Donut title="Spending by category" data={pie('out')} /></div>
           <section className="card">
-            <SectionHeader title="Recent transactions" actions={<button type="button" onClick={() => onOpen('ledger')} className="t-label hover:text-accent">Full ledger →</button>} />
+            <SectionHeader title="Recent transactions" actions={<button type="button" onClick={() => onOpen('ledger')} className="t-label hover:text-accent-text">Full ledger →</button>} />
             {recent.isLoading ? <Skeleton rows={5} /> : recent.error ? <ErrorState error={recent.error} onRetry={() => recent.refetch()} /> : !recent.data?.length ? <EmptyState title="No ledger entries yet" className="!py-6" /> : <ul>{recent.data.map((r) => <TransactionRow key={r.id} row={r} />)}</ul>}
           </section>
         </div>

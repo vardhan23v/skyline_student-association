@@ -48,7 +48,7 @@ export function MembershipCard({ open, onClose, onPaid, reason }: Props) {
   const o = info.data;
   const profileError = start.error instanceof ApiError && start.error.code === 'PROFILE_REQUIRED' ? null : start.error;
   return (
-    <Modal open onClose={close} size="sm" title={<span className="inline-flex items-center gap-2"><BadgeCheck className="size-4 text-accent" aria-hidden />Become a member</span>}
+    <Modal open onClose={close} size="md" title={<span className="inline-flex items-center gap-2"><BadgeCheck className="size-4 text-accent-text" aria-hidden />Become a member</span>}
       description={reason ?? 'Event registration is for SSA members.'}
       footer={<>
         <Button variant="secondary" onClick={close}>Not now</Button>

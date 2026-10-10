@@ -25,13 +25,13 @@ export function MemberDashboard() {
   const joined = async () => { setJoining(false); await refreshMe(); qc.invalidateQueries(); toast.success('Welcome to SSA', 'Your membership is active.'); };
   useEffect(() => {
     if (!me?.qr_token) return setQr(null);
-    (async () => { try { const QR = await import('qrcode'); setQr(await QR.toDataURL(me.qr_token!, { margin: 1, width: 240, color: { dark: '#000000', light: '#ffffff' } })); } catch { setQr(null); } })(); // dark-on-light: inverted QRs fail many scanners
+    (async () => { try { const QR = await import('qrcode'); setQr(await QR.toDataURL(me.qr_token!, { margin: 1, width: 240, color: { dark: '#0B0B0D', light: '#F6E9CE' } })); } catch { setQr(null); } })(); // dark-on-light (midnight on cream): inverted QRs fail many scanners
   }, [me?.qr_token]);
   if (!me) return null;
   const ms = me.membership;
   return (
     <>
-      <PageHeader eyebrow={me.user.email} title="My account" description="Your membership, tickets and orders." />
+      <PageHeader eyebrow={me.user.email} script="your" title="Account" description="Your membership, tickets and orders." />
       <div className="grid gap-5 lg:grid-cols-3">
         <section className="card glow-horizon flex flex-col" aria-labelledby="ms-h">
           <div className="flex items-start justify-between gap-2"><h2 id="ms-h" className="t-section">Membership</h2><StatusBadge status={me.is_member ? 'active' : ms?.status ?? undefined}>{me.is_member ? 'active' : ms?.status === 'expired' ? 'expired' : 'not a member'}</StatusBadge></div>
@@ -41,11 +41,11 @@ export function MemberDashboard() {
               <div><dt className="t-label">Student ID</dt><dd className="mt-0.5 font-mono">{me.member.student_id}</dd></div>
               <div><dt className="t-label">{me.is_member ? 'Expires' : ms?.status === 'expired' ? 'Expired' : 'Expiry'}</dt><dd className="mt-0.5">{me.membership_expires ? date(me.membership_expires) : ms?.status === 'expired' && ms?.expiry_date ? date(ms.expiry_date) : '—'}</dd></div>
             </dl>
-            {me.is_member && (qr ? <figure className="mt-5 text-center"><img src={qr} alt="Your membership QR code" width={240} height={240} className="mx-auto rounded-[var(--radius-md)] bg-white p-2" /><figcaption className="t-caption mt-2 inline-flex items-center gap-1"><QrCode className="size-3" aria-hidden />Show this at events to verify membership.</figcaption></figure> : <div className="mt-5 mx-auto size-60 skeleton rounded-[var(--radius-md)]" aria-label="Loading QR" />)}
+            {me.is_member && (qr ? <figure className="mt-5 text-center"><img src={qr} alt="Your membership QR code" width={240} height={240} className="mx-auto rounded-[var(--radius-md)] bg-cream p-2" /><figcaption className="t-caption mt-2 inline-flex items-center gap-1"><QrCode className="size-3" aria-hidden />Show this at events to verify membership.</figcaption></figure> : <div className="mt-5 mx-auto size-60 skeleton rounded-[var(--radius-md)]" aria-label="Loading QR" />)}
           </>)}
         </section>
         <section className="lg:col-span-2" aria-labelledby="tk-h">
-          <SectionHeader title={<span id="tk-h">My tickets</span>} meta={`${me.tickets.length}`} actions={<Link to="/events" className="t-label hover:text-accent">Browse events →</Link>} />
+          <SectionHeader title={<span id="tk-h">My tickets</span>} meta={`${me.tickets.length}`} actions={<Link to="/events" className="t-label hover:text-accent-text">Browse events →</Link>} />
           <DataTable rows={me.tickets} rowKey={(t) => t.id} caption="Your tickets" empty={<EmptyState icon={<Ticket className="size-5" aria-hidden />} title="No tickets yet" action={<Link to="/events" className="btn-secondary">Browse events</Link>} />}
             columns={[
               { key: 'event', header: 'Event', render: (t) => <span className="font-medium">{t.event_title}</span> },
@@ -57,7 +57,7 @@ export function MemberDashboard() {
             ]} />
         </section>
         <section className="lg:col-span-3" aria-labelledby="or-h">
-          <SectionHeader title={<span id="or-h">My orders</span>} actions={<Link to="/shop" className="t-label hover:text-accent">Visit the shop →</Link>} />
+          <SectionHeader title={<span id="or-h">My orders</span>} actions={<Link to="/shop" className="t-label hover:text-accent-text">Visit the shop →</Link>} />
           <DataTable rows={orders.data} loading={orders.isLoading} error={orders.error} onRetry={() => orders.refetch()} rowKey={(o) => o.id} caption="Your merchandise orders" empty={<EmptyState icon={<ShoppingBag className="size-5" aria-hidden />} title="No orders yet" action={<Link to="/shop" className="btn-secondary">Visit the shop</Link>} />}
             columns={[
               { key: 'id', header: 'Order', render: (o) => <span className="font-mono">#{o.id}</span> },

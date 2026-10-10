@@ -2,7 +2,7 @@
  * Landing page fonts (self-hosted, stable URLs so index.html can preload the hero weight).
  *
  * Open Sauce Sans — SIL Open Font License 1.1 (public/fonts/open-sauce/OFL.txt), via @fontsource/open-sauce-sans.
- * Latin subset only: glyphs outside it (e.g. ₹) fall back to Manrope in the stack.
+ * Latin subset only: glyphs outside it (e.g. ₹) fall back to the system sans in the stack.
  */
 @font-face { font-family: 'Open Sauce Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/open-sauce/open-sauce-sans-latin-400-normal.woff2') format('woff2'); }
 @font-face { font-family: 'Open Sauce Sans'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/open-sauce/open-sauce-sans-latin-500-normal.woff2') format('woff2'); }

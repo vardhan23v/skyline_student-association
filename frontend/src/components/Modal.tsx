@@ -47,7 +47,7 @@ export function Modal({ open, onClose, title, children, footer, variant = 'modal
     ? `fixed inset-x-0 bottom-0 max-h-[88dvh] rounded-t-[var(--radius-xl)] sm:inset-y-0 sm:right-0 sm:left-auto sm:max-h-none sm:h-full sm:w-full sm:max-w-md sm:rounded-none sm:rounded-l-[var(--radius-xl)] slide-up sm:slide-in-right`
     : `relative w-full ${width} max-h-[90dvh] rounded-[var(--radius-xl)] fade-in`;
   return createPortal(
-    <div className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4 fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center bg-midnight/70 p-0 sm:items-center sm:p-4 fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={`${ids}-title`} aria-describedby={description ? `${ids}-desc` : undefined} tabIndex={-1} className={`glass flex flex-col overflow-hidden outline-none ${shape}`}>
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div className="min-w-0"><h2 id={`${ids}-title`} className="t-section">{title}</h2>{description && <p id={`${ids}-desc`} className="t-caption mt-0.5">{description}</p>}</div>

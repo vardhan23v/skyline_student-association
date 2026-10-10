@@ -13,7 +13,7 @@ export function VerifyMemberPage() {
   const m = useMutation({ mutationFn: () => get<any>(qr.trim() ? `/admin/members/x/verify?qr_token=${encodeURIComponent(qr.trim())}` : `/admin/members/${encodeURIComponent(sid.trim())}/verify`) });
   return (
     <>
-      <PageHeader eyebrow="Check-in" title="Verify membership" description="Type a student ID or paste a member QR token." />
+      <PageHeader eyebrow="Check-in" script="verify" title="Membership" description="Type a student ID or paste a member QR token." />
       <div className="grid gap-4 lg:grid-cols-2">
         <form className="card space-y-4" onSubmit={(e) => { e.preventDefault(); m.mutate(); }}>
           <LabeledInput label="Student ID" placeholder="e.g. SKY2024001" autoComplete="off" value={sid} onChange={(e) => { setSid(e.target.value); setQr(''); m.reset(); }} />

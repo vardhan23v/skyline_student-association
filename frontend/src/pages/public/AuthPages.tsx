@@ -6,27 +6,21 @@ import { destinationFor, safeNext, withParam } from '@/auth/redirect';
 import { Button } from '@/components/Button';
 import { LabeledInput } from '@/components/Input';
 import { ErrorState } from '@/components/EmptyState';
-import { SkylineMark } from '@/components/landing/SectionHeading';
-import { backgrounds } from '@/data/backgrounds';
+import { SectionHeading, SkylineMark } from '@/components/landing/SectionHeading';
+import { BackgroundStage } from '@/components/landing/BackgroundStage';
+import { StudentCursor } from '@/components/cursor/StudentCursor';
+import { MotionConfig, motion } from 'framer-motion';
 
-const hero = backgrounds[0];
-
-/** Landing hero image + scrim behind the auth card. Standalone: no app nav, sidebar or dashboard header. */
+/** Landing hero image (BackgroundStage `still`) behind the auth card, plus the student cursor. No app chrome. */
 function AuthBackdrop({ children }: { children: ReactNode }) {
   return (
-    <div className="landing relative min-h-dvh overflow-hidden">
-      <div className="fixed inset-0" aria-hidden>
-        <picture>
-          <source type="image/avif" srcSet={hero.picture.sources.avif} sizes="100vw" />
-          <source type="image/webp" srcSet={hero.picture.sources.webp} sizes="100vw" />
-          <img src={hero.picture.img.src} srcSet={hero.picture.sources.jpeg} sizes="100vw" alt="" width={hero.picture.img.w} height={hero.picture.img.h}
-            className="h-full w-full object-cover" style={{ objectPosition: hero.focal, backgroundImage: `url(${hero.placeholder})`, backgroundSize: 'cover' }} />
-        </picture>
-        <div className="bg-scrim absolute inset-0" />
-        <div className="absolute inset-0 bg-midnight" style={{ opacity: hero.overlay }} />
+    <MotionConfig reducedMotion="user">
+      <div className="landing relative min-h-dvh overflow-hidden">
+        <BackgroundStage variant="still" />
+        <div className="relative z-[1]">{children}</div>
+        <StudentCursor />
       </div>
-      <div className="relative">{children}</div>
-    </div>
+    </MotionConfig>
   );
 }
 
@@ -41,23 +35,23 @@ function FullScreenLoader() {
   );
 }
 
-function AuthFrame({ title, sub, children, footer }: { title: string; sub?: string; children: ReactNode; footer?: ReactNode }) {
+function AuthFrame({ script, title, sub, children, footer }: { script: string; title: string; sub?: string; children: ReactNode; footer?: ReactNode }) {
   return (
     <AuthBackdrop>
       <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
-        <div className="w-full max-w-md">
+        <motion.div className="w-full max-w-md" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
           <div className="mb-5 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2 rounded-full text-cream" aria-label="Skyline Student Association home">
               <SkylineMark className="h-10 w-10" /><span className="t-nav font-extrabold">SSA</span>
             </Link>
             <Link to="/" className="t-nav inline-flex items-center gap-1.5 text-cream/75 transition-colors hover:text-cream"><ArrowLeft className="h-4 w-4" aria-hidden />Back to site</Link>
           </div>
-          <div className="glass-l rounded-3xl p-6 backdrop-blur-xl md:p-8">
-            <div className="mb-6"><h1 className="t-h3 text-cream">{title}</h1>{sub && <p className="mt-2 text-sm text-cream/70">{sub}</p>}</div>
+          <div className="glass rounded-2xl p-6 md:p-8">
+            <div className="mb-6"><SectionHeading as="h1" size="md" script={script} title={title} />{sub && <p className="mt-3 text-sm text-cream/70">{sub}</p>}</div>
             {children}
           </div>
-          {footer && <div className="mt-4 text-center text-xs text-cream/60">{footer}</div>}
-        </div>
+          {footer && <div className="mt-4 text-center text-xs text-cream/70">{footer}</div>}
+        </motion.div>
       </main>
     </AuthBackdrop>
   );
@@ -84,7 +78,7 @@ export function LoginPage() {
     catch (x) { setErr(x); setBusy(false); }
   };
   return (
-    <AuthFrame title="Welcome back" sub={action === 'register' ? 'Log in to register for the event.' : action === 'checkout' ? 'Log in to place your order.' : 'Log in to your SSA account.'}
+    <AuthFrame script="welcome" title="Back" sub={action === 'register' ? 'Log in to register for the event.' : action === 'checkout' ? 'Log in to place your order.' : 'Log in to your SSA account.'}
       footer={<>Demo: admin@skyline.edu / Admin@123 · member@skyline.edu / Member@123 · student@skyline.edu / Student@123</>}>
       {expired && <p role="status" className="mb-4 rounded-xl border border-cream/20 bg-cream/10 px-3 py-2 text-sm text-cream">Your session expired, please log in again.</p>}
       <form onSubmit={submit} className="space-y-4" noValidate>
@@ -115,7 +109,7 @@ export function RegisterPage() {
     catch (x) { setErr(x); setBusy(false); }
   };
   return (
-    <AuthFrame title="Join SSA" sub="Create your account, then become a member to register for events.">
+    <AuthFrame script="join" title="SSA" sub="Create your account, then become a member to register for events.">
       <form onSubmit={submit} className="space-y-4">
         <LabeledInput label="Full name" autoComplete="name" required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
         <LabeledInput label="Email" type="email" autoComplete="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />

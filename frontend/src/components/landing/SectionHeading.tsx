@@ -1,22 +1,23 @@
 import { motion } from 'framer-motion';
 import { dur, ease } from '../../lib/motion';
 
-type Props = { script: string; title: string; id?: string; align?: 'left' | 'center'; className?: string };
+type Props = { script: string; title: string; id?: string; align?: 'left' | 'center'; className?: string; /** h1 for page headers; sections stay h2. */ as?: 'h1' | 'h2'; /** `md` for app page headers (dashboard, account): smaller than a landing section. */ size?: 'lg' | 'md' };
 
-/** Script accent word paired with a bold, wide-tracked uppercase word: *upcoming* EVENTS. */
-export function SectionHeading({ script, title, id, align = 'left', className = '' }: Props) {
+/** Script accent word paired with a bold, wide-tracked uppercase word: *upcoming* EVENTS. Used by every page header. */
+export function SectionHeading({ script, title, id, align = 'left', className = '', as = 'h2', size = 'lg' }: Props) {
+  const Tag = as === 'h1' ? motion.h1 : motion.h2;
   return (
-    <motion.h2
+    <Tag
       id={id}
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-15% 0px' }}
       transition={{ duration: dur.base, ease: ease.out }}
-      className={`lockup t-h2 text-cream ${align === 'center' ? 'justify-center text-center' : ''} ${className}`}
+      className={`lockup ${size === 'md' ? 't-h2-md' : 't-h2'} text-cream ${align === 'center' ? 'justify-center text-center' : ''} ${className}`}
     >
       <span className="t-script">{script}</span>
       <span className="lockup-sans">{title}</span>
-    </motion.h2>
+    </Tag>
   );
 }
 

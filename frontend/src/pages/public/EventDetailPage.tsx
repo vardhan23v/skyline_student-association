@@ -62,8 +62,8 @@ export function EventDetailPage() {
 
   return (
     <>
-      <Link to="/events" className="t-label mb-3 inline-flex items-center gap-1 hover:text-accent"><ArrowLeft className="size-3" aria-hidden />Events</Link>
-      <PageHeader eyebrow={<span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden />{datetime(e.starts_at)}</span>{e.venue && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{e.venue}</span>}</span>} title={e.title} actions={<StatusBadge status={e.status} />} />
+      <Link to="/events" className="t-label mb-3 inline-flex items-center gap-1 hover:text-accent-text"><ArrowLeft className="size-3" aria-hidden />Events</Link>
+      <PageHeader eyebrow={<span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden />{datetime(e.starts_at)}</span>{e.venue && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{e.venue}</span>}</span>} script="event" title={e.title} actions={<StatusBadge status={e.status} />} />
       <div className="grid gap-5 lg:grid-cols-3">
         <article className="card lg:col-span-2 whitespace-pre-wrap text-[15px] leading-relaxed text-text-secondary glow-corner">{e.description || 'No description yet.'}</article>
         <aside className="card space-y-4 self-start lg:sticky lg:top-28" aria-label="Registration">

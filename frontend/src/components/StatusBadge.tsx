@@ -2,7 +2,7 @@ import { AlertTriangle, Check, CircleDashed, Clock, Lock, X, type LucideIcon } f
 
 type Tone = 'success' | 'info' | 'warning' | 'danger' | 'neutral';
 const toneClass: Record<Tone, string> = {
-  success: 'bg-success-soft text-success', info: 'bg-accent-soft text-accent', warning: 'bg-warning-soft text-warning', danger: 'bg-danger-soft text-danger', neutral: 'bg-surface-elevated text-text-secondary',
+  success: 'bg-success-soft text-success', info: 'bg-cream/10 text-cream', warning: 'bg-warning-soft text-warning', danger: 'bg-danger-soft text-danger', neutral: 'bg-surface-elevated text-text-secondary',
 };
 /** Status is never colour-only: each tone carries an icon and the text itself. */
 const map: Record<string, { tone: Tone; icon: LucideIcon }> = {

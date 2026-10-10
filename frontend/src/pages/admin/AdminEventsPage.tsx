@@ -45,7 +45,7 @@ function EventsList() {
   const edit = (e: Event) => { save.reset(); setEditing(e.id); setF({ title: e.title, description: e.description ?? '', starts_at: toLocalInput(e.starts_at), venue: e.venue ?? '', capacity: String(e.capacity), member_price: String(e.member_price), status: e.status }); setOpen(true); };
   return (
     <>
-      <PageHeader eyebrow="Events" title="Manage events" description="Only members can register, at the member price." actions={<Button onClick={openNew} icon={<Plus className="size-4" aria-hidden />}>New event</Button>} />
+      <PageHeader script="manage" title="Events" description="Only members can register, at the member price." actions={<Button onClick={openNew} icon={<Plus className="size-4" aria-hidden />}>New event</Button>} />
       <DataTable rows={q.data} loading={q.isLoading} error={q.error} onRetry={() => q.refetch()} rowKey={(e) => e.id} caption="All events including drafts" empty={<EmptyState title="No events yet" action={<Button onClick={openNew}>Create the first event</Button>} />}
         columns={[
           { key: 'event', header: 'Event', render: (e) => <><span className="font-medium">{e.title}</span><span className="block t-caption">{e.venue}</span></> },
@@ -58,7 +58,7 @@ function EventsList() {
               <button className="btn-ghost !min-h-9 !px-2.5 !text-xs" onClick={() => edit(e)}><Pencil className="size-3.5" aria-hidden />Edit</button>
               {e.status === 'draft' && <button className="btn-primary !min-h-9 !px-2.5 !text-xs" disabled={setStatus.isPending} onClick={() => setStatus.mutate({ id: e.id, status: 'published' })}>Publish</button>}
               {e.status === 'published' && <button className="btn-secondary !min-h-9 !px-2.5 !text-xs" disabled={setStatus.isPending} onClick={() => setStatus.mutate({ id: e.id, status: 'closed' })}>Close</button>}
-              <Link className="btn-ghost !min-h-9 !px-2.5 !text-xs" to={`/admin?tab=events&event=${e.id}`}><BarChart3 className="size-3.5" aria-hidden />Registrations & report</Link>
+              <Link className="btn-ghost !min-h-9 !px-2.5 !text-xs" to={`/admin?tab=events&event=${e.id}`}><BarChart3 className="size-3.5" aria-hidden />Report<span className="sr-only">, registrations for {e.title}</span></Link>
             </span>
           ) },
         ]} />

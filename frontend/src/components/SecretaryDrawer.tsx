@@ -20,7 +20,7 @@ export function SecretaryDrawer({ open, onClose }: { open: boolean; onClose: () 
   const send = (text = input) => { if (!text.trim()) return; setTurns((t) => [...t, { role: 'user', text }]); ask.mutate(text); setInput(''); };
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [turns, ask.isPending]);
   return (
-    <Modal open={open} onClose={onClose} variant="drawer" title={<span className="inline-flex items-center gap-2"><Sparkles className="size-4 text-accent" aria-hidden />AI Secretary</span>} description="Read-only answers. Actions need your confirmation."
+    <Modal open={open} onClose={onClose} variant="drawer" title={<span className="inline-flex items-center gap-2"><Sparkles className="size-4 text-accent-text" aria-hidden />AI Secretary</span>} description="Read-only answers. Actions need your confirmation."
       footer={<form className="flex w-full gap-2" onSubmit={(e) => { e.preventDefault(); send(); }}><label htmlFor="ai-q" className="sr-only">Ask the secretary</label><Input id="ai-q" placeholder="e.g. what is our balance?" value={input} onChange={(e) => setInput(e.target.value)} autoComplete="off" /><Button type="submit" aria-label="Send" loading={ask.isPending}><Send className="size-4" aria-hidden /></Button></form>}>
       <div className="space-y-3 text-sm" role="log" aria-live="polite">
         {turns.map((t, i) => (

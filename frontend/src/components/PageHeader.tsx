@@ -1,15 +1,17 @@
 import type { ReactNode } from 'react';
+import { SectionHeading } from './landing/SectionHeading';
 
-type Props = { title: ReactNode; eyebrow?: ReactNode; description?: ReactNode; actions?: ReactNode; className?: string };
+/** `script` is the page's one lowercase accent word, e.g. script="your" title="Account" → *your* ACCOUNT. */
+type Props = { script: string; title: string; eyebrow?: ReactNode; description?: ReactNode; actions?: ReactNode; className?: string };
 
-/** Page title block. Eyebrow is the mono meta line (section · date · context). */
-export function PageHeader({ title, eyebrow, description, actions, className = '' }: Props) {
+/** Page title block: the landing SectionHeading (script accent + uppercase title) as the page's h1. */
+export function PageHeader({ script, title, eyebrow, description, actions, className = '' }: Props) {
   return (
-    <header className={`mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 ${className}`}>
+    <header className={`mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 ${className}`}>
       <div className="min-w-0">
-        {eyebrow && <div className="t-label mb-2">{eyebrow}</div>}
-        <h1 className="t-title">{title}</h1>
-        {description && <p className="mt-1.5 text-sm text-text-secondary max-w-2xl">{description}</p>}
+        {eyebrow && <div className="t-label mb-3">{eyebrow}</div>}
+        <SectionHeading as="h1" size="md" script={script} title={title} />
+        {description && <p className="mt-3 max-w-2xl text-sm text-text-secondary">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-end gap-2">{actions}</div>}
     </header>

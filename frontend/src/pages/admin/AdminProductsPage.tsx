@@ -44,7 +44,7 @@ export function AdminProductsPage() {
   };
   return (
     <>
-      <PageHeader eyebrow="Merchandise" title="Products & stock" actions={<Button onClick={openNew} icon={<Plus className="size-4" aria-hidden />}>New product</Button>} />
+      <PageHeader eyebrow="Merchandise" script="products" title="& Stock" actions={<Button onClick={openNew} icon={<Plus className="size-4" aria-hidden />}>New product</Button>} />
       {q.isLoading ? <div className="card"><Skeleton rows={5} /></div> : q.error ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : !q.data?.length ? <EmptyState title="No products yet" action={<Button onClick={openNew}>Add the first product</Button>} /> : (
         <div className="space-y-4">
           {q.data.map((p) => (
@@ -52,7 +52,7 @@ export function AdminProductsPage() {
               <SectionHeader title={<span id={`p-${p.id}`}>{p.name}</span>} meta={p.is_active ? undefined : 'inactive'} />
               <div className="overflow-x-auto"><table className="table min-w-[520px]"><thead><tr><th scope="col">Size</th><th scope="col" className="text-right">Price / member</th><th scope="col" className="text-right">Stock</th><th scope="col" className="text-right">Reserved</th><th scope="col" className="text-right">Available</th><th scope="col" className="text-right">Set stock</th></tr></thead><tbody>
                 {p.variants.map((v) => <tr key={v.id}>
-                  <td><span className="card-sunken inline-flex size-9 items-center justify-center font-mono text-xs">{v.size}</span></td>
+                  <td><span className="card-sunken inline-flex min-h-9 min-w-9 items-center justify-center whitespace-nowrap px-2.5 text-xs font-semibold">{v.size}</span></td>
                   <td className="text-right t-num">{money(v.price)} <span className="text-text-tertiary">/</span> {money(v.member_price)}</td>
                   <td className="text-right t-num">{v.stock}</td><td className="text-right t-num text-text-secondary">{v.reserved}</td>
                   <td className={`text-right t-num font-medium ${v.available === 0 ? 'text-danger' : v.available < 5 ? 'text-warning' : ''}`}>{v.available}{v.available < 5 && <span className="block t-caption font-normal">{v.available === 0 ? 'out' : 'low'}</span>}</td>
@@ -131,7 +131,7 @@ export function AdminOrdersPanel() {
 
   return (
     <>
-      <PageHeader eyebrow="Merchandise" title="Orders" description="New orders and status changes appear here as they happen."
+      <PageHeader eyebrow="Merchandise" script="club" title="Orders" description="New orders and status changes appear here as they happen."
         actions={<span className={`badge ${live === 'live' ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'}`} role="status"><Radio className="size-3" aria-hidden />{live === 'live' ? 'Live' : live === 'connecting' ? 'Connecting…' : 'Refreshing every 10 s'}</span>} />
       <div className="card mb-4 flex flex-wrap items-center gap-2 !py-3" role="search">
         <div className="relative min-w-56 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-tertiary" aria-hidden /><label htmlFor="oq" className="sr-only">Search orders</label><Input id="oq" className="!pl-9" placeholder="Customer name or email" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value, page: 1 })} /></div>
@@ -142,16 +142,16 @@ export function AdminOrdersPanel() {
         rowClassName={(o) => `transition-colors duration-700 ${flash.includes(o.id) ? 'bg-accent-soft' : ''}`}
         empty={<EmptyState title={f.q || f.status ? 'No orders match' : 'No orders yet'} />}
         columns={[
-          { key: 'id', header: 'Order #', render: (o) => <span className="font-mono">#{o.id}</span> },
+          { key: 'id', header: 'Order #', className: 'whitespace-nowrap', render: (o) => <span className="font-mono">#{o.id}</span> },
           { key: 'date', header: 'Date', render: (o) => <span className="whitespace-nowrap">{datetime(o.created_at)}</span>, hideOnMobile: true },
-          { key: 'customer', header: 'Customer', render: (o) => <><span className="font-medium">{o.customer.name}</span>{o.customer.is_member && <span className="ml-1.5 t-label !text-success">member</span>}<span className="block t-caption break-all">{o.customer.email}</span></> },
+          { key: 'customer', header: 'Customer', render: (o) => <><span className="font-medium">{o.customer.name}</span>{o.customer.is_member && <span className="ml-1.5 whitespace-nowrap t-label !text-success">member</span>}<span className="block t-caption break-all">{o.customer.email}</span></> },
           { key: 'items', header: 'Items', render: (o) => <ul className="text-sm text-text-secondary">{o.items.map((i, n) => <li key={n}>{i.product} ({i.size}) × {i.qty}</li>)}</ul> },
-          { key: 'total', header: 'Total', align: 'right', render: (o) => <span className="t-num font-medium">{money(o.total)}</span> },
+          { key: 'total', header: 'Total', align: 'right', className: 'whitespace-nowrap', render: (o) => <span className="t-num font-medium">{money(o.total)}</span> },
           { key: 'payment', header: 'Payment', render: (o) => <StatusBadge status={o.payment_status} />, hideOnMobile: true },
           { key: 'status', header: 'Status', render: (o) => <StatusBadge status={o.status} /> },
           { key: 'action', header: 'Action', align: 'right', render: (o) => NEXT[o.status].length === 0 ? <span className="t-caption">—</span> : (
             <><label htmlFor={`os-${o.id}`} className="sr-only">Change status of order {o.id}</label>
-            <Select id={`os-${o.id}`} className="!min-h-10 !w-auto" value="" disabled={update.isPending && update.variables?.id === o.id} onChange={(e) => e.target.value && change(o, e.target.value as OrderStatus)}>
+            <Select id={`os-${o.id}`} className="!min-h-10 !w-40" value="" disabled={update.isPending && update.variables?.id === o.id} onChange={(e) => e.target.value && change(o, e.target.value as OrderStatus)}>
               <option value="">Mark as…</option>{NEXT[o.status].map((s) => <option key={s} value={s}>{s === 'paid' ? 'Paid (cash received)' : LABEL[s]}</option>)}
             </Select></>
           ) },

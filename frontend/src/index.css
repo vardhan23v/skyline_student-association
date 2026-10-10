@@ -1,54 +1,65 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------
-   SSA "Signal" tokens — dark-first. Every component uses these names;
-   hex values live only here. See docs/design.md.
+   App tokens. Every page (landing, login, account, admin) shares one palette:
+   midnight, cream (with alpha steps), crimson for fills/focus/selection, flame for red
+   text, and three toned status colours. Hex values live only here and in the
+   landing @theme block below; lib/palette.ts mirrors them for JS.
+   Contrast on midnight (and over the dimmed photo backgrounds, worst case in brackets):
+   cream 16.4:1 (14.4) · cream/70 8.2 (7.6) · cream/60 6.2 (5.9) · flame 7.0 (6.2) ·
+   green 11.0 · amber 10.8 · danger 7.7. Crimson is 3.2:1 as text, so it is never used
+   for text: only as a fill (cream on crimson 5.2:1), a focus ring or a border.
    ------------------------------------------------------------------ */
 :root {
   color-scheme: dark;
-  --background: #080B12;            /* Midnight */
-  --surface: #111927;               /* Dark surface */
-  --surface-elevated: #182236;
-  --surface-sunken: #05080e;
-  --text-primary: #F5F7FA;          /* Cloud white */
-  --text-secondary: #8993A4;        /* Cool gray */
-  --text-tertiary: #6B7588;
-  --border: #283140;
-  --border-strong: #364158;
-  --accent: #298DFF;                /* Electric blue · 5.6:1 on Midnight */
-  --accent-strong: #298DFF;
-  --accent-foreground: #080B12;     /* midnight text on blue: 6.3:1 (white would be 3.4:1) */
-  --accent-soft: rgba(41, 141, 255, 0.14);
-  --success: #3fd68f;
-  --success-soft: rgba(63, 214, 143, 0.14);
-  --warning: #ffb547;
-  --warning-soft: rgba(255, 181, 71, 0.14);
-  --danger: #ff6b7a;
-  --danger-soft: rgba(255, 107, 122, 0.14);
-  --info: #7cc4ff;
-  --ring: #6FB2FF;
+  --background: #0B0B0D;                      /* midnight */
+  --surface: rgba(11, 11, 13, 0.55);          /* glass card */
+  --surface-elevated: rgba(11, 11, 13, 0.72);
+  --surface-sunken: rgba(11, 11, 13, 0.35);   /* fields, inset panels */
+  --text-primary: #F6E9CE;                    /* cream */
+  --text-secondary: rgba(246, 233, 206, 0.70);
+  --text-tertiary: rgba(246, 233, 206, 0.60); /* 45% would be 3.9:1, under AA */
+  --border: rgba(246, 233, 206, 0.12);
+  --border-strong: rgba(246, 233, 206, 0.22);
+  --accent: #C1121F;                          /* crimson: fills, rings, selection */
+  --accent-strong: #C1121F;
+  --accent-foreground: #F6E9CE;
+  --accent-soft: rgba(193, 18, 31, 0.20);
+  --accent-text: #FF6B5E;                     /* flame: the landing's red, for red text */
+  --success: #8FD0A4;
+  --success-soft: rgba(143, 208, 164, 0.14);
+  --warning: #E8B86A;
+  --warning-soft: rgba(232, 184, 106, 0.14);
+  --danger: #FF7A70;
+  --danger-soft: rgba(193, 18, 31, 0.22);
+  --info: rgba(246, 233, 206, 0.70);
+  --ring: #C1121F;
 
-  /* Decorative surfaces: theme-derived, never inline hex in components. */
-  --glow-horizon: radial-gradient(60% 55% at 50% 118%, rgba(41, 141, 255, 0.55) 0%, rgba(41, 141, 255, 0.18) 38%, rgba(8, 11, 18, 0) 70%);
-  --glow-corner: radial-gradient(40% 40% at 100% 0%, rgba(41, 141, 255, 0.28) 0%, rgba(8, 11, 18, 0) 70%);
-  --glow-page: radial-gradient(70% 40% at 50% -10%, rgba(41, 141, 255, 0.22) 0%, rgba(8, 11, 18, 0) 60%);
-  --stripes: repeating-linear-gradient(90deg, var(--accent) 0 3px, rgba(41, 141, 255, 0.35) 3px 6px, rgba(255, 255, 255, 0.9) 6px 7px, var(--accent) 7px 14px);
-  --dots: radial-gradient(rgba(137, 147, 164, 0.25) 1px, transparent 1px);
-  --glass-bg: rgba(17, 25, 39, 0.78);
-  --glass-border: rgba(137, 147, 164, 0.16);
-  --glass-highlight: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0) 40%);
+  /* Decorative surfaces: crimson-tinted, never inline hex in components. */
+  --glow-horizon: radial-gradient(60% 55% at 50% 118%, rgba(193, 18, 31, 0.30) 0%, rgba(193, 18, 31, 0.08) 38%, rgba(11, 11, 13, 0) 70%);
+  --glow-corner: radial-gradient(40% 40% at 100% 0%, rgba(193, 18, 31, 0.16) 0%, rgba(11, 11, 13, 0) 70%);
+  --glow-page: none;
+  --stripes: repeating-linear-gradient(90deg, rgba(193, 18, 31, 0.6) 0 3px, rgba(246, 233, 206, 0.12) 3px 6px);
+  --dots: radial-gradient(rgba(246, 233, 206, 0.12) 1px, transparent 1px);
+  --glass-bg: rgba(11, 11, 13, 0.45);
+  --glass-border: rgba(246, 233, 206, 0.10);
+  --blur-glass: 24px;                         /* = Tailwind backdrop-blur-xl */
 
-  --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Primary button fill. The landing's primary is cream; set these to var(--accent) /
+     var(--accent-foreground) to make every primary button crimson instead. */
+  --btn-primary-bg: #F6E9CE;
+  --btn-primary-fg: #0B0B0D;
 
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 10px 30px -18px rgba(0, 0, 0, 0.8);
-  --shadow-float: 0 20px 50px -20px rgba(0, 0, 0, 0.9), 0 0 0 1px var(--glass-border);
-  --blur-glass: 14px;
+  --font-display: 'Open Sauce Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Open Sauce Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace; /* codes only: order ids, QR tokens */
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;   /* cards: rounded-2xl */
+  --radius-xl: 24px;
+  --shadow-card: none;
+  --shadow-float: 0 24px 60px -24px rgba(0, 0, 0, 0.9);
 
   --z-nav: 40;
   --z-drawer: 50;
@@ -58,7 +69,7 @@
   --dur-fast: 120ms;
   --dur-base: 200ms;
   --dur-slow: 320ms;
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* = lib/motion ease.out */
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
 }
 
@@ -82,6 +93,7 @@
   --color-accent-strong: var(--accent-strong);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
@@ -106,7 +118,7 @@
   body { @apply bg-background text-text-primary antialiased; font-family: var(--font-body);  }
   ::selection { background: var(--accent); color: var(--accent-foreground); }
   :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: var(--radius-sm); }
-  h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; }
+  h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0.02em; }
   /* Native controls styled by tokens so forms match without a library. */
   input[type="date"]::-webkit-calendar-picker-indicator, input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.8); }
   input[type="file"] { color: var(--text-secondary); font-size: 0.8125rem; }
@@ -114,20 +126,21 @@
 }
 
 @layer components {
-  /* Typography tokens */
-  .t-display { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.04em; line-height: 0.98; font-size: clamp(2.5rem, 1.4rem + 5.2vw, 5.5rem); }
-  .t-title { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem); }
-  .t-section { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.015em; font-size: 1.0625rem; line-height: 1.3; }
-  .t-metric { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.03em; line-height: 1; font-size: clamp(1.75rem, 1.3rem + 1.5vw, 2.5rem); font-variant-numeric: tabular-nums; }
-  .t-label { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); }
-  .t-caption { font-size: 0.75rem; line-height: 1.4; color: var(--text-secondary); }
+  /* Typography: headings, UI text, labels and table headers uppercase with tracking; reading text sentence case.
+     (.t-display and .t-label are defined once, in the landing block below.) */
+  .t-title { font-family: var(--font-display); font-weight: 800; letter-spacing: 0.02em; line-height: 1.05; text-transform: uppercase; font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem); }
+  .t-section { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.95rem; line-height: 1.3; }
+  .t-metric { font-family: var(--font-display); font-weight: 800; letter-spacing: 0.01em; line-height: 1; font-size: clamp(1.75rem, 1.3rem + 1.5vw, 2.5rem); font-variant-numeric: tabular-nums; }
+  .t-caption { font-size: 0.78rem; line-height: 1.45; color: var(--text-secondary); }
   .t-num { font-variant-numeric: tabular-nums; }
 
-  /* Surfaces */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); padding: 1.25rem; }
-  .card-sunken { background: var(--surface-sunken); border: 1px solid var(--border); border-radius: var(--radius-md); }
-  .glass { background: var(--glass-bg); backdrop-filter: blur(var(--blur-glass)) saturate(140%); -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%); border: 1px solid var(--glass-border); box-shadow: var(--shadow-float); position: relative; }
-  .glass::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--glass-highlight); pointer-events: none; }
+  /* Surfaces: the landing navbar's glass recipe (midnight 45-55%, cream 10% hairline, rounded-2xl).
+     Cards don't take backdrop-filter: on scrolling content over the fixed photo it re-blurs every frame
+     (the landing events→past jank). The photo behind them is already dimmed/blurred, so the frost would be
+     invisible anyway. Fixed and floating layers (.glass: nav, modals, menus, toasts) do blur. */
+  .card { background: var(--surface); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 1.25rem; }
+  .card-sunken { background: var(--surface-sunken); border: 1px solid var(--glass-border); border-radius: var(--radius-md); }
+  .glass { background: var(--glass-bg); backdrop-filter: blur(var(--blur-glass)); -webkit-backdrop-filter: blur(var(--blur-glass)); border: 1px solid var(--glass-border); box-shadow: var(--shadow-float); position: relative; }
   .glow-horizon { position: relative; overflow: hidden; isolation: isolate; }
   .glow-horizon::after { content: ""; position: absolute; inset: 0; background: var(--glow-horizon); z-index: -1; pointer-events: none; }
   .glow-corner { position: relative; overflow: hidden; isolation: isolate; }
@@ -137,51 +150,61 @@
 
   /* Interactive */
   .focus-ring:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-  .interactive { transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-base) var(--ease-out); }
+  .interactive { transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
   .interactive:active { transform: translateY(1px); }
-  .card-hover:hover { border-color: var(--border-strong); box-shadow: var(--shadow-float); }
+  .card-hover:hover { border-color: var(--border-strong); background: var(--surface-elevated); }
 
-  /* Legacy class names kept so untouched call sites still render correctly. */
-  .input { @apply w-full rounded-[var(--radius-md)] border border-border-strong bg-surface-sunken px-3 py-2.5 text-sm text-text-primary placeholder:text-text-tertiary min-h-11; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+  /* Fields: transparent glass, cream hairline, crimson focus ring. The border is a little stronger than the
+     10% card hairline so an empty field still reads as a field. */
+  .input { @apply w-full rounded-[var(--radius-md)] px-3.5 py-2.5 text-sm min-h-11; background: var(--surface-sunken); border: 1px solid var(--border-strong); color: var(--text-primary); text-transform: none; letter-spacing: 0; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+  .input::placeholder { color: var(--text-tertiary); }
   .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .input:disabled { opacity: 0.5; cursor: not-allowed; }
-  select.input { appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa6c2' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2.25rem; }
-  .label { @apply block mb-1.5; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); }
-  .badge { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium; font-family: var(--font-mono); letter-spacing: 0.02em; }
-  .btn, .btn-primary, .btn-secondary, .btn-danger { @apply inline-flex items-center justify-center gap-2 rounded-full px-4 text-sm font-medium min-h-11 disabled:opacity-50 disabled:cursor-not-allowed; transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
-  .btn:active, .btn-primary:active, .btn-secondary:active, .btn-danger:active { transform: translateY(1px); }
-  .btn-primary { background: var(--accent-strong); color: var(--accent-foreground); }
-  .btn-primary:hover:not(:disabled) { background: #4EA1FF; }
-  .btn-secondary { background: transparent; border: 1px solid var(--border-strong); color: var(--text-primary); }
-  .btn-secondary:hover:not(:disabled) { background: var(--surface-elevated); border-color: var(--text-tertiary); }
-  .btn-danger { background: var(--danger-soft); color: var(--danger); border: 1px solid transparent; }
-  .btn-danger:hover:not(:disabled) { border-color: var(--danger); }
-  .btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-full px-3 text-sm font-medium min-h-11 text-text-secondary hover:text-text-primary hover:bg-surface-elevated disabled:opacity-50; transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+  select.input { appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23F6E9CE' stroke-opacity='0.7' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2.25rem; }
+  select.input option { background: var(--background); color: var(--text-primary); }
+  .label { @apply block mb-1.5; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-secondary); }
+  .badge { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+
+  /* Buttons: the landing classes (btn-l-*) with app sizing. Button.tsx maps its variants onto these. */
+  .btn-primary, .btn-secondary, .btn-danger, .btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-full min-h-11 disabled:opacity-50 disabled:cursor-not-allowed; padding: 0.6rem 1.25rem; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+  .btn-primary:active, .btn-secondary:active, .btn-danger:active, .btn-ghost:active { transform: scale(0.98); }
+  .btn-primary { background: var(--btn-primary-bg); color: var(--btn-primary-fg); border: 1px solid var(--btn-primary-bg); }
+  .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-primary-bg) 82%, transparent); }
+  .btn-secondary { background: transparent; border: 1px solid color-mix(in srgb, var(--cream) 60%, transparent); color: var(--cream); }
+  .btn-secondary:hover:not(:disabled) { background: var(--cream); border-color: var(--cream); color: var(--midnight); }
+  .btn-danger { background: var(--accent); border: 1px solid var(--accent); color: var(--accent-foreground); }
+  .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 85%, white); }
+  .btn-ghost { background: transparent; border: 1px solid transparent; color: var(--text-secondary); padding-inline: 0.85rem; }
+  .btn-ghost:hover:not(:disabled) { color: var(--text-primary); background: color-mix(in srgb, var(--cream) 8%, transparent); }
+
+  /* Tables: uppercase cream/60 headers, cream-tinted dividers, cream 4% row hover. */
   .table { @apply w-full text-sm; border-collapse: separate; border-spacing: 0; }
-  .table th { @apply text-left py-2.5 pr-3 border-b border-border; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); font-weight: 500; }
-  .table td { @apply py-3 pr-3 border-b border-border align-top; }
+  .table th { @apply text-left py-3 pr-3; border-bottom: 1px solid var(--border); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary); }
+  .table td { @apply py-3 pr-3 align-top; border-bottom: 1px solid color-mix(in srgb, var(--cream) 8%, transparent); }
   .table tbody tr:last-child td { border-bottom: 0; }
   .table tbody tr { transition: background-color var(--dur-fast) var(--ease-out); }
-  .table tbody tr:hover { background: rgba(255, 255, 255, 0.015); }
+  .table tbody tr:hover { background: color-mix(in srgb, var(--cream) 4%, transparent); }
 
   /* Responsive DataTable: stacks into labelled rows under md. */
   @media (max-width: 767px) {
     .table-stack thead { display: none; }
     .table-stack, .table-stack tbody, .table-stack tr, .table-stack td { display: block; width: 100%; }
-    .table-stack tr { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.5rem 0.875rem; margin-bottom: 0.625rem; background: var(--surface-sunken); }
-    .table-stack td { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 0.5rem 0; border-bottom: 1px dashed var(--border); text-align: right; }
+    .table-stack tr { border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 0.5rem 0.875rem; margin-bottom: 0.625rem; background: var(--surface-sunken); }
+    /* Label floats left, the cell's content flows right-aligned beside it, so multi-part cells (name + email,
+       several items) keep their own line breaks instead of becoming side-by-side flex items. */
+    .table-stack td { display: flow-root; padding: 0.55rem 0; border-bottom: 1px dashed var(--border); text-align: right; overflow-wrap: break-word; }
     .table-stack td:last-child { border-bottom: 0; }
-    .table-stack td::before { content: attr(data-label); font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); text-align: left; flex-shrink: 0; }
-    .table-stack td:empty, .table-stack td[data-label=""] { justify-content: flex-end; }
+    .table-stack td::before { content: attr(data-label); float: left; margin-right: 1rem; padding-top: 0.15em; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary); text-align: left; }
     .table-stack td[data-label=""]::before { content: none; }
   }
 
   /* Skeleton + motion recipes */
-  .skeleton { position: relative; overflow: hidden; background: var(--surface-elevated); border-radius: var(--radius-sm); }
-  .skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent); animation: shimmer 1.4s infinite; }
+  .skeleton { position: relative; overflow: hidden; background: color-mix(in srgb, var(--cream) 7%, transparent); border-radius: var(--radius-sm); }
+  .skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(246, 233, 206, 0.07), transparent); animation: shimmer 1.4s infinite; }
   @keyframes shimmer { to { transform: translateX(100%); } }
+  /* Page enter, same language as the landing sections: fade + 12px rise. */
   .fade-in { animation: fadeIn var(--dur-slow) var(--ease-out) both; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
   .slide-up { animation: slideUp var(--dur-slow) var(--ease-out) both; }
   @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
   .slide-in-right { animation: slideInRight var(--dur-slow) var(--ease-out) both; }
@@ -209,7 +232,7 @@
   --color-flame: #FF6B5E;
   --color-ivory: #F6E9CE;
   --color-ash: color-mix(in srgb, #F6E9CE 70%, transparent);
-  --font-landing: 'Open Sauce Sans', 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-landing: 'Open Sauce Sans', ui-sans-serif, system-ui, sans-serif;
   --font-script: 'Rumble Brave', 'Pinyon Script', cursive;
 }
 :root {
@@ -235,24 +258,27 @@
   /* Type scale. Headings and UI text uppercase; body sentence case; script lowercase. */
   .t-display { font-family: var(--font-landing); font-size: clamp(3rem, 8vw, 7.5rem); font-weight: 800; line-height: 0.95; letter-spacing: 0.02em; text-transform: var(--case-heading); }
   .t-h2 { font-family: var(--font-landing); font-size: clamp(2rem, 4.5vw, 4rem); font-weight: 800; line-height: 1; letter-spacing: 0.02em; text-transform: var(--case-heading); }
+  .t-h2-md { font-family: var(--font-landing); font-size: clamp(1.75rem, 1.2rem + 2.2vw, 2.75rem); font-weight: 800; line-height: 1.05; letter-spacing: 0.02em; text-transform: var(--case-heading); }
   .t-h3 { font-family: var(--font-landing); font-size: clamp(1.25rem, 1.1rem + 0.5vw, 1.5rem); font-weight: 700; line-height: 1.15; letter-spacing: 0.02em; text-transform: var(--case-heading); }
   .t-body { font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem); font-weight: 400; line-height: 1.6; letter-spacing: 0; text-transform: var(--case-body); }
-  .t-label, .label-wide { font-size: clamp(0.75rem, 0.72rem + 0.1vw, 0.8rem); font-weight: 500; line-height: 1.3; letter-spacing: 0.18em; text-transform: var(--case-heading); }
+  .t-label, .label-wide { font-size: clamp(0.7rem, 0.68rem + 0.1vw, 0.78rem); font-weight: 600; line-height: 1.3; letter-spacing: 0.16em; text-transform: var(--case-heading); color: var(--text-tertiary); }
   .t-nav { font-size: 0.8rem; font-weight: 500; letter-spacing: 0.18em; text-transform: var(--case-heading); }
   .t-script { font-family: var(--font-script); font-weight: 400; letter-spacing: 0; line-height: 1; text-transform: var(--case-script); }
   /* Editorial lockup: script at 1.4x the paired sans, lifted 0.1em, set tight to the sans word (a negative overlap reads as a missing space with the Pinyon fallback; revisit with Rumble Brave). */
   .lockup { display: inline-flex; flex-wrap: wrap; align-items: baseline; column-gap: 0; }
-  .lockup > .t-script { position: relative; top: -0.1em; font-size: 1.4em; margin-right: 0.16em; color: var(--flame); }
+  .lockup > .t-script { position: relative; top: -0.1em; font-size: 1.4em; margin-right: 0.22em; color: var(--flame); }
   .lockup > .lockup-sans { position: relative; }
 
   /* Buttons: primary solid cream + midnight text; secondary cream outline that fills cream on hover. */
   .btn-l-primary, .btn-l-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.75rem; border-radius: 9999px; white-space: nowrap; padding: 0.85rem 1.75rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.18em; text-transform: var(--case-heading); transition: background-color 200ms, color 200ms, border-color 200ms, filter 200ms, transform 120ms; }
-  .btn-l-primary { background: var(--cream); color: var(--midnight); }
-  .btn-l-primary:hover { background: color-mix(in srgb, var(--cream) 82%, transparent); }
+  .btn-l-primary { background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
+  .btn-l-primary:hover { background: color-mix(in srgb, var(--btn-primary-bg) 82%, transparent); }
   .btn-l-secondary { border: 1px solid var(--cream); color: var(--cream); background: transparent; }
   .btn-l-secondary:hover { background: var(--cream); color: var(--midnight); }
   .btn-l-primary:active, .btn-l-secondary:active { transform: scale(0.98); }
   .btn-l-sm { min-height: 2.5rem; padding: 0.6rem 1.1rem; font-size: 0.72rem; }
+  .btn-l-primary:disabled, .btn-l-secondary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-l-secondary:disabled:hover { background: transparent; color: var(--cream); }
 
   /* Glass surfaces over the photography: translucent midnight + hairline. No backdrop-filter here:
      on scrolling content over a fixed background it re-blurs every frame (the events→past jank).
@@ -277,9 +303,11 @@
   .marquee-row:hover .marquee-track, .marquee-row:focus-within .marquee-track { animation-play-state: paused; }
   @keyframes marquee { to { transform: translateX(calc(-50% - 0.5rem)); } }
 
-  /* StudentCursor (landing only): hide the native pointer, keep the I-beam in text fields. */
+  /* StudentCursor (every page): hide the native pointer, keep the I-beam in text fields. */
   .has-student-cursor, .has-student-cursor * { cursor: none !important; }
   .has-student-cursor :is(input, textarea, select, [contenteditable="true"]) { cursor: text !important; }
+  /* Opted-out areas (the check-in camera) hide the student and get the normal pointer back. */
+  .has-student-cursor [data-cursor="text"], .has-student-cursor [data-cursor="text"] * { cursor: auto !important; }
 
   .no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
 

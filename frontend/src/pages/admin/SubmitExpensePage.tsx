@@ -32,7 +32,7 @@ export function SubmitExpensePage() {
   });
   return (
     <>
-      <PageHeader eyebrow="Reimbursements" title="Submit expense" description="Attach the receipt. Another admin reviews it, then marks it paid." />
+      <PageHeader eyebrow="Reimbursements" script="submit" title="Expense" description="Attach the receipt. Another admin reviews it, then marks it paid." />
       <div className="grid gap-5 lg:grid-cols-5">
         <form className="card space-y-4 lg:col-span-2" onSubmit={(e) => { e.preventDefault(); submit.mutate(); }}>
           <LabeledInput label="Amount (₹)" type="number" inputMode="decimal" min="1" step="0.01" required value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} />

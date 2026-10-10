@@ -40,8 +40,9 @@ export function AdminHome() {
   const [ai, setAi] = useState(false);
   return (
     <>
+      <div className="lg:grid lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:items-start lg:gap-8">
       <AdminTabs tabs={TABS} panelId="admin-panel" />
-      <div id="admin-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
+      <div id="admin-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="min-w-0">
         {tab === 'overview' && <Overview onOpenSecretary={() => setAi(true)} />}
         {tab === 'events' && <AdminEventsPage />}
         {tab === 'checkin' && <Suspense fallback={<div className="card"><Skeleton rows={6} /></div>}><ScannerPage /><div className="mt-8"><VerifyMemberPage /></div></Suspense>}
@@ -50,6 +51,7 @@ export function AdminHome() {
         {tab === 'products' && <AdminProductsPage />}
         {tab === 'announcements' && <AdminAnnouncementsPage />}
         {tab === 'finance' && <Suspense fallback={<div className="card"><Skeleton rows={6} /></div>}><FinanceOverview /></Suspense>}
+      </div>
       </div>
       <SecretaryDrawer open={ai} onClose={() => setAi(false)} />
     </>
@@ -62,8 +64,8 @@ function Overview({ onOpenSecretary }: { onOpenSecretary: () => void }) {
   const o = q.data;
   return (
     <>
-      <PageHeader eyebrow="Admin" title={`Hello, ${me?.user.name.split(' ')[0] ?? 'admin'}`} description={o ? `Club at a glance, ${o.as_of}.` : 'Club at a glance.'}
-        actions={<Button variant="secondary" onClick={onOpenSecretary} icon={<Sparkles className="size-4 text-accent" aria-hidden />}>AI Secretary</Button>} />
+      <PageHeader eyebrow={`Hello, ${me?.user.name.split(' ')[0] ?? 'admin'}`} script="control" title="Room" description={o ? `Club at a glance, ${o.as_of}.` : 'Club at a glance.'}
+        actions={<Button variant="secondary" onClick={onOpenSecretary} icon={<Sparkles className="size-4 text-accent-text" aria-hidden />}>AI Secretary</Button>} />
       <ErrorState error={q.error} onRetry={() => q.refetch()} className="mb-4" />
       <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
         <MetricCard label="Active members" icon={Users} loading={q.isLoading} value={o?.members.active ?? '—'} hint={o ? `${o.members.total} member profiles` : undefined} />
@@ -74,7 +76,7 @@ function Overview({ onOpenSecretary }: { onOpenSecretary: () => void }) {
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {TABS.filter((t) => t.key !== 'overview').map((t) => (
           <Link key={t.key} to={`/admin?tab=${t.key}`} className="card card-hover interactive group flex items-center gap-3 focus-ring">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-accent-soft text-accent"><t.icon className="size-4" aria-hidden /></span>
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-accent-soft text-accent-text"><t.icon className="size-4" aria-hidden /></span>
             <span className="font-medium">{t.label}</span>
           </Link>
         ))}

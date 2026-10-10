@@ -40,7 +40,7 @@ export function ShopPage() {
   const setQty = (id: number, n: number, max: number) => setCart({ ...cart, [id]: Math.max(0, Math.min(max, MAX_QTY, n)) });
   return (
     <>
-      <PageHeader eyebrow="Merchandise" title="Shop" description={me?.is_member ? 'Member pricing applied.' : 'Live stock. Members get member pricing automatically.'} />
+      <PageHeader eyebrow="Merchandise" script="club" title="Shop" description={me?.is_member ? 'Member pricing applied.' : 'Live stock. Members get member pricing automatically.'} />
       {q.isLoading ? <div className="grid gap-4 md:grid-cols-2">{[0, 1].map((i) => <div key={i} className="card h-72 skeleton" />)}</div> : q.error ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : !q.data?.length ? (
         <EmptyState icon={<ShoppingBag className="size-5" aria-hidden />} title="No products yet" />
       ) : (
@@ -58,7 +58,7 @@ export function ShopPage() {
                   const n = cart[v.id] ?? 0; const out = v.available === 0;
                   return (
                     <li key={v.id} className="flex items-center gap-3 py-2.5">
-                      <span className="card-sunken flex size-10 shrink-0 items-center justify-center font-mono text-xs">{v.size}</span>
+                      <span className="card-sunken flex min-h-10 min-w-10 shrink-0 items-center justify-center whitespace-nowrap px-2.5 text-xs font-semibold">{v.size}</span>
                       <span className="min-w-0 flex-1"><span className="block text-sm font-medium t-num">{money(v.price_for_you)}{me?.is_member && Number(v.member_price) < Number(v.price) && <s className="ml-1.5 text-xs font-normal text-text-tertiary">{money(v.price)}</s>}</span><span className={`block t-caption ${out ? 'text-danger' : v.available < 5 ? 'text-warning' : ''}`}>{out ? 'Out of stock' : v.available < 5 ? `Only ${v.available} left` : `${v.available} in stock`}</span></span>
                       <div className="flex items-center gap-1" role="group" aria-label={`Quantity for size ${v.size}`}>
                         <button aria-label="Decrease" disabled={n === 0} onClick={() => setQty(v.id, n - 1, v.available)} className="inline-flex size-10 items-center justify-center rounded-full border border-border-strong text-text-secondary disabled:opacity-30 hover:bg-surface-elevated"><Minus className="size-3.5" aria-hidden /></button>

@@ -5,7 +5,8 @@ type Props = { label: string; value: ReactNode; hint?: ReactNode; icon?: LucideI
 
 /** Compact stat tile: label top-left in mono caps, big tabular number, optional trend. */
 export function MetricCard({ label, value, hint, icon: Icon, trend, loading, tone = 'default', className = '' }: Props) {
-  const toneText = tone === 'accent' ? 'text-accent' : tone === 'warning' ? 'text-warning' : tone === 'danger' ? 'text-danger' : 'text-text-primary';
+  // `accent` is the highlighted tile: full cream (red would read as a loss on money figures).
+  const toneText = tone === 'accent' ? 'text-cream' : tone === 'warning' ? 'text-warning' : tone === 'danger' ? 'text-danger' : 'text-text-primary';
   return (
     <div className={`card flex flex-col gap-3 min-w-0 ${className}`}>
       <div className="flex items-start justify-between gap-2">

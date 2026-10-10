@@ -7,7 +7,7 @@ type Ctx = { toast: (t: Omit<Toast, 'id'>) => void; success: (title: string, bod
 const ToastCtx = createContext<Ctx>(null!);
 
 const icons = { success: CheckCircle2, error: XCircle, info: Info, warning: AlertTriangle };
-const tones: Record<Tone, string> = { success: 'text-success', error: 'text-danger', info: 'text-accent', warning: 'text-warning' };
+const tones: Record<Tone, string> = { success: 'text-success', error: 'text-danger', info: 'text-accent-text', warning: 'text-warning' };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Toast[]>([]);

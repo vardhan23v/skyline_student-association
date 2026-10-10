@@ -48,7 +48,7 @@ export function ExpenseQueuePage() {
   const flaggedCount = q.data?.filter((x) => x.flags.length).length ?? 0;
   return (
     <>
-      <PageHeader eyebrow="Reimbursements" title="Expense review" description={flaggedCount ? `${flaggedCount} of ${q.data?.length} carry anomaly flags.` : 'Approve, reject, then mark paid when the money is handed over.'}
+      <PageHeader eyebrow="Reimbursements" script="expense" title="Review" description={flaggedCount ? `${flaggedCount} of ${q.data?.length} carry anomaly flags.` : 'Approve, reject, then mark paid when the money is handed over.'}
         actions={<div><label htmlFor="st" className="label">Show</label><Select id="st" className="!w-auto" value={status} onChange={(e) => setStatus(e.target.value)}><option value="submitted">Submitted</option><option value="approved">Approved (to pay)</option><option value="paid">Paid</option><option value="rejected">Rejected</option><option value="">All</option></Select></div>} />
       {q.isLoading ? <div className="space-y-3">{[0, 1].map((i) => <div key={i} className="card"><Skeleton rows={3} /></div>)}</div> : q.error ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : !q.data?.length ? <EmptyState title="Queue is clear" description="Nothing in this state." /> : (
         <ul className="space-y-3">{q.data.map((x) => (
@@ -59,7 +59,7 @@ export function ExpenseQueuePage() {
                 <div className="mt-1 text-sm">{x.description}</div>
                 <div className="t-caption mt-0.5">by {x.submitted_by_name} · {datetime(x.created_at)}</div>
               </div>
-              <div className="flex flex-col items-end gap-1.5"><StatusBadge status={x.status} />{x.receipt_url ? <a className="inline-flex items-center gap-1 text-xs text-accent" href={x.receipt_url} target="_blank" rel="noreferrer" onClick={(e) => openReceipt(e, x.receipt_url!)}>View receipt<ExternalLink className="size-3" aria-hidden /></a> : <span className="inline-flex items-center gap-1 text-xs text-danger"><FileWarning className="size-3" aria-hidden />No receipt</span>}</div>
+              <div className="flex flex-col items-end gap-1.5"><StatusBadge status={x.status} />{x.receipt_url ? <a className="inline-flex items-center gap-1 text-xs text-accent-text" href={x.receipt_url} target="_blank" rel="noreferrer" onClick={(e) => openReceipt(e, x.receipt_url!)}>View receipt<ExternalLink className="size-3" aria-hidden /></a> : <span className="inline-flex items-center gap-1 text-xs text-danger"><FileWarning className="size-3" aria-hidden />No receipt</span>}</div>
             </div>
             {x.flags.length > 0 && <ul className="mt-3 space-y-1" aria-label="Anomaly flags">{x.flags.map((f) => <li key={f.code} className="flex items-start gap-2 rounded-[var(--radius-sm)] bg-warning-soft px-2.5 py-1.5 text-xs text-warning"><AlertTriangle className="mt-0.5 size-3 shrink-0" aria-hidden /><span><span className="font-mono">{f.code}</span> · {f.rule}</span></li>)}</ul>}
             {x.review_note && <div className="t-caption mt-2">Note: {x.review_note}</div>}

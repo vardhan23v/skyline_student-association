@@ -35,7 +35,43 @@ function useMediaQuery(query: string) {
  * are visible; the rest are `visibility: hidden`. Phones get a plain opacity crossfade, reduced
  * motion a short timed fade.
  */
-export function BackgroundStage() {
+export function BackgroundStage({ variant = 'stage' }: {
+  /**
+   * `stage`: the landing page's scroll-linked crossfade. `still`: just the hero image with the same scrim, heat glow,
+   * vignette and embers (login, register, account and public app pages). `dim`: the hero image blurred under a strong
+   * midnight overlay, no embers, so dense admin tables stay readable.
+   */
+  variant?: 'stage' | 'still' | 'dim';
+} = {}) {
+  return variant === 'stage' ? <ScrollStage /> : <StillStage dim={variant === 'dim'} />;
+}
+
+/** One static hero layer. The blur is a static filter on a layer that never moves, so it rasterises once. */
+function StillStage({ dim }: { dim: boolean }) {
+  const hero = backgrounds[0];
+  const [ready, setReady] = useState(false);
+  return (
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-midnight">
+      <div className={`absolute inset-0 ${dim ? 'scale-110 blur-2xl' : ''}`}>
+        {!ready && <div className="absolute inset-0 scale-110 bg-cover blur-2xl" style={{ backgroundImage: `url(${hero.placeholder})`, backgroundPosition: hero.focal }} />}
+        <picture>
+          <source type="image/avif" srcSet={hero.picture.sources.avif} sizes="100vw" />
+          <source type="image/webp" srcSet={hero.picture.sources.webp} sizes="100vw" />
+          <img src={hero.picture.img.src} srcSet={hero.picture.sources.jpeg} sizes="100vw" width={hero.picture.img.w} height={hero.picture.img.h} alt="" decoding="async"
+            {...({ fetchpriority: 'high' } as Record<string, string>)} onLoad={() => setReady(true)}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${ready ? 'opacity-100' : 'opacity-0'}`} style={{ objectPosition: hero.focal }} />
+        </picture>
+      </div>
+      <div className="absolute inset-0" style={{ background: `color-mix(in srgb, var(--midnight) ${dim ? 80 : Math.round(hero.overlay * 100)}%, transparent)` }} />
+      <div className="bg-scrim absolute inset-0" />
+      {!dim && <div className="bg-heat absolute inset-0" />}
+      <div className="bg-vignette absolute inset-0" />
+      {!dim && <Embers />}
+    </div>
+  );
+}
+
+function ScrollStage() {
   const reduce = useReducedMotion();
   const narrow = useMediaQuery('(max-width: 768px)');
   const mode: Mode = reduce ? 'reduced' : narrow ? 'lite' : 'full';

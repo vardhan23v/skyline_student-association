@@ -31,7 +31,7 @@ export function AdminMembersPage() {
   const days = (d: string | null) => d ? Math.ceil((+new Date(d) - Date.now()) / 86_400_000) : null;
   return (
     <>
-      <PageHeader eyebrow="Members" title="Directory" description="Membership status and expiry for every profile. Open a member to record cash dues." actions={<span className="t-label">{q.data?.length ?? 0} shown</span>} />
+      <PageHeader script="member" title="Directory" description="Membership status and expiry for every profile. Open a member to record cash dues." actions={<span className="t-label">{q.data?.length ?? 0} shown</span>} />
       <div className="card mb-4 flex flex-wrap items-center gap-2 !py-3" role="search">
         <div className="relative min-w-56 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-tertiary" aria-hidden /><label htmlFor="mq" className="sr-only">Search members</label><Input id="mq" className="!pl-9" placeholder="Name, email or student ID" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} /></div>
         <label htmlFor="ms" className="sr-only">Membership status</label>
@@ -40,7 +40,7 @@ export function AdminMembersPage() {
       </div>
       <DataTable rows={q.data} loading={q.isLoading} error={q.error} onRetry={() => q.refetch()} rowKey={(m) => m.id} caption="Members" empty={<EmptyState icon={<UserRound className="size-5" aria-hidden />} title="No members match" description="Try a different search or clear the filters." />}
         columns={[
-          { key: 'name', header: 'Name', render: (m) => <button onClick={() => show(m)} className="-my-1 inline-flex min-h-11 flex-col justify-center text-left font-medium hover:text-accent focus-ring rounded">{m.name}<span className="block t-caption font-mono md:hidden">{m.student_id}</span></button> },
+          { key: 'name', header: 'Name', render: (m) => <button onClick={() => show(m)} className="-my-1 inline-flex min-h-11 flex-col justify-center text-left font-medium hover:text-accent-text focus-ring rounded">{m.name}<span className="block t-caption font-mono md:hidden">{m.student_id}</span></button> },
           { key: 'sid', header: 'Student ID', render: (m) => <span className="font-mono text-xs">{m.student_id}</span>, hideOnMobile: true },
           { key: 'email', header: 'Email', render: (m) => <span className="text-text-secondary">{m.email}</span>, hideOnMobile: true },
           { key: 'status', header: 'Membership', render: (m) => <StatusBadge status={m.membership_status} /> },

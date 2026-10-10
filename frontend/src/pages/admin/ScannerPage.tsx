@@ -94,7 +94,7 @@ export function ScannerPage() {
   const live = events.data?.filter((e) => e.status !== 'draft') ?? [];
   return (
     <>
-      <PageHeader eyebrow="Check-in" title="Door scanner" description="Pick the event, then scan. Each QR works exactly once." />
+      <PageHeader eyebrow="Check-in" script="door" title="Scanner" description="Pick the event, then scan. Each QR works exactly once." />
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-3">
           <div className="card space-y-3">
@@ -103,7 +103,7 @@ export function ScannerPage() {
             </LabeledSelect>
             <Button variant={camera ? 'danger' : 'primary'} className="w-full !min-h-12" onClick={() => { setCamErr(null); setCamera((c) => !c); }} icon={camera ? <CameraOff className="size-4" aria-hidden /> : <Camera className="size-4" aria-hidden />}>{camera ? 'Stop camera' : 'Start camera'}</Button>
             <ErrorState error={camErr ? new Error(camErr) : null} />
-            <div id="reader" className={`overflow-hidden rounded-[var(--radius-md)] bg-black ${camera ? 'min-h-56 pulse-ring' : ''}`} aria-live="off" />
+            <div id="reader" data-cursor="text" className={`overflow-hidden rounded-[var(--radius-md)] bg-midnight ${camera ? 'min-h-56 pulse-ring' : ''}`} aria-live="off" />
             {/* Keep the typed token if a check is already running, instead of silently discarding it. */}
             <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); const t = manual.trim(); if (!t || inFlight.current) return; setManual(''); void submit(t); }}>
               <label htmlFor="manual" className="sr-only">QR token</label>
