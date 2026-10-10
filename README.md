@@ -1,39 +1,39 @@
-# Skyline Student Association — Student Organization System
+# Skyline Student Association — Club Management Website
 
-One platform for memberships, event ticketing, announcements, merchandise, fundraisers/volunteer tasks and club finances.
-Modular monolith: React SPA → Express REST API → MySQL (SQLite locally). See [docs/architecture.md](docs/architecture.md).
+A single website where a student club runs everything it does: members, events and tickets, announcements, merchandise, fundraisers, and club money.
+
+## Who uses it
+
+| User | What they do on the site |
+|---|---|
+| **Student / Member** | Sign up, pay membership dues, buy event tickets, order club merch, read announcements, see where club money goes |
+| **Volunteer** | Scan tickets at the door, verify members, pick up fundraiser tasks, submit expense receipts |
+| **Admin (club leads)** | Create events, post announcements, manage members, products and fundraisers |
+| **Treasurer** | Approve reimbursements, record cash, see the full ledger and reports |
+
+## How it works
+
+1. **Join** — A student registers, pays dues online (Razorpay) or in cash at the club table. Their membership gets an expiry date; the site emails a reminder before it runs out.
+2. **Events** — Admin publishes an event with member / non-member prices and a seat limit. Students buy tickets online and receive a QR ticket by email. At the door a volunteer scans the QR with their phone; the ticket is marked used instantly, so no one can reuse it and no paper list is needed. After the event the admin sees attendance and revenue.
+3. **Announcements** — Admin writes one post; it appears on the website and goes out to the mailing list at the same time. Old posts stay in an archive.
+4. **Merchandise** — Admin lists products with sizes and stock. Members order and pay online; stock updates automatically and the admin marks orders as handed over.
+5. **Fundraisers** — Admin creates a fundraiser with a target; tasks are assigned to volunteers with deadlines, and progress is tracked on a board.
+6. **Money** — Every payment (dues, tickets, merch, fundraiser cash) and every approved reimbursement is written to one ledger automatically. Volunteers upload receipts for expenses; the treasurer approves and pays them. The balance and reports are generated from the ledger, and every member can view the summary — that is the transparency.
+7. **AI Secretary** — Any user can ask questions in plain English ("which members haven't renewed?", "how much did we spend this month?"). Answers come from the database, and any action (like sending a reminder) needs a confirm click.
+8. **Anomaly flags** — Expenses that look unusual (too large, duplicate receipt, over budget, no receipt) are flagged for the treasurer to review.
+
+## Tech
+
+React (Vite + Tailwind) frontend · Node/Express API · MySQL · JWT login with roles · Razorpay payments · Resend email · Cloudinary for receipts · deployed on Railway as one service.
 
 ## Run locally
 
 ```bash
-cd backend && cp .env.example .env && npm install && npm run migrate && npm run seed && npm run dev
+npm --prefix backend install && npm --prefix frontend install
+cp backend/.env.example backend/.env      # fill in DB, JWT, Razorpay, email keys
+npm --prefix backend run migrate && npm --prefix backend run seed
+npm --prefix backend run dev              # API  → http://localhost:4000/api
+npm --prefix frontend run dev             # Site → http://localhost:5173
 ```
 
-```bash
-cd frontend && npm install && npm run dev
-```
-
-Open http://localhost:5173. With `DATABASE_URL` empty the backend uses `backend/dev.sqlite`.
-
-Demo logins (password `password123`): `admin@ssa.test`, `treasurer@ssa.test`, `volunteer@ssa.test`, `member1@ssa.test`.
-
-## Tests
-
-```bash
-cd backend && npm test
-```
-
-Covers role separation, cash dues → ledger, capacity under load, webhook HMAC + idempotency, double check-in rejection, event report, expense review/pay, anomaly flags, CSV export + reversals, stock reservation, fundraiser progress, announcement audience, AI secretary proposals.
-
-## Deploy (Railway)
-
-One Node service + MySQL plugin. Root directory = repo root. `railway.json` sets build/start; set `DATABASE_URL` (reference the MySQL plugin), `JWT_SECRET`, `QR_SECRET`, `PAYMENT_WEBHOOK_SECRET`, and optionally `RAZORPAY_KEY_ID/SECRET`, `RESEND_API_KEY`, `CLOUDINARY_URL`, `LLM_API_KEY`. Keep replicas at 1 (in-process cron jobs). Razorpay webhook URL: `https://<domain>/api/webhooks/payment`.
-
-## Layout
-
-```
-backend/   Express + TypeScript + Knex (modules: auth, memberships, events, announcements, merchandise, fundraisers, finance, payments, ai; jobs; lib)
-frontend/  Vite + React + TanStack Query + Tailwind (pages: public, member, volunteer, admin, treasurer)
-database/  migrations + seeds
-docs/      architecture.md
-```
+Full design details: [`docs/architecture.md`](docs/architecture.md)
