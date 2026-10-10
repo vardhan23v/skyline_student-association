@@ -1,0 +1,4 @@
+tests/screenshots/
+tests/.tokens.json
+test-results/
+playwright-report/
