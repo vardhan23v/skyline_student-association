@@ -1,67 +1,69 @@
-# Skyline Student Association — Club Management Website
+# Skyline Student Association — Website
 
-A single website where a student club runs everything it does: members, events and tickets, announcements, merchandise, fundraisers, and club money.
+The public website and app frontend for the Skyline Student Association (SSA), a student club. The landing page covers upcoming events, past events, merch, the club story, a photo gallery and a join form.
 
-## Who uses it
+> **Status: frontend only.** The previous Express + MySQL backend was removed so it can be rebuilt from scratch. The landing page is fully static and works on its own. The app pages (login, register, dashboards, shop checkout, event details, tickets, volunteer and treasurer tools) still call `/api/...` and show their error states until a new backend exists. The old backend is recoverable from git history, at commit `b2a07a4` and earlier.
 
-| User | What they do on the site |
-|---|---|
-| **Student / Member** | Sign up, pay membership dues, buy event tickets, order club merch, read announcements, see where club money goes |
-| **Volunteer** | Scan tickets at the door, verify members, pick up fundraiser tasks, submit expense receipts |
-| **Admin (club leads)** | Create events, post announcements, manage members, products and fundraisers |
-| **Treasurer** | Approve reimbursements, record cash, see the full ledger and reports |
+## What's on the landing page
 
-## How it works
+| Section | Content | Where it comes from |
+|---|---|---|
+| Hero | *skyline* STUDENT ASSOCIATION, tagline, two calls to action | `frontend/src/data/landing.ts` |
+| Upcoming events | CodeStorm 2026, Tech Trivia, Rhythm Unplugged, Lenscape, InnovateX: date, category, description, venue, duration, team size | `landing.ts` (typographic cards, no photos until the events happen) |
+| Past events | Six events with photo, date, hall and description | `landing.ts` + `frontend/public/media/past/` |
+| Merch | T-shirt ₹499, Bag ₹299, Water bottle ₹399, Stickers ₹99, with a cursor-follow preview | `landing.ts` + `frontend/public/media/merch/` |
+| About | What the club does, three feature tiles, stat counters | `landing.ts` |
+| Gallery | Twelve event photos in a two-row marquee with a lightbox | `landing.ts` + `frontend/public/media/gallery/` |
+| Join | Name, email and student ID, handed to `/register` | `JoinCTA.tsx` |
 
-1. **Join** — A student registers, pays dues online (Razorpay) or in cash at the club table. Their membership gets an expiry date; the site emails a reminder before it runs out.
-2. **Events** — Admin publishes an event with member / non-member prices and a seat limit. Students buy tickets online and receive a QR ticket by email. At the door a volunteer scans the QR with their phone; the ticket is marked used instantly, so no one can reuse it and no paper list is needed. After the event the admin sees attendance and revenue.
-3. **Announcements** — Admin writes one post; it appears on the website and goes out to the mailing list at the same time. Old posts stay in an archive.
-4. **Merchandise** — Admin lists products with sizes and stock. Members order and pay online; stock updates automatically and the admin marks orders as handed over.
-5. **Fundraisers** — Admin creates a fundraiser with a target; tasks are assigned to volunteers with deadlines, and progress is tracked on a board.
-6. **Money** — Every payment (dues, tickets, merch, fundraiser cash) and every approved reimbursement is written to one ledger automatically. Volunteers upload receipts for expenses; the treasurer approves and pays them. The balance and reports are generated from the ledger, and every member can view the summary — that is the transparency.
-7. **AI Secretary** — Any user can ask questions in plain English ("which members haven't renewed?", "how much did we spend this month?"). Answers come from the database, and any action (like sending a reminder) needs a confirm click.
-8. **Anomaly flags** — Expenses that look unusual (too large, duplicate receipt, over budget, no receipt) are flagged for the treasurer to review.
+All copy, prices, dates and photo paths live in `frontend/src/data/landing.ts`. To replace a photo, overwrite the file with the same name; sources and sizes are listed in `frontend/public/media/README.md`.
+
+## Design
+
+- **Colours:** cream `#F6E9CE` for all text and fills, flame red `#FF6B5E` for the script accent words, midnight `#0B0B0D` base.
+- **Type:** Open Sauce Sans, self-hosted, for everything (uppercase for headings and UI, sentence case for reading text). Pinyon Script stands in for Rumble Brave as the lowercase accent script; see `frontend/src/styles/fonts.css` to switch.
+- **Backgrounds:** one photographic background per section, crossfading as you scroll, with a vignette, a heat glow and rising embers. Config is in `frontend/src/data/backgrounds.ts`, sources in `frontend/design/backgrounds-source/`, and they're rebuilt with `npm --prefix frontend run bg:prepare`.
+- **Motion:** framer-motion and Lenis smooth scroll, plus a custom "student" cursor on desktop. Everything respects `prefers-reduced-motion`.
+- **Logo:** `frontend/public/brand/` (original in `frontend/design/logo-source.png`).
+
+Details and rationale: [`docs/design.md`](docs/design.md).
 
 ## Tech
 
-React (Vite + Tailwind) frontend · Node/Express API · MySQL · JWT login with roles · Razorpay payments · Resend email · Cloudinary for receipts · deployed on Railway as one service.
+React 18 · Vite 5 · TypeScript · Tailwind CSS v4 · TanStack Query · React Router 6 · framer-motion · Lenis · vite-imagetools (responsive AVIF/WebP/JPEG at build time). Production is served by `serve.mjs`, a dependency-free static server with single-page-app fallback.
 
 ## Run locally
 
 ```bash
-npm --prefix backend install && npm --prefix frontend install
-cp backend/.env.example backend/.env      # fill in DB, JWT, Razorpay, email keys
-npm --prefix backend run migrate && npm --prefix backend run seed
-npm --prefix backend run dev              # API  → http://localhost:3000/api
-npm --prefix frontend run dev             # Site → http://localhost:5173
+npm --prefix frontend install
+npm run dev                      # http://localhost:5173
 ```
 
-## Design
+Production build and local preview:
 
-Dark-first "Signal" visual system: tokens in `frontend/src/index.css`, primitives in `frontend/src/components/` (AppShell, LiquidGlassNav, PageHeader, MetricCard, FeatureCard, StatusBadge, DataTable, EmptyState, EventCard, TaskCard, TransactionRow, Button, Input, Modal, Toast). Direction and rationale: [`docs/design.md`](docs/design.md).
+```bash
+npm run build
+npm start                        # http://localhost:8080
+```
 
-Full architecture: [`docs/architecture.md`](docs/architecture.md)
+## Deploy (Railway)
 
-## Deploy on Railway
+The web service builds with `npm run build` and starts with `npm start`. The health check is `/health`, and Railway injects `PORT`. No environment variables are needed while there's no backend.
 
-One Railway project, two services: **MySQL** (Railway template) and this repo as a **web service**. The repo's `railway.json` already sets the build (`npm run build`), start (`npm start`) and health check (`/api/health`). Start runs migrations, optionally seeds, then serves the API and the built frontend from one port.
+```bash
+railway up --service web
+```
 
-1. New project → **Deploy from GitHub repo** → pick this repo, root directory `/`.
-2. In the same project, **+ New → Database → MySQL**.
-3. On the web service → **Variables**, add:
+The Railway project still has a MySQL service holding the old backend's data. It's unused now; keep it for the rebuild or delete it in the Railway dashboard.
 
-   | Variable | Value |
-   |---|---|
-   | `DATABASE_URL` | `${{MySQL.MYSQL_URL}}` (reference, resolves to the private URL) |
-   | `NODE_ENV` | `production` |
-   | `JWT_SECRET` | random, 32+ chars |
-   | `QR_SECRET` | random, 16+ chars |
-   | `SEED_DEMO` | `true` for the first deploy only, then remove it |
-   | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `PAYMENT_WEBHOOK_SECRET` | from Razorpay, when ready |
-   | `APP_TIMEZONE` | optional, defaults to `Asia/Kolkata`; used for "today", expiry and the nightly jobs |
-   | `SEED_FORCE` | optional; only with `SEED_DEMO=true`, lets the seed wipe a database that already has data |
-   | `RESEND_API_KEY`, `CLOUDINARY_URL` | optional |
+## Rebuilding the backend
 
-   Do not set `PORT`; Railway injects it. In production the app refuses to start without `JWT_SECRET` and `QR_SECRET`, or if they are equal. Until `PAYMENT_WEBHOOK_SECRET` is set, every payment webhook is rejected.
-4. **Settings → Networking → Generate Domain**. Open `https://<domain>/api/health`, then `/`.
-5. Demo logins after seeding: `admin@ssa.test`, `treasurer@ssa.test`, `volunteer@ssa.test`, `member1@ssa.test`, password `password123`. Change or delete them before real use.
+[`docs/architecture.md`](docs/architecture.md) is the original product specification: roles, money rules, ticketing, check-in and the data model. Use it as the brief for the new backend.
+
+The frontend expects:
+
+- a REST API at the same origin under `/api` (the client is in `frontend/src/api/client.ts`);
+- bearer-token auth;
+- the response shapes in `frontend/src/api/types.ts`.
+
+In development, Vite proxies `/api` to `http://localhost:3000` (see `frontend/vite.config.ts`).
