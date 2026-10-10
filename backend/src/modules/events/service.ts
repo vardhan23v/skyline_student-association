@@ -53,11 +53,7 @@ async function viewerFor(db: Knex, user_id: number | undefined, ids: number[]): 
   };
 }
 
-const withAvailability = (e: any, held: number, viewer: Viewer) => ({
-  ...e, seats_left: Math.max(0, e.capacity - held), price: Number(e.member_price), viewer,
-  // Deprecated: the pre-Phase-2 pages still read these. Remove once the frontend uses `price` and `viewer`.
-  price_for_you: Number(e.member_price), you_are_member: viewer.is_member,
-});
+const withAvailability = (e: any, held: number, viewer: Viewer) => ({ ...e, seats_left: Math.max(0, e.capacity - held), price: Number(e.member_price), viewer });
 
 export async function createEvent(input: any) {
   const [id] = await getDb()('events').insert(input);

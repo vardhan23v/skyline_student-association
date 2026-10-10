@@ -82,7 +82,11 @@ export async function activateMembership(trx: Knex.Transaction, membership_id: n
   return trx('memberships').where({ id: membership_id }).first();
 }
 
-/** An admin records cash dues at the sign-up table. */
+/**
+ * An admin records cash dues at the sign-up table. Without an active membership this starts one (until the academic
+ * year ends, or `expiry_date`). With one it extends it: the new period starts the day after the current expiry and
+ * runs to `expiry_date` or the following academic year end.
+ */
 export async function recordCashDues(admin_id: number, member_id: number, amount: number, expiry_date?: string) {
   if (expiry_date && expiry_date < today()) throw badRequest('expiry_date is in the past');
   const db = getDb();
@@ -90,11 +94,16 @@ export async function recordCashDues(admin_id: number, member_id: number, amount
     // Checks run under the member row lock so a double submit can't record the dues (and the ledger row) twice.
     const member = await lockRow(trx('members').where({ id: member_id })).first();
     if (!member) throw notFound('Member not found');
-    if (await currentMembership(trx, member_id)) throw badRequest('Membership already active');
-    const [membership_id] = await trx('memberships').insert({ member_id, start_date: today(), expiry_date: expiry_date ?? academicYearEnd(), status: 'pending' });
+    const current = await currentMembership(trx, member_id);
+    const start = current ? addDaysYmd(ymdOf(current.expiry_date), 1) : today();
+    const expiry = expiry_date ?? academicYearEnd(new Date(`${start}T12:00:00Z`));
+    if (current && expiry <= ymdOf(current.expiry_date)) throw badRequest(`Membership already runs until ${ymdOf(current.expiry_date)}; pick a later expiry date`);
+    const [membership_id] = await trx('memberships').insert({ member_id, start_date: start, expiry_date: expiry, status: 'pending' });
     // payments.user_id is the payer (the member); the admin is recorded as the ledger's entered_by.
     const payment_id = await createCashPayment(trx, { user_id: member.user_id, amount, purpose: 'dues', reference_type: 'membership', reference_id: membership_id as number });
-    return activateMembership(trx, membership_id as number, payment_id, admin_id);
+    const m = await activateMembership(trx, membership_id as number, payment_id, admin_id);
+    if (current) await trx('memberships').where({ id: membership_id }).update({ start_date: start }); // activation stamps today; an extension starts later
+    return { ...m, start_date: start, extended: !!current };
   });
 }
 

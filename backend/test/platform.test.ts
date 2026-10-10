@@ -198,3 +198,19 @@ describe('static frontend', () => {
     expect((await request(app).get('/health')).text).toBe('ok');
   });
 });
+
+describe('cash dues extension', () => {
+  it('extends an active membership from its current expiry; an earlier expiry is refused', async () => {
+    const db = getDb();
+    const r = await request(app).post('/api/auth/register').send({ name: 'ext', email: 'ext@p.test', password: 'password123', student_id: 'SKY-EXT' });
+    const member = await db('members').where({ user_id: r.body.user.id }).first();
+    const first = await request(app).post(`/api/admin/members/${member.id}/cash-payment`).set(auth('admin')).send({ amount: 500, expiry_date: '2099-06-30' });
+    expect(first.status).toBe(201); expect(first.body.extended).toBe(false);
+    expect((await request(app).post(`/api/admin/members/${member.id}/cash-payment`).set(auth('admin')).send({ amount: 500, expiry_date: '2099-01-01' })).status).toBe(400);
+    const ext = await request(app).post(`/api/admin/members/${member.id}/cash-payment`).set(auth('admin')).send({ amount: 500 });
+    expect(ext.status).toBe(201); expect(ext.body.extended).toBe(true);
+    expect(ext.body.start_date).toBe('2099-07-01'); expect(ext.body.expiry_date).toBe('2100-06-30');
+    expect((await request(app).get('/api/me').set({ Authorization: `Bearer ${r.body.token}` })).body.membership_expires).toBe('2100-06-30');
+    expect(await db('ledger_entries').where({ category: 'dues' }).whereIn('source_id', await db('payments').where({ user_id: r.body.user.id }).pluck('id'))).toHaveLength(2);
+  });
+});

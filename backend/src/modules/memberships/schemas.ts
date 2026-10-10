@@ -15,7 +15,7 @@ export const MEMBERSHIP_BENEFITS = [
   'Register for every SSA event',
   'Member prices on all merch',
   'Members-only announcements and early event news',
-  'A vote at the annual general meeting',
+  'Renewal reminders before your membership runs out',
 ];
 /** What GET /api/membership/info and the MEMBERSHIP_REQUIRED error both show. */
 export const membershipOffer = () => ({ price: DEFAULT_DUES, currency: 'INR', benefits: MEMBERSHIP_BENEFITS });
