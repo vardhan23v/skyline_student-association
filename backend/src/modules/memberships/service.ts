@@ -5,11 +5,15 @@ import { HttpError, badRequest, conflict, notFound } from '../../lib/errors';
 import { signMemberQr, verifyQr } from '../../lib/qr';
 import { addDaysYmd, todayYmd, ymdInTz, ymdOf } from '../../lib/dates';
 import { recordEntry } from '../finance/service';
+import { sendMail, siteLink } from '../../lib/email';
 import { createCashPayment, createPendingPayment } from '../payments/service';
 import { DEFAULT_DUES } from './schemas';
 
 /** Today in the club's time zone (APP_TIMEZONE) — the UTC date lags IST until 05:30. */
 const today = todayYmd;
+/** A member can renew online once their membership is this close to expiring. */
+export const RENEW_WINDOW_DAYS = 30;
+const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 /** Academic year end: next occurrence of MEMBERSHIP_YEAR_END (MM-DD) after `from`'s calendar day in the club's time zone. */
 export function academicYearEnd(from = new Date()): string {
@@ -19,7 +23,13 @@ export function academicYearEnd(from = new Date()): string {
   return end > day ? end : `${year + 1}-${env.MEMBERSHIP_YEAR_END}`;
 }
 
+/** The paid period covering today (a renewal paid ahead starts later, so it isn't this one yet). */
 export async function currentMembership(db: Knex, member_id: number) {
+  return db('memberships').where({ member_id, status: 'active' }).andWhere('start_date', '<=', today()).andWhere('expiry_date', '>=', today()).orderBy('expiry_date', 'desc').first();
+}
+
+/** The paid period that ends last, including one paid ahead: renewals and extensions start the day after it. */
+export async function latestPaidMembership(db: Knex, member_id: number) {
   return db('memberships').where({ member_id, status: 'active' }).andWhere('expiry_date', '>=', today()).orderBy('expiry_date', 'desc').first();
 }
 
@@ -47,8 +57,12 @@ export async function startDues(user_id: number, profile: { student_id?: string;
       await trx('members').insert({ user_id, student_id: profile.student_id, phone: profile.phone ?? null, joined_at: today() });
       member = await lockRow(trx('members').where({ user_id })).first();
     }
-    if (await currentMembership(trx, member.id)) throw conflict('Membership already active', 'ALREADY_MEMBER');
-    const start = today(), expiry_date = academicYearEnd();
+    // Renewal: within RENEW_WINDOW_DAYS of expiry the member can pay for the next period, which starts the day after
+    // the current one ends. Earlier than that, they're already covered.
+    const current = await latestPaidMembership(trx, member.id);
+    if (current && ymdOf(current.expiry_date) > addDaysYmd(today(), RENEW_WINDOW_DAYS)) throw conflict('Membership already active', 'ALREADY_MEMBER');
+    const start = current ? addDaysYmd(ymdOf(current.expiry_date), 1) : today();
+    const expiry_date = academicYearEnd(new Date(`${start}T12:00:00Z`));
     // Reuse an abandoned pending membership instead of piling up rows: the admin list shows the latest row, and two pending
     // rows could each be paid and activated, silently charging the member twice.
     const pending = await trx('memberships').where({ member_id: member.id, status: 'pending' }).orderBy('id', 'desc').first();
@@ -75,7 +89,9 @@ export async function activateMembership(trx: Knex.Transaction, membership_id: n
   if (m.status === 'active') return m;
   // A checkout opened before the academic year ended but paid after it would otherwise activate an already-expired membership.
   const expiry_date = ymdOf(m.expiry_date) < today() ? academicYearEnd() : ymdOf(m.expiry_date);
-  await trx('memberships').where({ id: membership_id }).update({ status: 'active', payment_id, start_date: today(), expiry_date });
+  // A renewal paid early keeps its future start (the day after the current period ends).
+  const start_date = ymdOf(m.start_date) > today() ? ymdOf(m.start_date) : today();
+  await trx('memberships').where({ id: membership_id }).update({ status: 'active', payment_id, start_date, expiry_date });
   const payment = await trx('payments').where({ id: payment_id }).first();
   const member = await trx('members').where({ id: m.member_id }).first();
   await recordEntry(trx, { direction: 'in', amount: Number(payment.amount), category: 'dues', source_type: 'payment', source_id: payment_id, memo: `Dues ${member?.student_id ?? ''}`, entered_by: entered_by ?? payment.user_id });
@@ -94,7 +110,7 @@ export async function recordCashDues(admin_id: number, member_id: number, amount
     // Checks run under the member row lock so a double submit can't record the dues (and the ledger row) twice.
     const member = await lockRow(trx('members').where({ id: member_id })).first();
     if (!member) throw notFound('Member not found');
-    const current = await currentMembership(trx, member_id);
+    const current = await latestPaidMembership(trx, member_id);
     const start = current ? addDaysYmd(ymdOf(current.expiry_date), 1) : today();
     const expiry = expiry_date ?? academicYearEnd(new Date(`${start}T12:00:00Z`));
     if (current && expiry <= ymdOf(current.expiry_date)) throw badRequest(`Membership already runs until ${ymdOf(current.expiry_date)}; pick a later expiry date`);
@@ -122,7 +138,10 @@ export async function listMembers(q: { status?: string; expiring_within_days?: n
         qb.where('ms.status', 'active').whereBetween('ms.expiry_date', [today(), addDaysYmd(today(), q.expiring_within_days)]);
       }
     })
-    .select('m.id', 'm.student_id', 'm.phone', 'm.joined_at', 'u.name', 'u.email', 'u.role', 'ms.status as membership_status', 'ms.expiry_date', 'ms.start_date')
+    // Dues for the latest membership: what was paid, how (online or cash) and when.
+    .leftJoin('payments as p', 'p.id', 'ms.payment_id')
+    .select('m.id', 'm.student_id', 'm.phone', 'm.joined_at', 'u.name', 'u.email', 'u.role', 'ms.status as membership_status', 'ms.expiry_date', 'ms.start_date',
+      'p.amount as dues_amount', 'p.provider as dues_provider', 'p.status as dues_status', 'p.paid_at as dues_paid_at')
     .orderBy('u.name');
   return rows;
 }
@@ -150,12 +169,72 @@ export async function verifyMember(idOrStudent: string, qr_token?: string) {
 export async function myMembership(user_id: number) {
   const db = getDb();
   const member = await memberForUser(db, user_id);
-  if (!member) return { member: null, membership: null, active: false, is_member: false, membership_expires: null, qr_token: null };
+  if (!member) return { member: null, membership: null, active: false, is_member: false, membership_expires: null, days_left: null, can_renew: true, renewal: null, dues: [], qr_token: null };
+  // The period covering today decides membership; the latest paid one (maybe a renewal paid ahead) says how far the
+  // member is covered, which is what expiry, days left and renewal are based on.
   const ms = await currentMembership(db, member.id);
   const latest = await db('memberships').where({ member_id: member.id }).orderBy('id', 'desc').first();
+  const paid = ms ? await latestPaidMembership(db, member.id) : null;
+  const expires = paid ? ymdOf(paid.expiry_date) : null;
+  const ahead = paid && ymdOf(paid.start_date) > today() ? paid : null;
   return {
     member, membership: ms ?? latest ?? null, active: !!ms,
-    is_member: !!ms, membership_expires: ms ? ymdOf(ms.expiry_date) : null,
+    is_member: !!ms, membership_expires: expires,
+    days_left: expires ? daysBetween(today(), expires) : null,
+    // Renewal opens RENEW_WINDOW_DAYS before the covered-until date, and any time once expired.
+    can_renew: !expires || expires <= addDaysYmd(today(), RENEW_WINDOW_DAYS),
+    renewal: ahead ? { start_date: ymdOf(ahead.start_date), expiry_date: ymdOf(ahead.expiry_date) } : null,
+    dues: await duesHistory(member.id),
     qr_token: ms ? signMemberQr({ uid: user_id }) : null,
   };
+}
+
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+
+/** Every membership period with its dues payment: amount, online or cash, paid or not, and when. Newest first. */
+export async function duesHistory(member_id: number) {
+  const rows = await getDb()('memberships as ms').leftJoin('payments as p', 'p.id', 'ms.payment_id').where('ms.member_id', member_id)
+    .select('ms.id', 'ms.start_date', 'ms.expiry_date', 'ms.status', 'p.amount', 'p.provider', 'p.status as payment_status', 'p.paid_at')
+    .orderBy('ms.id', 'desc');
+  return rows.map((r) => ({
+    membership_id: r.id, start_date: ymdOf(r.start_date), expiry_date: ymdOf(r.expiry_date), status: r.status,
+    amount: r.amount == null ? null : Number(r.amount), method: r.provider == null ? null : r.provider === 'cash' ? 'cash' : 'online',
+    paid: r.payment_status === 'paid', paid_at: r.paid_at ?? null,
+  }));
+}
+
+/**
+ * Admin sets the expiry of a member's current (or most recent paid) membership: correct a date, extend a period, or
+ * end it early (expiry today). A past date is refused. Clears the reminder stamp so the renewal email goes out again.
+ */
+export async function setExpiry(member_id: number, expiry_date: string) {
+  if (expiry_date < today()) throw badRequest('Expiry date is in the past');
+  const db = getDb();
+  return db.transaction(async (trx) => {
+    const member = await lockRow(trx('members').where({ id: member_id })).first();
+    if (!member) throw notFound('Member not found');
+    // Only a paid period can be changed; a never-paid (pending) row stays as it is.
+    const target = await trx('memberships').where({ member_id }).whereIn('status', ['active', 'expired']).orderBy('expiry_date', 'desc').first();
+    if (!target) throw badRequest('This member has no paid membership. Record dues first.');
+    if (expiry_date < ymdOf(target.start_date)) throw badRequest(`Expiry must be on or after the start date (${ymdOf(target.start_date)})`);
+    await trx('memberships').where({ id: target.id }).update({ expiry_date, status: 'active', reminder_sent_at: null });
+    return trx('memberships').where({ id: target.id }).first();
+  });
+}
+
+/** Admin sends one member a renewal reminder now (the daily job sends them automatically 14 days out and on the day). */
+export async function sendReminder(member_id: number) {
+  const db = getDb();
+  const member = await db('members as m').join('users as u', 'u.id', 'm.user_id').where('m.id', member_id).first('m.id', 'u.name', 'u.email');
+  if (!member) throw notFound('Member not found');
+  const ms = await currentMembership(db, member_id);
+  const latest = ms ?? await db('memberships').where({ member_id }).whereIn('status', ['active', 'expired']).orderBy('expiry_date', 'desc').first();
+  if (!latest) throw badRequest('This member has never had a membership');
+  const exp = ymdOf(latest.expiry_date);
+  const html = ms
+    ? `<p>Hi ${esc(member.name)}, your SSA membership runs until ${exp}. Renew from your account to stay registered for events.</p>${siteLink('/me', 'Renew membership')}`
+    : `<p>Hi ${esc(member.name)}, your SSA membership ended on ${exp}. Renew from your account to register for events again.</p>${siteLink('/me', 'Renew membership')}`;
+  const sent = await sendMail({ to: member.email, subject: 'Renew your SSA membership', html });
+  if (ms) await db('memberships').where({ id: ms.id }).update({ reminder_sent_at: new Date() });
+  return { sent: sent > 0, email: member.email, expiry_date: exp };
 }

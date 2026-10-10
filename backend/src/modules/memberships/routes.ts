@@ -4,7 +4,7 @@ import { requireAuth } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../middleware/errorHandler';
 import * as svc from './service';
-import { cashDuesSchema, idParam, listMembersQuery, membershipOffer, startDuesSchema, verifyQuery } from './schemas';
+import { cashDuesSchema, idParam, listMembersQuery, membershipOffer, setExpirySchema, startDuesSchema, verifyQuery } from './schemas';
 import { academicYearEnd } from './service';
 
 export const membershipsRouter = Router();
@@ -25,6 +25,15 @@ adminMembersRouter.get('/', validate({ query: listMembersQuery }), asyncHandler(
 }));
 adminMembersRouter.get('/:id/verify', validate({ params: z.object({ id: z.string() }), query: verifyQuery }), asyncHandler(async (req, res) => {
   res.json(await svc.verifyMember(req.params.id, (req.query as any).qr_token));
+}));
+adminMembersRouter.get('/:id/dues', validate({ params: idParam }), asyncHandler(async (req, res) => {
+  res.json(await svc.duesHistory(Number(req.params.id)));
+}));
+adminMembersRouter.patch('/:id/membership', validate({ params: idParam, body: setExpirySchema }), asyncHandler(async (req, res) => {
+  res.json(await svc.setExpiry(Number(req.params.id), req.body.expiry_date));
+}));
+adminMembersRouter.post('/:id/remind', validate({ params: idParam }), asyncHandler(async (req, res) => {
+  res.json(await svc.sendReminder(Number(req.params.id)));
 }));
 adminMembersRouter.post('/:id/cash-payment', validate({ params: idParam, body: cashDuesSchema }), asyncHandler(async (req, res) => {
   res.status(201).json(await svc.recordCashDues(req.user!.id, Number(req.params.id), req.body.amount, req.body.expiry_date));

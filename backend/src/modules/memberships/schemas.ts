@@ -8,6 +8,7 @@ export const listMembersQuery = z.object({
   expiring_within_days: z.coerce.number().int().positive().optional(),
   q: z.string().optional(),
 });
+export const setExpirySchema = z.object({ expiry_date: z.string().date() });
 export const verifyQuery = z.object({ qr_token: z.string().optional() });
 export const DEFAULT_DUES = 500;
 

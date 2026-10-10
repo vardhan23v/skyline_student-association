@@ -10,6 +10,11 @@ import { addDaysYmd, todayYmd } from '../lib/dates';
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
+/** Already renewed: a later paid period exists, so no "expires soon" email for this one. */
+function renewedAhead(this: any) {
+  this.select(1).from('memberships as n').whereRaw('n.member_id = ms.member_id').where('n.status', 'active').whereRaw('n.expiry_date > ms.expiry_date');
+}
+
 /** §6.4 — renewal reminders at T-14d and on expiry day. */
 export async function sendRenewalReminders() {
   const db = getDb();
@@ -17,13 +22,14 @@ export async function sendRenewalReminders() {
   const today = todayYmd();
   const rows = await db('memberships as ms').join('members as m', 'm.id', 'ms.member_id').join('users as u', 'u.id', 'm.user_id')
     .where('ms.status', 'active').whereBetween('ms.expiry_date', [today, addDaysYmd(today, 14)]).whereNull('ms.reminder_sent_at')
+    .whereNotExists(renewedAhead)
     .select('ms.id', 'u.email', 'u.name', 'ms.expiry_date');
   for (const r of rows) {
     await sendMail({ to: r.email, subject: 'Your SSA membership expires soon', html: `<p>Hi ${esc(r.name)}, your membership expires on ${r.expiry_date}. Renew from your account.</p>${siteLink('/me', 'Renew membership')}` });
     await db('memberships').where({ id: r.id }).update({ reminder_sent_at: new Date() });
   }
   const dueToday = await db('memberships as ms').join('members as m', 'm.id', 'ms.member_id').join('users as u', 'u.id', 'm.user_id')
-    .where('ms.status', 'active').where('ms.expiry_date', today)
+    .where('ms.status', 'active').where('ms.expiry_date', today).whereNotExists(renewedAhead)
     .whereNotIn('ms.id', rows.map((r) => r.id)) // just got the "expires soon" email above: don't send two in one run
     .select('u.email', 'u.name');
   for (const r of dueToday) await sendMail({ to: r.email, subject: 'Your SSA membership expires today', html: `<p>Hi ${esc(r.name)}, today is the last day of your membership.</p>${siteLink('/me', 'Renew membership')}` });
