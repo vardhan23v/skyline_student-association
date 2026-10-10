@@ -7,13 +7,13 @@ Base path `/api`. JSON in and out. Auth is `Authorization: Bearer <JWT>` from `/
 | Role | Who | Can do |
 |---|---|---|
 | `admin` | Club leads | Everything below under `/api/admin/*`: events, registrations, check-in, members and cash dues, products and stock, orders, announcements, ledger, expenses, fundraisers, tasks |
-| `user` | Any registered student | Browse; buy a membership; register for events **while a member**; order merch; see their own membership, tickets and orders |
+| `user` | Any registered student | Browse; buy a membership; register for events (member price while a member, non-member price otherwise; members-only events need a membership); order merch; see their own membership, tickets and orders |
 
 `admin` ⊇ `user`. **Membership is a status, not a role**: a user is a member while they have a `memberships` row with `status = 'active'` and `expiry_date >= today` (club time zone, `APP_TIMEZONE`). `GET /me` returns `is_member` and `membership_expires`.
 
 The backend is the source of truth for permissions:
 - every `/api/admin/*` route sits behind one `requireRole('admin')` on the admin router, so a non-admin gets **403** and an anonymous caller **401** on all of them;
-- members-only routes use `requireMember`;
+- `requireMember` guards members-only routes; event registration checks membership itself, under the event lock;
 - services check ownership, so a user only reads their own tickets, orders and membership.
 
 Tokens minted before the two-role migration carry a retired role (`member`, `treasurer`…) and are rejected with 401, so those users sign in again.
@@ -84,7 +84,7 @@ Unpaid holds (a ticket seat, reserved stock) expire after `PENDING_HOLD_MINUTES`
 | POST | `/api/payments/demo-confirm/:paymentId` | user (payer only) | Confirm a pending payment in demo mode. 404 unless `DEMO_PAYMENTS=true` and no Razorpay keys | added |
 | GET | `/api/events` | public | Published and closed events. Each has `seats_left`, `price` (member price) and `viewer: { logged_in, is_member, registered, ticket }`. The temporary `price_for_you` and `you_are_member` fields were removed in Phase 2 | changed (`viewer`; drafts moved to admin) |
 | GET | `/api/events/:id` | public | One event, same shape | changed |
-| POST | `/api/events/:id/register` | member | Register; details below | added |
+| POST | `/api/events/:id/register` | user | Register at the caller's price; members-only events need a membership. Details below | added (any user since member / non-member pricing) |
 | DELETE | `/api/events/:id/register` | user (holder) | Cancel before the event starts. Frees the seat; a paid ticket gets a reversing ledger row and its payment is marked refunded | added |
 | POST | `/api/events/:id/tickets` | n/a | Old ticket purchase (members and non-members) | **removed** |
 | POST | `/api/events/:id/cash-ticket` | n/a | Old cash door sale | **removed** |
