@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
@@ -28,7 +29,8 @@ function MediaLayer({ item, active, load }: { item: MerchItem; active: boolean; 
 /** Rounded 320×400 card that trails the cursor and crossfades between merch items. */
 export function MerchCursorPreview({ activeId, loaded }: { activeId: string | null; loaded: Set<string> }) {
   const ref = useCursorFollow<HTMLDivElement>({ ease: 0.12, maxTilt: 8 });
-  return (
+  // Portalled so section transitions (transforms/clips on ancestors) can't trap the fixed card.
+  return createPortal(
     <div ref={ref} aria-hidden="true" className="pointer-events-none fixed left-0 top-0 z-40 will-change-transform">
       <AnimatePresence>
         {activeId && (
@@ -43,7 +45,8 @@ export function MerchCursorPreview({ activeId, loaded }: { activeId: string | nu
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -54,11 +57,11 @@ export function MerchSection() {
   const enter = (id: string) => { setActiveId(id); setLoaded((s) => (s.has(id) ? s : new Set(s).add(id))); };
 
   return (
-    <section id="merch" tabIndex={-1} aria-labelledby="merch-h" className="border-t border-ash/20 py-24 outline-none sm:py-32">
+    <section id="merch" data-theme="dark" tabIndex={-1} aria-labelledby="merch-h" className="border-t border-ash/20 py-24 outline-none sm:py-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-8">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <SectionHeading id="merch-h" script="wear the" title="Horizon" />
-          <Link to={merchShopHref} className="inline-flex items-center gap-2 rounded-full bg-crimson px-6 py-3 font-bold text-ivory transition-[filter] hover:brightness-110">
+          <Link to={merchShopHref} data-cursor="button" className="inline-flex items-center gap-2 rounded-full bg-crimson px-6 py-3 font-bold text-ivory transition-[filter] hover:brightness-110">
             Shop merch <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
           </Link>
         </div>
@@ -69,6 +72,7 @@ export function MerchSection() {
             <li key={m.id} className="border-b border-ash/20">
               <Link
                 to={merchShopHref}
+                data-cursor="merch"
                 onPointerEnter={() => enter(m.id)}
                 onFocus={() => enter(m.id)}
                 onBlur={() => setActiveId(null)}

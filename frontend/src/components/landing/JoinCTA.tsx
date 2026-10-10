@@ -34,7 +34,7 @@ export function JoinCTA() {
   };
 
   return (
-    <section id="join" tabIndex={-1} aria-labelledby="join-h" className="relative isolate overflow-hidden border-t border-ash/20 px-4 py-28 outline-none sm:py-36">
+    <section id="join" data-theme="dark" data-cursor="join" tabIndex={-1} aria-labelledby="join-h" className="relative isolate overflow-hidden border-t border-ash/20 px-4 py-28 outline-none sm:py-36">
       <div aria-hidden="true" className="join-glow absolute inset-0 -z-10" />
       <div className="mx-auto max-w-3xl text-center">
         <h2 id="join-h">

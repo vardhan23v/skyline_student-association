@@ -14,6 +14,7 @@ function Row({ photos, offset, reverse, onOpen }: { photos: GalleryPhoto[]; offs
               <button
                 type="button"
                 tabIndex={copy === 1 ? -1 : undefined}
+                data-cursor="view"
                 onClick={(e) => { e.currentTarget.focus(); onOpen(offset + i); }}
                 className="group block overflow-hidden rounded-2xl border border-ash/20"
               >
@@ -31,7 +32,7 @@ export function GalleryMarquee() {
   const [open, setOpen] = useState<number | null>(null);
   const half = Math.ceil(gallery.length / 2);
   return (
-    <section id="gallery" tabIndex={-1} aria-labelledby="gallery-h" className="overflow-hidden border-t border-ash/20 py-24 outline-none sm:py-32">
+    <section id="gallery" data-theme="dark" tabIndex={-1} aria-labelledby="gallery-h" className="overflow-hidden border-t border-ash/20 py-24 outline-none sm:py-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-8">
         <SectionHeading id="gallery-h" script="moments" title="Gallery" />
         <p className="mt-4 text-ivory/65">Hover to pause. Select a photo to open it.</p>

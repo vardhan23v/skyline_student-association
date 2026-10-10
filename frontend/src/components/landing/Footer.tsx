@@ -7,7 +7,7 @@ const icons = { instagram: Instagram, linkedin: Linkedin, youtube: Youtube, mail
 
 export function Footer() {
   return (
-    <footer className="border-t border-ash/20 bg-midnight px-4 py-14 text-ash sm:px-8">
+    <footer data-theme="dark" className="border-t border-ash/20 bg-midnight px-4 py-14 text-ash sm:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-10 md:flex-row md:items-center md:justify-between">
         <a href="#top" onClick={(e) => { e.preventDefault(); scrollToSection('top'); }} className="flex items-center gap-3 text-ivory">
           <SkylineMark className="h-8 w-8 text-crimson" />

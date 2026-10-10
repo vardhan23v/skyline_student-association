@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, MapPin } from 'lucide-react';
 import { upcomingEvents, type UpcomingEvent } from '../../data/landing';
 import { SectionHeading } from './SectionHeading';
 import { dateParts, fullDate } from './format';
+import { dur, ease } from '../../lib/motion';
 
 const MAX_TILT = 6;
 
@@ -34,7 +35,7 @@ function EventCardItem({ ev, index }: { ev: UpcomingEvent; index: number }) {
         variants={reduce
           ? { hidden: { opacity: 0 }, show: { opacity: 1 } }
           : { hidden: { clipPath: 'inset(100% 0% 0% 0%)' }, show: { clipPath: 'inset(0% 0% 0% 0%)' } }}
-        transition={{ duration: 0.9, ease: [0.76, 0, 0.24, 1], delay: (index % 3) * 0.08 }}
+        transition={{ duration: dur.slow, ease: ease.inOut, delay: (index % 3) * 0.08 }}
       >
       <motion.article
         onPointerMove={onMove}
@@ -42,7 +43,8 @@ function EventCardItem({ ev, index }: { ev: UpcomingEvent; index: number }) {
         style={{ rotateX: rx, rotateY: ry, transformStyle: 'preserve-3d' }}
         className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-ash/20 bg-ivory/[0.03]"
       >
-        <div className="relative aspect-[4/5] overflow-hidden">
+        {/* Image doubles as a mouse shortcut to tickets; keyboard and AT use the "Get tickets" link. */}
+        <Link to={ev.href} tabIndex={-1} aria-hidden="true" data-cursor="view" data-cursor-label="Tickets" className="relative block aspect-[4/5] overflow-hidden">
           <img src={ev.image} alt={ev.alt} width={800} height={1000} loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.08]" />
           <div className="absolute inset-0 bg-gradient-to-t from-midnight via-midnight/10 to-transparent" />
           <p className="absolute left-4 top-4 flex flex-col items-center rounded-xl bg-crimson px-3 py-2 leading-none text-ivory">
@@ -50,7 +52,7 @@ function EventCardItem({ ev, index }: { ev: UpcomingEvent; index: number }) {
             <span className="mt-1 text-[0.65rem] font-bold tracking-[0.2em]">{month}</span>
             <span className="sr-only">{fullDate(ev.date)}</span>
           </p>
-        </div>
+        </Link>
         <div className="flex flex-1 flex-col gap-2 p-5">
           <h3 className="text-xl font-bold text-ivory">{ev.title}</h3>
           <p className="flex items-center gap-1.5 text-sm text-ivory/65"><MapPin aria-hidden="true" className="h-4 w-4 text-ash" />{ev.venue}</p>
@@ -68,7 +70,7 @@ export function EventCarousel() {
   const track = useRef<HTMLUListElement>(null);
   const page = (dir: 1 | -1) => track.current?.scrollBy({ left: dir * track.current.clientWidth * 0.8, behavior: 'smooth' });
   return (
-    <section id="events" tabIndex={-1} aria-labelledby="events-h" className="border-t border-ash/20 py-24 outline-none sm:py-32">
+    <section id="events" data-theme="dark" tabIndex={-1} aria-labelledby="events-h" className="border-t border-ash/20 py-24 outline-none sm:py-32">
       <div className="mx-auto flex max-w-7xl items-end justify-between gap-6 px-4 sm:px-8">
         <SectionHeading id="events-h" script="upcoming" title="Events" />
         <div className="hidden gap-2 sm:flex">

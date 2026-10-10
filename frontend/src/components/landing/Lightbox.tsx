@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import type { GalleryPhoto } from '../../data/landing';
 import { lockScroll } from '../../hooks/useSmoothScroll';
+import { dur } from '../../lib/motion';
 
 type Props = { photos: GalleryPhoto[]; index: number | null; onChange: (i: number | null) => void };
 
@@ -35,7 +37,8 @@ export function Lightbox({ photos, index, onChange }: Props) {
   };
 
   const photo = index !== null ? photos[index] : null;
-  return (
+  // Portalled to <body> so ancestor transforms/clips never trap the fixed overlay.
+  return createPortal(
     <AnimatePresence>
       {open && photo && (
         <motion.div
@@ -47,7 +50,7 @@ export function Lightbox({ photos, index, onChange }: Props) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[80] flex flex-col bg-midnight/95 backdrop-blur-md"
+          className="landing fixed inset-0 z-[80] flex flex-col bg-midnight/95 backdrop-blur-md"
           onClick={(e) => { if (e.target === e.currentTarget) onChange(null); }}
         >
           <div className="flex items-center justify-between p-4">
@@ -61,7 +64,7 @@ export function Lightbox({ photos, index, onChange }: Props) {
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.97 }}
-                transition={{ duration: 0.25 }}
+                transition={{ duration: dur.fast }}
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.4}
@@ -77,6 +80,7 @@ export function Lightbox({ photos, index, onChange }: Props) {
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

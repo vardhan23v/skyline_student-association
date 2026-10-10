@@ -5,6 +5,7 @@ import { Menu, X } from 'lucide-react';
 import { navLinks, type SectionId } from '../../data/landing';
 import { lockScroll, scrollToSection } from '../../hooks/useSmoothScroll';
 import { SkylineMark } from './SectionHeading';
+import { dur } from '../../lib/motion';
 
 /** Floating glass pill nav. Shrinks after 80px of scroll; tracks the section in view. */
 export function GlassNav() {
@@ -45,7 +46,7 @@ export function GlassNav() {
 
   return (
     <>
-      <header className="fixed inset-x-0 top-4 z-50 flex justify-center px-4">
+      <header data-theme="dark" className="fixed inset-x-0 top-4 z-50 flex justify-center px-4">
         <nav
           aria-label="Primary"
           className={`flex w-full max-w-5xl items-center justify-between gap-4 rounded-full border border-ivory/10 shadow-lg backdrop-blur-xl transition-all duration-300 ${scrolled ? 'bg-midnight/70 px-4 py-2' : 'bg-ivory/5 px-5 py-3'}`}
@@ -71,7 +72,7 @@ export function GlassNav() {
           </ul>
           <div className="flex items-center gap-2">
             <Link to="/login" className="hidden rounded-full px-4 py-2 text-sm font-medium text-ivory/80 transition-colors hover:text-ivory sm:block">Login</Link>
-            <a href="#join" onClick={go('join')} className="hidden rounded-full bg-crimson px-4 py-2 text-sm font-bold text-ivory transition-[filter] hover:brightness-110 sm:block">Become a member</a>
+            <a href="#join" onClick={go('join')} data-cursor="button" className="hidden rounded-full bg-crimson px-4 py-2 text-sm font-bold text-ivory transition-[filter] hover:brightness-110 sm:block">Become a member</a>
             <button
               ref={menuBtn}
               type="button"
@@ -97,7 +98,7 @@ export function GlassNav() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: dur.fast }}
             className="fixed inset-0 z-[70] flex flex-col bg-midnight/80 px-6 pb-10 pt-6 backdrop-blur-2xl md:hidden"
           >
             <div className="flex items-center justify-between">

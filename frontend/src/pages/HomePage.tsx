@@ -9,6 +9,8 @@ import { AboutSection } from '../components/landing/AboutSection';
 import { GalleryMarquee } from '../components/landing/GalleryMarquee';
 import { JoinCTA } from '../components/landing/JoinCTA';
 import { Footer } from '../components/landing/Footer';
+import { SectionTransition } from '../components/landing/SectionTransition';
+import { StudentCursor } from '../components/cursor/StudentCursor';
 
 /** Public landing page ("/"). Content lives in src/data/landing.ts. */
 export function HomePage() {
@@ -20,15 +22,16 @@ export function HomePage() {
         <GlassNav />
         <main>
           <Hero />
-          <EventCarousel />
-          <PastEventsGrid />
-          <MerchSection />
-          <AboutSection />
-          <GalleryMarquee />
-          <JoinCTA />
+          <SectionTransition><EventCarousel /></SectionTransition>
+          <SectionTransition><PastEventsGrid /></SectionTransition>
+          <SectionTransition><MerchSection /></SectionTransition>
+          <SectionTransition><AboutSection /></SectionTransition>
+          <SectionTransition><GalleryMarquee /></SectionTransition>
+          <SectionTransition><JoinCTA /></SectionTransition>
         </main>
         <Footer />
         <div aria-hidden="true" className="grain" />
+        <StudentCursor />
       </div>
     </MotionConfig>
   );

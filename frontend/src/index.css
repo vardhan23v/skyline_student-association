@@ -236,6 +236,10 @@
   .marquee-row:hover .marquee-track, .marquee-row:focus-within .marquee-track { animation-play-state: paused; }
   @keyframes marquee { to { transform: translateX(calc(-50% - 0.5rem)); } }
 
+  /* StudentCursor (landing only): hide the native pointer, keep the I-beam in text fields. */
+  .has-student-cursor, .has-student-cursor * { cursor: none !important; }
+  .has-student-cursor :is(input, textarea, select, [contenteditable="true"]) { cursor: text !important; }
+
   .no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
 
   @media (prefers-reduced-motion: reduce) {

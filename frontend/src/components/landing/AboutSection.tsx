@@ -3,12 +3,13 @@ import { ClipboardList, Scale, Ticket } from 'lucide-react';
 import { about, stats } from '../../data/landing';
 import { SectionHeading } from './SectionHeading';
 import { StatCounter } from './StatCounter';
+import { dur, ease } from '../../lib/motion';
 
 const icons = { ticket: Ticket, clipboard: ClipboardList, scale: Scale };
 
 export function AboutSection() {
   return (
-    <section id="about" tabIndex={-1} aria-labelledby="about-h" className="border-t border-ash/20 py-24 outline-none sm:py-32">
+    <section id="about" data-theme="dark" tabIndex={-1} aria-labelledby="about-h" className="border-t border-ash/20 py-24 outline-none sm:py-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-8">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-20">
           <div>
@@ -24,7 +25,7 @@ export function AboutSection() {
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: '-10% 0px' }}
-                  transition={{ duration: 0.6, delay: i * 0.1 }}
+                  transition={{ duration: dur.base, ease: ease.out, delay: i * 0.1 }}
                   className="flex gap-5 rounded-2xl border border-ash/20 bg-ivory/[0.03] p-6 transition-colors hover:border-crimson/60"
                 >
                   <Icon aria-hidden="true" strokeWidth={1.5} className="h-8 w-8 shrink-0 text-crimson" />

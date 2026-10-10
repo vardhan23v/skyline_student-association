@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { animate, useInView, useReducedMotion } from 'framer-motion';
 import type { Stat } from '../../data/landing';
+import { dur, ease } from '../../lib/motion';
 
 const fmt = (n: number, decimals = 0) => n.toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 
@@ -13,7 +14,7 @@ export function StatCounter({ stat }: { stat: Stat }) {
   useEffect(() => {
     if (!inView) return;
     if (reduce) { setValue(stat.value); return; }
-    const c = animate(0, stat.value, { duration: 1.8, ease: [0.22, 1, 0.36, 1], onUpdate: setValue });
+    const c = animate(0, stat.value, { duration: dur.slow * 2, ease: ease.out, onUpdate: setValue });
     return () => c.stop();
   }, [inView, reduce, stat.value]);
   const final = `${stat.prefix ?? ''}${fmt(stat.value, stat.decimals)}${stat.suffix ?? ''}`;

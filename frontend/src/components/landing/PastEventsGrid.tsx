@@ -43,7 +43,7 @@ function Tile({ ev, span, speed }: { ev: PastEvent; span: string; speed: number 
 
 export function PastEventsGrid() {
   return (
-    <section id="past" tabIndex={-1} aria-labelledby="past-h" className="border-t border-ash/20 py-24 outline-none sm:py-32">
+    <section id="past" data-theme="dark" tabIndex={-1} aria-labelledby="past-h" className="border-t border-ash/20 py-24 outline-none sm:py-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-8">
         <SectionHeading id="past-h" script="past" title="Events" />
         <div className="mt-12 grid auto-rows-[160px] grid-cols-2 gap-3 sm:auto-rows-[220px] sm:gap-4 md:grid-cols-4">
