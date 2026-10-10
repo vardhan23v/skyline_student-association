@@ -6,6 +6,7 @@ import { Lock } from 'lucide-react';
 import { get } from '@/api/client';
 import type { Summary } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
+import { loginUrl } from '@/auth/redirect';
 import { PageHeader, SectionHeader } from '@/components/PageHeader';
 import { MetricCard } from '@/components/MetricCard';
 import { LabeledInput } from '@/components/Input';
@@ -20,7 +21,7 @@ export function FinancePublicPage() {
   const [period, setPeriod] = useState({ from: '', to: '' });
   const qs = new URLSearchParams(Object.entries(period).filter(([, v]) => v)).toString();
   const q = useQuery({ queryKey: ['finance', 'summary', qs], queryFn: () => get<Summary>(`/finance/summary${qs ? `?${qs}` : ''}`), enabled: !!me });
-  if (!me) return <EmptyState icon={<Lock className="size-5" aria-hidden />} title="Members-only" description="Club finances are visible to logged-in members. Every rupee in and out comes from the append-only ledger." action={<Link to="/login" className="btn-primary">Log in</Link>} />;
+  if (!me) return <EmptyState icon={<Lock className="size-5" aria-hidden />} title="Members-only" description="Club finances are visible to logged-in members. Every rupee in and out comes from the append-only ledger." action={<Link to={loginUrl('/finance')} className="btn-primary">Log in</Link>} />;
   const s = q.data;
   const cat = (d: string) => (s?.by_category ?? []).filter((r) => r.direction === d);
   const months = Object.values((s?.by_month ?? []).reduce<Record<string, { month: string; in: number; out: number }>>((acc, r) => { acc[r.month] ??= { month: r.month, in: 0, out: 0 }; acc[r.month][r.direction as 'in' | 'out'] = r.total; return acc; }, {}));

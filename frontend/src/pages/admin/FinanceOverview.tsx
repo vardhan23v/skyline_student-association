@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
-import { ArrowRight, BookOpen, Receipt, Wallet, BarChart3 } from 'lucide-react';
+import { Receipt, Wallet } from 'lucide-react';
 import { get } from '@/api/client';
 import type { Expense, LedgerRow, Summary } from '@/api/types';
 import { PageHeader, SectionHeader } from '@/components/PageHeader';
@@ -9,12 +9,15 @@ import { MetricCard } from '@/components/MetricCard';
 import { TransactionRow } from '@/components/TransactionRow';
 import { EmptyState, ErrorState, Skeleton } from '@/components/EmptyState';
 import { money } from '@/components/format';
+import { LedgerPage } from './LedgerPage';
+import { ExpenseQueuePage } from './ExpenseQueuePage';
+import { SubmitExpensePage } from './SubmitExpensePage';
 
 /* Greyscale ramp + one accent, as in the reference; category identity comes from the legend text. */
 const palette = ['var(--accent)', '#9aa6c2', '#5f6b88', '#3a4461', '#c7d0e6', '#7cc4ff'];
 const tip = { contentStyle: { background: 'var(--surface-elevated)', border: '1px solid var(--border-strong)', borderRadius: 12, fontSize: 12 }, itemStyle: { color: 'var(--text-primary)' } };
 
-/** Module-level so each TreasurerHome re-render doesn't create a new component type and remount the chart. */
+/** Module-level so each FinanceSummary re-render doesn't create a new component type and remount the chart. */
 function Donut({ title, data }: { title: string; data: { name: string; value: number }[] }) {
   return (
     <section className="card">
@@ -31,15 +34,41 @@ function Donut({ title, data }: { title: string; data: { name: string; value: nu
   );
 }
 
-export function TreasurerHome() {
+const views = [
+  { key: 'summary', label: 'Summary' },
+  { key: 'ledger', label: 'Ledger & CSV' },
+  { key: 'expenses', label: 'Expense review' },
+  { key: 'submit', label: 'Submit expense' },
+] as const;
+type View = (typeof views)[number]['key'];
+
+/** Admin › Finance tab: summary, ledger (with CSV export), expense review and submission, switched by `?view=`. */
+export function FinanceOverview() {
+  const [params, setParams] = useSearchParams();
+  const view = (views.find((v) => v.key === params.get('view'))?.key ?? 'summary') as View;
+  const go = (v: View) => setParams(v === 'summary' ? { tab: 'finance' } : { tab: 'finance', view: v });
+  return (
+    <>
+      <div role="group" aria-label="Finance views" className="mb-5 flex flex-wrap gap-1.5">
+        {views.map((v) => <button key={v.key} type="button" aria-pressed={view === v.key} onClick={() => go(v.key)} className={`btn-secondary !min-h-9 !px-3 !text-xs ${view === v.key ? '!border-accent !text-text-primary' : ''}`}>{v.label}</button>)}
+      </div>
+      {view === 'summary' && <FinanceSummary onOpen={go} />}
+      {view === 'ledger' && <LedgerPage />}
+      {view === 'expenses' && <ExpenseQueuePage />}
+      {view === 'submit' && <SubmitExpensePage />}
+    </>
+  );
+}
+
+function FinanceSummary({ onOpen }: { onOpen: (v: View) => void }) {
   const s = useQuery({ queryKey: ['finance', 'summary', ''], queryFn: () => get<Summary>('/finance/summary') });
-  const queue = useQuery({ queryKey: ['expenses', 'submitted'], queryFn: () => get<Expense[]>('/expenses?status=submitted') });
-  const recent = useQuery({ queryKey: ['ledger', 'limit=8'], queryFn: () => get<LedgerRow[]>('/finance/ledger?limit=8') });
+  const queue = useQuery({ queryKey: ['expenses', 'submitted'], queryFn: () => get<Expense[]>('/admin/expenses?status=submitted') });
+  const recent = useQuery({ queryKey: ['ledger', 'limit=8'], queryFn: () => get<LedgerRow[]>('/admin/finance/ledger?limit=8') });
   const pie = (d: string) => (s.data?.by_category ?? []).filter((r) => r.direction === d).map((r) => ({ name: r.category, value: r.total }));
   const flagged = queue.data?.filter((x) => x.flags.length).length ?? 0;
   return (
     <>
-      <PageHeader eyebrow="Treasurer" title="Treasurer desk" description="Finance writes require the treasurer role. Admins cannot touch the ledger." />
+      <PageHeader eyebrow="Finance" title="Club finances" description="Every payment and reimbursement is in one append-only ledger. Members see the summary on the Finance page." />
       <ErrorState error={s.error} onRetry={() => s.refetch()} className="mb-4" />
       <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
         <MetricCard label="Balance" icon={Wallet} loading={s.isLoading} value={money(s.data?.balance)} tone="accent" />
@@ -47,19 +76,14 @@ export function TreasurerHome() {
         <MetricCard label="Total out" loading={s.isLoading} value={money(s.data?.total_out)} />
         <MetricCard label="Review queue" icon={Receipt} loading={queue.isLoading} value={queue.data?.length ?? '—'} hint={flagged ? `${flagged} flagged` : 'nothing flagged'} tone={flagged ? 'danger' : (queue.data?.length ?? 0) > 0 ? 'warning' : 'default'} />
       </div>
-      <div className="mt-6 grid gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
+      <div className="mt-6 grid gap-5">
+        <div className="space-y-5">
           <div className="grid gap-5 md:grid-cols-2"><Donut title="Income by category" data={pie('in')} /><Donut title="Spending by category" data={pie('out')} /></div>
           <section className="card">
-            <SectionHeader title="Recent transactions" actions={<Link to="/treasurer/ledger" className="t-label hover:text-accent">Full ledger →</Link>} />
+            <SectionHeader title="Recent transactions" actions={<button type="button" onClick={() => onOpen('ledger')} className="t-label hover:text-accent">Full ledger →</button>} />
             {recent.isLoading ? <Skeleton rows={5} /> : recent.error ? <ErrorState error={recent.error} onRetry={() => recent.refetch()} /> : !recent.data?.length ? <EmptyState title="No ledger entries yet" className="!py-6" /> : <ul>{recent.data.map((r) => <TransactionRow key={r.id} row={r} />)}</ul>}
           </section>
         </div>
-        <nav aria-label="Treasurer actions" className="space-y-3">
-          {[['/treasurer/expenses', 'Expense review queue', Receipt, queue.data?.length ? `${queue.data.length} waiting` : 'Queue is clear'], ['/treasurer/ledger', 'Ledger & CSV export', BookOpen, 'Append-only, with reversals'], ['/treasurer/cash', 'Record cash', Wallet, 'Dues, door tickets, bake sales'], ['/finance', 'Public summary', BarChart3, 'What members see']].map(([to, t, Icon, d]: any) => (
-            <Link key={to} to={to} className="card card-hover interactive group flex items-center gap-3 focus-ring"><span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-accent-soft text-accent"><Icon className="size-4" aria-hidden /></span><span className="min-w-0 flex-1"><span className="block text-sm font-medium">{t}</span><span className="t-caption block">{d}</span></span><ArrowRight className="size-4 text-text-tertiary transition-transform group-hover:translate-x-0.5" aria-hidden /></Link>
-          ))}
-        </nav>
       </div>
     </>
   );

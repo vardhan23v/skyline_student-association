@@ -19,8 +19,8 @@ export function LedgerPage() {
   const [f, setF] = useState({ from: '', to: '', category: '' });
   const [rev, setRev] = useState<LedgerRow | null>(null); const [memo, setMemo] = useState('');
   const qs = new URLSearchParams(Object.entries(f).filter(([, v]) => v)).toString();
-  const q = useQuery({ queryKey: ['ledger', qs], queryFn: () => get<LedgerRow[]>(`/finance/ledger?${qs}`) });
-  const reverse = useMutation({ mutationFn: ({ id, memo }: { id: number; memo: string }) => post(`/finance/ledger/${id}/reverse`, { memo }), onSuccess: () => { setRev(null); setMemo(''); qc.invalidateQueries(); toast.success('Reversal recorded'); } });
+  const q = useQuery({ queryKey: ['ledger', qs], queryFn: () => get<LedgerRow[]>(`/admin/finance/ledger?${qs}`) });
+  const reverse = useMutation({ mutationFn: ({ id, memo }: { id: number; memo: string }) => post(`/admin/finance/ledger/${id}/reverse`, { memo }), onSuccess: () => { setRev(null); setMemo(''); qc.invalidateQueries(); toast.success('Reversal recorded'); } });
   const openReverse = (r: LedgerRow) => { setMemo(''); reverse.reset(); setRev(r); };
   const closeReverse = () => setRev(null);
   const [exporting, setExporting] = useState(false);
@@ -29,7 +29,7 @@ export function LedgerPage() {
     try {
       // No `limit`: the API returns every row for CSV (the JSON view is capped at 500).
       const p = new URLSearchParams(qs); p.set('format', 'csv');
-      const res = await fetch(`/api/finance/ledger?${p}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      const res = await fetch(`/api/admin/finance/ledger?${p}`, { headers: { Authorization: `Bearer ${getToken()}` } });
       if (!res.ok) { const body = await res.json().catch(() => null); throw new Error(body?.error ?? `Export failed (${res.status})`); }
       const url = URL.createObjectURL(await res.blob());
       // Firefox needs the anchor in the document, and revoking synchronously can cancel the download.

@@ -17,22 +17,22 @@ const RECEIPT_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
 export function SubmitExpensePage() {
   const toast = useToast(); const qc = useQueryClient();
-  const events = useQuery({ queryKey: ['events'], queryFn: () => get<Event[]>('/events') });
+  const events = useQuery({ queryKey: ['admin', 'events'], queryFn: () => get<Event[]>('/admin/events') });
   const frs = useQuery({ queryKey: ['fundraisers'], queryFn: () => get<Fundraiser[]>('/fundraisers') });
-  const mine = useQuery({ queryKey: ['expenses', 'mine'], queryFn: () => get<Expense[]>('/expenses?mine=true') });
+  const mine = useQuery({ queryKey: ['expenses', 'mine'], queryFn: () => get<Expense[]>('/admin/expenses?mine=true') });
   const [f, setF] = useState({ amount: '', category: 'supplies', description: '', event_id: '', fundraiser_id: '' });
   const [file, setFile] = useState<File | null>(null);
   const submit = useMutation({
     mutationFn: async () => {
       let receipt_base64: string | undefined, receipt_mime: string | undefined;
       if (file) { if (!RECEIPT_TYPES.includes(file.type)) throw new Error('Receipt must be a JPEG, PNG or PDF file.'); if (file.size > 5 * 1024 * 1024) throw new Error('Receipt exceeds 5 MB'); receipt_mime = file.type; receipt_base64 = btoa(new Uint8Array(await file.arrayBuffer()).reduce((s, b) => s + String.fromCharCode(b), '')); }
-      return post<Expense>('/expenses', { amount: Number(f.amount), category: f.category, description: f.description || undefined, event_id: f.event_id ? Number(f.event_id) : undefined, fundraiser_id: f.fundraiser_id ? Number(f.fundraiser_id) : undefined, receipt_base64, receipt_mime });
+      return post<Expense>('/admin/expenses', { amount: Number(f.amount), category: f.category, description: f.description || undefined, event_id: f.event_id ? Number(f.event_id) : undefined, fundraiser_id: f.fundraiser_id ? Number(f.fundraiser_id) : undefined, receipt_base64, receipt_mime });
     },
-    onSuccess: (x) => { setF({ amount: '', category: 'supplies', description: '', event_id: '', fundraiser_id: '' }); setFile(null); qc.invalidateQueries({ queryKey: ['expenses'] }); toast.success(`Submitted #${x.id}`, x.flags.length ? `Flagged for review: ${x.flags.map((y) => y.code).join(', ')}` : 'The treasurer will review it.'); },
+    onSuccess: (x) => { setF({ amount: '', category: 'supplies', description: '', event_id: '', fundraiser_id: '' }); setFile(null); qc.invalidateQueries({ queryKey: ['expenses'] }); toast.success(`Submitted #${x.id}`, x.flags.length ? `Flagged for review: ${x.flags.map((y) => y.code).join(', ')}` : 'Another admin will review it.'); },
   });
   return (
     <>
-      <PageHeader eyebrow="Reimbursements" title="Submit expense" description="Attach the receipt. The treasurer reviews, then pays." />
+      <PageHeader eyebrow="Reimbursements" title="Submit expense" description="Attach the receipt. Another admin reviews it, then marks it paid." />
       <div className="grid gap-5 lg:grid-cols-5">
         <form className="card space-y-4 lg:col-span-2" onSubmit={(e) => { e.preventDefault(); submit.mutate(); }}>
           <LabeledInput label="Amount (₹)" type="number" inputMode="decimal" min="1" step="0.01" required value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} />

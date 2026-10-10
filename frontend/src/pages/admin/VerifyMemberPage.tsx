@@ -10,7 +10,7 @@ import { date } from '@/components/format';
 
 export function VerifyMemberPage() {
   const [sid, setSid] = useState(''); const [qr, setQr] = useState('');
-  const m = useMutation({ mutationFn: () => get<any>(qr.trim() ? `/members/x/verify?qr_token=${encodeURIComponent(qr.trim())}` : `/members/${encodeURIComponent(sid.trim())}/verify`) });
+  const m = useMutation({ mutationFn: () => get<any>(qr.trim() ? `/admin/members/x/verify?qr_token=${encodeURIComponent(qr.trim())}` : `/admin/members/${encodeURIComponent(sid.trim())}/verify`) });
   return (
     <>
       <PageHeader eyebrow="Check-in" title="Verify membership" description="Type a student ID or paste a member QR token." />

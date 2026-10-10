@@ -18,7 +18,7 @@ export function AdminAnnouncementsPage() {
   const [f, setF] = useState({ title: '', body: '', audience: 'all' });
   const [confirm, setConfirm] = useState(false);
   const closeConfirm = () => setConfirm(false);
-  const pub = useMutation({ mutationFn: () => post<Announcement>('/announcements', f), onSuccess: (a) => { setF({ title: '', body: '', audience: 'all' }); setConfirm(false); qc.invalidateQueries({ queryKey: ['announcements'] }); toast.success('Published', `Emailed to ${a.email_recipient_count ?? 0} recipients.`); }, onError: () => setConfirm(false) });
+  const pub = useMutation({ mutationFn: () => post<Announcement>('/admin/announcements', f), onSuccess: (a) => { setF({ title: '', body: '', audience: 'all' }); setConfirm(false); qc.invalidateQueries({ queryKey: ['announcements'] }); toast.success('Published', `Emailed to ${a.email_recipient_count ?? 0} recipients.`); }, onError: () => setConfirm(false) });
   return (
     <>
       <PageHeader eyebrow="Announcements" title="Compose" description="One post goes to the website archive and the mailing list together. Published posts are permanent." />

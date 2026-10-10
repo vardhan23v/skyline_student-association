@@ -1,25 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { PackageCheck, Plus } from 'lucide-react';
+import { Plus, Radio, Search, XCircle } from 'lucide-react';
 import { get, patch, post } from '@/api/client';
-import type { Product } from '@/api/types';
+import { getToken } from '@/auth/token';
+import type { AdminOrderRow, AdminOrdersPage, OrderStatus, Product } from '@/api/types';
 import { PageHeader, SectionHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/Button';
-import { LabeledInput } from '@/components/Input';
+import { Input, LabeledInput, Select } from '@/components/Input';
 import { DataTable } from '@/components/DataTable';
 import { EmptyState, ErrorState, Skeleton } from '@/components/EmptyState';
 import { Modal } from '@/components/Modal';
 import { useToast } from '@/components/Toast';
-import { money } from '@/components/format';
+import { datetime, money } from '@/components/format';
 
-/** Catalogue + stock editing inline, orders queue below. Low stock is text + colour. */
+/** Admin › Products: catalogue (including hidden products) with inline stock editing. Low stock is text + colour. */
 export function AdminProductsPage() {
   const qc = useQueryClient(); const toast = useToast();
-  const q = useQuery({ queryKey: ['products'], queryFn: () => get<Product[]>('/products') });
-  const orders = useQuery({ queryKey: ['orders', 'admin'], queryFn: () => get<any[]>('/orders') });
+  const q = useQuery({ queryKey: ['admin', 'products'], queryFn: () => get<Product[]>('/admin/products') });
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['admin', 'products'] }); qc.invalidateQueries({ queryKey: ['products'] }); };
   const [open, setOpen] = useState(false);
-  const [handover, setHandover] = useState<any | null>(null);
   const [f, setF] = useState({ name: '', description: '', sizes: 'S,M,L,XL', price: '500', member_price: '400', stock: '10' });
   const close = () => setOpen(false);
   const create = useMutation({
@@ -27,12 +27,12 @@ export function AdminProductsPage() {
       // Duplicate sizes would hit UNIQUE(product_id, size) and surface as a bare 500.
       const sizes = [...new Set(f.sizes.split(',').map((s) => s.trim()).filter(Boolean))];
       if (!sizes.length) throw new Error('Enter at least one size.');
-      return post('/products', { name: f.name, description: f.description || undefined, variants: sizes.map((size) => ({ size, price: Number(f.price), member_price: Number(f.member_price), stock: Number(f.stock) })) });
+      return post('/admin/products', { name: f.name, description: f.description || undefined, variants: sizes.map((size) => ({ size, price: Number(f.price), member_price: Number(f.member_price), stock: Number(f.stock) })) });
     },
-    onSuccess: () => { setF({ ...f, name: '', description: '' }); setOpen(false); qc.invalidateQueries({ queryKey: ['products'] }); toast.success('Product created'); },
+    onSuccess: () => { setF({ ...f, name: '', description: '' }); setOpen(false); refresh(); toast.success('Product created'); },
   });
   const openNew = () => { create.reset(); setOpen(true); };
-  const stock = useMutation({ mutationFn: ({ id, stock }: { id: number; stock: number }) => patch(`/variants/${id}`, { stock }), onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); toast.success('Stock updated'); }, onError: (e: any) => toast.error('Stock update failed', e.message) });
+  const stock = useMutation({ mutationFn: ({ id, stock }: { id: number; stock: number }) => patch(`/admin/variants/${id}`, { stock }), onSuccess: () => { refresh(); toast.success('Stock updated'); }, onError: (e: any) => toast.error('Stock update failed', e.message) });
   /** Validate before saving; a cleared field must not become stock 0, and stock can't drop below what open orders have reserved. */
   const saveStock = (input: HTMLInputElement, v: Product['variants'][number]) => {
     const raw = input.value.trim(); const n = Number(raw);
@@ -42,7 +42,6 @@ export function AdminProductsPage() {
     if (n < Number(v.reserved)) { revert(); return toast.error('Stock too low', `${v.reserved} units of size ${v.size} are reserved by open orders.`); }
     stock.mutate({ id: v.id, stock: n }, { onError: revert });
   };
-  const fulfil = useMutation({ mutationFn: (id: number) => patch(`/orders/${id}/fulfil`), onSuccess: () => { setHandover(null); qc.invalidateQueries({ queryKey: ['orders'] }); toast.success('Order marked handed over'); }, onError: (e: Error) => toast.error('Could not update order', e.message) });
   return (
     <>
       <PageHeader eyebrow="Merchandise" title="Products & stock" actions={<Button onClick={openNew} icon={<Plus className="size-4" aria-hidden />}>New product</Button>} />
@@ -64,22 +63,6 @@ export function AdminProductsPage() {
           ))}
         </div>
       )}
-      <section className="mt-6">
-        <SectionHeader title="Orders" meta={orders.data ? `${orders.data.filter((o) => o.status === 'paid').length} to hand over` : undefined} />
-        <DataTable rows={orders.data} loading={orders.isLoading} error={orders.error} onRetry={() => orders.refetch()} rowKey={(o) => o.id} caption="All orders" empty={<EmptyState title="No orders yet" />}
-          columns={[
-            { key: 'id', header: 'Order', render: (o) => <span className="font-mono">#{o.id}</span> },
-            { key: 'user', header: 'User', render: (o) => <span className="font-mono text-xs">user {o.user_id}</span>, hideOnMobile: true },
-            { key: 'total', header: 'Total', render: (o) => <span className="t-num">{money(o.total)}</span>, align: 'right' },
-            { key: 'status', header: 'Status', render: (o) => <StatusBadge status={o.status} /> },
-            { key: 'act', header: '', align: 'right', render: (o) => o.status === 'paid' ? <Button size="sm" variant="secondary" onClick={() => { fulfil.reset(); setHandover(o); }} icon={<PackageCheck className="size-3.5" aria-hidden />}>Handed over</Button> : null },
-          ]} />
-      </section>
-      {/* Fulfilment can't be undone, so it gets the same confirm step as other irreversible actions. */}
-      <Modal open={!!handover} onClose={() => setHandover(null)} size="sm" title={`Hand over order #${handover?.id ?? ''}?`} description="Marks the order fulfilled. This cannot be undone."
-        footer={<><Button variant="secondary" onClick={() => setHandover(null)}>Cancel</Button><Button loading={fulfil.isPending} onClick={() => handover && fulfil.mutate(handover.id)} icon={<PackageCheck className="size-4" aria-hidden />}>Mark handed over</Button></>}>
-        {handover && <div className="card-sunken flex justify-between p-3 text-sm"><span className="font-mono">#{handover.id} · user {handover.user_id}</span><span className="t-num font-medium">{money(handover.total)}</span></div>}
-      </Modal>
       <Modal open={open} onClose={close} variant="drawer" title="New product" description="One variant is created per size with the same price and stock; adjust stock per size afterwards."
         footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button form="prod-form" type="submit" loading={create.isPending}>Create product</Button></>}>
         <form id="prod-form" className="space-y-4" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
@@ -93,6 +76,97 @@ export function AdminProductsPage() {
           </div>
           <ErrorState error={create.error} />
         </form>
+      </Modal>
+    </>
+  );
+}
+
+/** Allowed admin transitions (mirrors the API): pending → paid → fulfilled, and anything but cancelled → cancelled. */
+const NEXT: Record<OrderStatus, OrderStatus[]> = { pending: ['paid', 'cancelled'], paid: ['fulfilled', 'cancelled'], fulfilled: ['cancelled'], cancelled: [] };
+const LABEL: Record<OrderStatus, string> = { pending: 'Pending', paid: 'Paid', fulfilled: 'Fulfilled', cancelled: 'Cancelled' };
+const PAGE_SIZE = 20;
+
+/**
+ * Admin › Orders. Live: subscribes to GET /admin/orders/stream (SSE) and, on each `order` event, refetches the
+ * table and briefly highlights the row. If the stream drops it falls back to polling every 10 s until it reconnects.
+ */
+export function AdminOrdersPanel() {
+  const qc = useQueryClient(); const toast = useToast();
+  const [f, setF] = useState({ status: '', q: '', page: 1 });
+  const [live, setLive] = useState<'connecting' | 'live' | 'polling'>('connecting');
+  const [flash, setFlash] = useState<number[]>([]);
+  const [cancel, setCancel] = useState<AdminOrderRow | null>(null);
+  const timers = useRef<number[]>([]);
+  const qs = new URLSearchParams({ page: String(f.page), page_size: String(PAGE_SIZE), ...(f.status ? { status: f.status } : {}), ...(f.q.trim() ? { q: f.q.trim() } : {}) }).toString();
+  const q = useQuery({
+    queryKey: ['admin', 'orders', qs], queryFn: () => get<AdminOrdersPage>(`/admin/orders?${qs}`),
+    placeholderData: (prev) => prev, refetchInterval: live === 'live' ? false : 10_000,
+  });
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    const es = new EventSource(`/api/admin/orders/stream?token=${encodeURIComponent(token)}`);
+    es.onopen = () => setLive('live');
+    es.onerror = () => setLive('polling'); // EventSource keeps retrying; onopen flips it back to live
+    es.addEventListener('order', (ev) => {
+      let id: number | null = null;
+      try { id = Number(JSON.parse((ev as MessageEvent).data).id) || null; } catch { /* malformed event: still refetch */ }
+      qc.invalidateQueries({ queryKey: ['admin', 'orders'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'overview'] });
+      if (id == null) return;
+      setFlash((l) => [...l, id!]);
+      timers.current.push(window.setTimeout(() => setFlash((l) => l.filter((x) => x !== id)), 2500));
+    });
+    return () => { es.close(); timers.current.forEach(clearTimeout); };
+  }, [qc]);
+
+  const update = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: OrderStatus }) => patch<AdminOrderRow>(`/admin/orders/${id}`, { status }),
+    onSuccess: (r) => { setCancel(null); qc.invalidateQueries({ queryKey: ['admin', 'orders'] }); qc.invalidateQueries({ queryKey: ['admin', 'products'] }); toast.success(`Order #${r.id} ${LABEL[r.status].toLowerCase()}`); },
+    onError: (e: Error) => toast.error('Could not update order', e.message),
+  });
+  const change = (o: AdminOrderRow, status: OrderStatus) => (status === 'cancelled' ? setCancel(o) : update.mutate({ id: o.id, status }));
+  const pages = q.data ? Math.max(1, Math.ceil(q.data.total / PAGE_SIZE)) : 1;
+
+  return (
+    <>
+      <PageHeader eyebrow="Merchandise" title="Orders" description="New orders and status changes appear here as they happen."
+        actions={<span className={`badge ${live === 'live' ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'}`} role="status"><Radio className="size-3" aria-hidden />{live === 'live' ? 'Live' : live === 'connecting' ? 'Connecting…' : 'Refreshing every 10 s'}</span>} />
+      <div className="card mb-4 flex flex-wrap items-center gap-2 !py-3" role="search">
+        <div className="relative min-w-56 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-tertiary" aria-hidden /><label htmlFor="oq" className="sr-only">Search orders</label><Input id="oq" className="!pl-9" placeholder="Customer name or email" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value, page: 1 })} /></div>
+        <label htmlFor="os" className="sr-only">Order status</label>
+        <Select id="os" className="!w-auto" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value, page: 1 })}><option value="">Any status</option>{(Object.keys(LABEL) as OrderStatus[]).map((k) => <option key={k} value={k}>{LABEL[k]}</option>)}</Select>
+      </div>
+      <DataTable rows={q.data?.rows} loading={q.isLoading} error={q.error} onRetry={() => q.refetch()} rowKey={(o) => o.id} caption="Merchandise orders"
+        rowClassName={(o) => `transition-colors duration-700 ${flash.includes(o.id) ? 'bg-accent-soft' : ''}`}
+        empty={<EmptyState title={f.q || f.status ? 'No orders match' : 'No orders yet'} />}
+        columns={[
+          { key: 'id', header: 'Order #', render: (o) => <span className="font-mono">#{o.id}</span> },
+          { key: 'date', header: 'Date', render: (o) => <span className="whitespace-nowrap">{datetime(o.created_at)}</span>, hideOnMobile: true },
+          { key: 'customer', header: 'Customer', render: (o) => <><span className="font-medium">{o.customer.name}</span>{o.customer.is_member && <span className="ml-1.5 t-label !text-success">member</span>}<span className="block t-caption break-all">{o.customer.email}</span></> },
+          { key: 'items', header: 'Items', render: (o) => <ul className="text-sm text-text-secondary">{o.items.map((i, n) => <li key={n}>{i.product} ({i.size}) × {i.qty}</li>)}</ul> },
+          { key: 'total', header: 'Total', align: 'right', render: (o) => <span className="t-num font-medium">{money(o.total)}</span> },
+          { key: 'payment', header: 'Payment', render: (o) => <StatusBadge status={o.payment_status} />, hideOnMobile: true },
+          { key: 'status', header: 'Status', render: (o) => <StatusBadge status={o.status} /> },
+          { key: 'action', header: 'Action', align: 'right', render: (o) => NEXT[o.status].length === 0 ? <span className="t-caption">—</span> : (
+            <><label htmlFor={`os-${o.id}`} className="sr-only">Change status of order {o.id}</label>
+            <Select id={`os-${o.id}`} className="!min-h-10 !w-auto" value="" disabled={update.isPending && update.variables?.id === o.id} onChange={(e) => e.target.value && change(o, e.target.value as OrderStatus)}>
+              <option value="">Mark as…</option>{NEXT[o.status].map((s) => <option key={s} value={s}>{s === 'paid' ? 'Paid (cash received)' : LABEL[s]}</option>)}
+            </Select></>
+          ) },
+        ]} />
+      {q.data && q.data.total > PAGE_SIZE && (
+        <nav className="mt-3 flex items-center justify-end gap-2 text-sm" aria-label="Order pages">
+          <Button size="sm" variant="secondary" disabled={f.page <= 1} onClick={() => setF({ ...f, page: f.page - 1 })}>Previous</Button>
+          <span className="t-caption">Page {f.page} of {pages} · {q.data.total} orders</span>
+          <Button size="sm" variant="secondary" disabled={f.page >= pages} onClick={() => setF({ ...f, page: f.page + 1 })}>Next</Button>
+        </nav>
+      )}
+      <Modal open={!!cancel} onClose={() => setCancel(null)} size="sm" title={`Cancel order #${cancel?.id ?? ''}?`}
+        description={cancel?.status === 'pending' ? 'The reserved stock is released.' : 'The stock goes back on sale, the payment is marked refunded and a reversing ledger entry is written. Refund the money itself separately.'}
+        footer={<><Button variant="secondary" onClick={() => setCancel(null)}>Keep order</Button><Button variant="danger" loading={update.isPending} onClick={() => cancel && update.mutate({ id: cancel.id, status: 'cancelled' })} icon={<XCircle className="size-4" aria-hidden />}>Cancel order</Button></>}>
+        {cancel && <div className="card-sunken flex justify-between p-3 text-sm"><span>#{cancel.id} · {cancel.customer.name}</span><span className="t-num font-medium">{money(cancel.total)}</span></div>}
       </Modal>
     </>
   );

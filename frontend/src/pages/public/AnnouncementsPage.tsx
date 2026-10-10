@@ -13,8 +13,8 @@ export function AnnouncementsPage() {
   const q = useQuery({ queryKey: ['announcements'], queryFn: () => get<Announcement[]>('/announcements') });
   return (
     <>
-      <PageHeader eyebrow="Announcements" title="Archive" description={me?.active || has('admin') ? 'Everything posted, newest first, including members-only updates.' : 'Members-only posts appear when you are logged in with an active membership.'}
-        actions={has('admin') && <Link to="/admin/announcements" className="btn-primary"><Megaphone className="size-4" aria-hidden />Compose</Link>} />
+      <PageHeader eyebrow="Announcements" title="Archive" description={me?.is_member || has('admin') ? 'Everything posted, newest first, including members-only updates.' : 'Members-only posts appear when you are logged in with an active membership.'}
+        actions={has('admin') && <Link to="/admin?tab=announcements" className="btn-primary"><Megaphone className="size-4" aria-hidden />Compose</Link>} />
       {q.isLoading ? <div className="space-y-4">{[0, 1].map((i) => <div key={i} className="card"><Skeleton rows={3} /></div>)}</div> : q.error ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : !q.data?.length ? (
         <EmptyState icon={<Megaphone className="size-5" aria-hidden />} title="Nothing posted yet" description="Announcements appear here and go out by email at the same time." />
       ) : (

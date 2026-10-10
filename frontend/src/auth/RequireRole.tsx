@@ -1,14 +1,24 @@
-import { Link, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { ShieldAlert } from 'lucide-react';
-import type { AnyRole } from '@/api/types';
+import { useEffect, useRef } from 'react';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import type { Role } from '@/api/types';
 import { useAuth } from './AuthContext';
-import { Skeleton, EmptyState } from '@/components/EmptyState';
+import { loginUrl } from './redirect';
+import { Skeleton } from '@/components/EmptyState';
+import { useToast } from '@/components/Toast';
 
-export function RequireRole({ roles }: { roles: AnyRole[] }) {
+/**
+ * Route guard (UX only: the API enforces every permission itself).
+ * Signed out → /login?next=<here>. Signed in without the role → /me with an "Admins only" toast.
+ */
+export function RequireRole({ roles }: { roles: Role[] }) {
   const { me, loading, has } = useAuth();
   const loc = useLocation();
+  const toast = useToast();
+  const denied = !!me && !has(...roles);
+  const told = useRef(false);
+  useEffect(() => { if (denied && !told.current) { told.current = true; toast.error(roles.includes('admin') ? 'Admins only' : 'Not available for your account'); } }, [denied, roles, toast]);
   if (loading) return <div className="card"><Skeleton rows={5} /></div>;
-  if (!me) return <Navigate to="/login" state={{ from: loc.pathname + loc.search }} replace />;
-  if (!has(...roles)) return <EmptyState icon={<ShieldAlert className="size-5 text-danger" aria-hidden />} title="Not available for your role" description={`This area needs the ${roles.join(' or ')} role. You are signed in as ${me.user.role}.`} action={<Link to="/dashboard" className="btn-secondary">Back to dashboard</Link>} />;
+  if (!me) return <Navigate to={loginUrl(loc.pathname + loc.search)} replace />;
+  if (denied) return <Navigate to="/me" replace />;
   return <Outlet />;
 }

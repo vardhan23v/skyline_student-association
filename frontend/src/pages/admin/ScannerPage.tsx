@@ -38,7 +38,7 @@ const localTimes = (reason?: string) => reason?.replace(/\d{4}-\d{2}-\d{2}T[\d:.
  * The API answers 409 with a JSON body for rejected scans, so we read the body directly.
  */
 export function ScannerPage() {
-  const events = useQuery({ queryKey: ['events'], queryFn: () => get<Event[]>('/events') });
+  const events = useQuery({ queryKey: ['admin', 'events'], queryFn: () => get<Event[]>('/admin/events') });
   const [eventId, setEventId] = useState<number | ''>('');
   const [manual, setManual] = useState('');
   const [last, setLast] = useState<Result | null>(null);
@@ -64,7 +64,7 @@ export function ScannerPage() {
     inFlight.current = true; setBusyState(true);
     let r: Result;
     try {
-      const res = await fetch('/api/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ qr_token: token, event_id: eventRef.current || undefined }) });
+      const res = await fetch('/api/admin/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ qr_token: token, event_id: eventRef.current || undefined }) });
       const body = await res.json().catch(() => null);
       // 200 and 409 carry a check-in result; anything else (401/403/429/400) is an error envelope or plain text.
       if ((res.ok || res.status === 409) && body && typeof body.ok === 'boolean') r = { ...body, reason: localTimes(body.reason) };

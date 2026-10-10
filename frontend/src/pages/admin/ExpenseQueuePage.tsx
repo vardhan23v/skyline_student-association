@@ -38,11 +38,11 @@ export function ExpenseQueuePage() {
   const qc = useQueryClient(); const toast = useToast();
   const [status, setStatus] = useState('submitted');
   const [act, setAct] = useState<Action>(null); const [note, setNote] = useState('');
-  const q = useQuery({ queryKey: ['expenses', status], queryFn: () => get<Expense[]>(`/expenses${status ? `?status=${status}` : ''}`) });
+  const q = useQuery({ queryKey: ['expenses', status], queryFn: () => get<Expense[]>(`/admin/expenses${status ? `?status=${status}` : ''}`) });
   const done = (msg: string) => { setAct(null); setNote(''); qc.invalidateQueries(); toast.success(msg); };
   const closeAct = () => setAct(null);
-  const review = useMutation({ mutationFn: ({ id, decision, note }: { id: number; decision: string; note?: string }) => patch(`/expenses/${id}/review`, { decision, note }), onSuccess: (_r, v) => done(`Expense ${v.decision}`) });
-  const pay = useMutation({ mutationFn: (id: number) => patch(`/expenses/${id}/pay`), onSuccess: () => done('Marked paid · ledger entry written') });
+  const review = useMutation({ mutationFn: ({ id, decision, note }: { id: number; decision: string; note?: string }) => patch(`/admin/expenses/${id}/review`, { decision, note }), onSuccess: (_r, v) => done(`Expense ${v.decision}`) });
+  const pay = useMutation({ mutationFn: (id: number) => patch(`/admin/expenses/${id}/pay`), onSuccess: () => done('Marked paid · ledger entry written') });
   // Each decision starts clean: no note or error carried over from the previous expense.
   const openAct = (a: NonNullable<Action>) => { setNote(''); review.reset(); pay.reset(); setAct(a); };
   const flaggedCount = q.data?.filter((x) => x.flags.length).length ?? 0;
