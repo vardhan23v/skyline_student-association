@@ -18,7 +18,7 @@ const RECEIPT_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 export function SubmitExpensePage() {
   const toast = useToast(); const qc = useQueryClient();
   const events = useQuery({ queryKey: ['admin', 'events'], queryFn: () => get<Event[]>('/admin/events') });
-  const frs = useQuery({ queryKey: ['fundraisers'], queryFn: () => get<Fundraiser[]>('/fundraisers') });
+  const frs = useQuery({ queryKey: ['fundraisers'], queryFn: () => get<Fundraiser[]>('/admin/fundraisers') });
   const mine = useQuery({ queryKey: ['expenses', 'mine'], queryFn: () => get<Expense[]>('/admin/expenses?mine=true') });
   const [f, setF] = useState({ amount: '', category: 'supplies', description: '', event_id: '', fundraiser_id: '' });
   const [file, setFile] = useState<File | null>(null);

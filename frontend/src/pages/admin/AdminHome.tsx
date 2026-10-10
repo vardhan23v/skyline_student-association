@@ -1,7 +1,7 @@
 import { Suspense, lazy, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { CalendarDays, LayoutDashboard, Megaphone, QrCode, Shirt, ShoppingBag, Sparkles, Ticket, Users, Wallet } from 'lucide-react';
+import { CalendarDays, HandCoins, LayoutDashboard, Megaphone, QrCode, Shirt, ShoppingBag, Sparkles, Ticket, Users, Wallet } from 'lucide-react';
 import { get } from '@/api/client';
 import type { AdminOverview } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
@@ -16,6 +16,7 @@ import { AdminEventsPage } from './AdminEventsPage';
 import { AdminMembersPage } from './AdminMembersPage';
 import { AdminOrdersPanel, AdminProductsPage } from './AdminProductsPage';
 import { AdminAnnouncementsPage } from './AdminAnnouncementsPage';
+import { AdminFundraisersPage } from './AdminFundraisersPage';
 import { VerifyMemberPage } from './VerifyMemberPage';
 
 // Camera and chart libraries are heavy; only load them when their tab opens (see vite.config manualChunks).
@@ -25,6 +26,7 @@ const FinanceOverview = lazy(() => import('./FinanceOverview').then((m) => ({ de
 const TABS = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
   { key: 'events', label: 'Events', icon: CalendarDays },
+  { key: 'fundraisers', label: 'Fundraisers', icon: HandCoins },
   { key: 'checkin', label: 'Check-in', icon: QrCode },
   { key: 'members', label: 'Members', icon: Users },
   { key: 'orders', label: 'Orders', icon: ShoppingBag },
@@ -45,6 +47,7 @@ export function AdminHome() {
       <div id="admin-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="min-w-0">
         {tab === 'overview' && <Overview onOpenSecretary={() => setAi(true)} />}
         {tab === 'events' && <AdminEventsPage />}
+        {tab === 'fundraisers' && <AdminFundraisersPage />}
         {tab === 'checkin' && <Suspense fallback={<div className="card"><Skeleton rows={6} /></div>}><ScannerPage /><div className="mt-8"><VerifyMemberPage /></div></Suspense>}
         {tab === 'members' && <AdminMembersPage />}
         {tab === 'orders' && <AdminOrdersPanel />}
@@ -67,12 +70,16 @@ function Overview({ onOpenSecretary }: { onOpenSecretary: () => void }) {
       <PageHeader eyebrow={`Hello, ${me?.user.name.split(' ')[0] ?? 'admin'}`} script="control" title="Room" description={o ? `Club at a glance, ${o.as_of}.` : 'Club at a glance.'}
         actions={<Button variant="secondary" onClick={onOpenSecretary} icon={<Sparkles className="size-4 text-accent-text" aria-hidden />}>AI Secretary</Button>} />
       <ErrorState error={q.error} onRetry={() => q.refetch()} className="mb-4" />
-      {/* 2 columns on phones and tablets, 4 from lg. */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+      {/* 2 columns on phones and tablets, 3 from lg (fundraisers spans two), all 5 in a row from xl. */}
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-5">
         <MetricCard label="Active members" icon={Users} loading={q.isLoading} value={o?.members.active ?? '—'} hint={o ? `${o.members.total} member profiles` : undefined} />
         <MetricCard label="Upcoming registrations" icon={Ticket} loading={q.isLoading} value={o?.upcoming_registrations ?? '—'} hint="confirmed seats at future events" />
         <MetricCard label="Orders today" icon={ShoppingBag} loading={q.isLoading} value={o?.orders_today.count ?? '—'} hint={o ? `${money(o.orders_today.revenue)} paid · ${o.pending_orders} pending overall` : undefined} tone={o?.pending_orders ? 'warning' : 'default'} />
         <MetricCard label="Balance" icon={Wallet} loading={q.isLoading} value={o ? money(o.balance) : '—'} tone="accent" />
+        <Link to="/admin?tab=fundraisers" className="interactive col-span-2 rounded-[var(--radius-lg)] focus-ring xl:col-span-1">
+          <MetricCard label="Active fundraisers" icon={HandCoins} loading={q.isLoading} value={o?.fundraisers.active ?? '—'} className="card-hover h-full"
+            hint={o ? (o.fundraisers.behind ? <span className="text-danger">{o.fundraisers.behind} behind</span> : 'all on track') : undefined} />
+        </Link>
       </div>
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {TABS.filter((t) => t.key !== 'overview').map((t) => (
