@@ -11,12 +11,13 @@ import { ShopPage } from './pages/public/ShopPage';
 import { LoginPage, RegisterPage } from './pages/public/AuthPages';
 import { MemberDashboard } from './pages/member/MemberDashboard';
 import { TicketPage } from './pages/member/TicketPage';
-import { AdminHome } from './pages/admin/AdminHome';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { HomePage } from './pages/HomePage';
 
 // Charts are heavy; load the public finance summary on demand (see vite.config manualChunks).
 const FinancePublicPage = lazy(() => import('./pages/public/FinancePublicPage').then((m) => ({ default: m.FinancePublicPage })));
+// The admin dashboard (and the scanner and charts inside it) is its own chunk: public pages on a phone never fetch it.
+const AdminHome = lazy(() => import('./pages/admin/AdminHome').then((m) => ({ default: m.AdminHome })));
 const Fallback = () => <div className="card"><Skeleton rows={6} /></div>;
 
 /** /dashboard is only a redirect now: admin → /admin, user → /me, signed out → /login. */
@@ -53,7 +54,7 @@ export function App() {
           <Route path="/tickets/:id" element={<TicketPage />} />
         </Route>
         <Route element={<RequireRole roles={['admin']} />}>
-          <Route path="/admin" element={<AdminHome />} />
+          <Route path="/admin" element={<Suspense fallback={<Fallback />}><AdminHome /></Suspense>} />
           <Route path="/admin/:tab/*" element={<AdminTabRedirect />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />

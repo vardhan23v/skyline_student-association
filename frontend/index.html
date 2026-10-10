@@ -4,16 +4,32 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0B0B0D" />
-    <title>Skyline Student Association — Many students, one horizon</title>
-    <meta name="description" content="Discover campus events, find your community, and turn everyday campus life into something unforgettable." />
+    <title>Skyline Student Association</title>
+    <meta name="description" content="Skyline Student Association: campus events, member tickets, club merch and news. Many students, one horizon." />
+    <!-- __APP_URL__ is the site origin from VITE_APP_URL, filled in at build time (vite.config.ts); empty = relative. -->
+    <link rel="canonical" href="__APP_URL__/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Skyline Student Association" />
+    <meta property="og:title" content="Skyline Student Association" />
+    <meta property="og:description" content="Campus events, member tickets, club merch and news. Many students, one horizon." />
+    <meta property="og:url" content="__APP_URL__/" />
+    <meta property="og:image" content="__APP_URL__/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The Skyline Student Association logo over the club's warm stage-light backdrop" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Skyline Student Association" />
+    <meta name="twitter:description" content="Campus events, member tickets, club merch and news." />
+    <meta name="twitter:image" content="__APP_URL__/og-image.jpg" />
     <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="icon" href="/brand/logo-192.png" type="image/png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="preload" href="/fonts/open-sauce/open-sauce-sans-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/open-sauce/open-sauce-sans-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&display=swap" rel="stylesheet" />
+    <!-- The script accent font is not render-blocking: the page paints with the fallback and swaps it in. -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Pinyon+Script&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&display=swap" rel="stylesheet" /></noscript>
   </head>
   <body>
     <div id="root"></div>
