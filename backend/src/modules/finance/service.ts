@@ -152,6 +152,8 @@ export const getExpense = async (id: number) => {
 
 /** HMAC capability for one receipt, so a plain <a href> (no Authorization header) can open it for a few hours. */
 export const receiptSig = (id: number, exp: number) => hmacSha256(env.JWT_SECRET, `receipt:${id}:${exp}`);
+/** Where an admin opens an expense's receipt: the stored URL, or a short-lived signed link for inline (data:) receipts. */
+export const receiptPath = (id: number, receipt_url: string) => (String(receipt_url).startsWith('data:') ? signedReceiptPath(id) : receipt_url);
 const signedReceiptPath = (id: number) => { const exp = Math.floor(Date.now() / 1000) + 6 * 3600; return `/api/expenses/${id}/receipt?exp=${exp}&sig=${receiptSig(id, exp)}`; };
 
 export async function listExpenses(user: { id: number; role: string }, q: { status?: string; flagged?: boolean; mine?: boolean }) {

@@ -11,6 +11,7 @@ import { adminAnnouncementsRouter } from '../announcements/routes';
 import { adminExpensesRouter, adminFinanceRouter } from '../finance/routes';
 import { adminFundraisersRouter, adminTasksRouter } from '../fundraisers/routes';
 import { overview } from './service';
+import { duesOverview, sendDuesReminders } from '../finance/dues';
 
 /**
  * Everything under /api/admin. The guard is on the router itself, so a sub-route can't be added without it and
@@ -19,6 +20,10 @@ import { overview } from './service';
 export const adminRouter = Router();
 adminRouter.use(requireRole('admin'));
 adminRouter.get('/overview', asyncHandler(async (_req, res) => res.json(await overview())));
+/** Who owes the club (memberships, unpaid orders and tickets) and whom the club owes (approved reimbursements). */
+adminRouter.get('/dues', asyncHandler(async (_req, res) => res.json(await duesOverview())));
+adminRouter.post('/dues/remind', validate({ body: z.object({ group: z.enum(['memberships_due', 'unpaid_orders']), ids: z.array(z.coerce.number().int().positive()).min(1).max(200) }) }),
+  asyncHandler(async (req, res) => res.json(await sendDuesReminders(req.body.group, req.body.ids))));
 /** Active accounts, e.g. `?role=admin` for the task assignee picker. */
 adminRouter.get('/users', validate({ query: z.object({ role: z.enum(['admin', 'user']).optional() }) }), asyncHandler(async (req, res) => {
   res.json(await getDb()('users').where({ is_active: true }).modify((qb) => { if (req.query.role) qb.where({ role: req.query.role }); }).select('id', 'name', 'email').orderBy('name'));

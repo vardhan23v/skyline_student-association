@@ -1,7 +1,7 @@
 import { Suspense, lazy, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { CalendarDays, HandCoins, LayoutDashboard, Megaphone, QrCode, Shirt, ShoppingBag, Sparkles, Ticket, Users, Wallet } from 'lucide-react';
+import { CalendarDays, HandCoins, LayoutDashboard, Scale, Megaphone, QrCode, Shirt, ShoppingBag, Sparkles, Ticket, Users, Wallet } from 'lucide-react';
 import { get } from '@/api/client';
 import type { AdminOverview } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
@@ -70,13 +70,17 @@ function Overview({ onOpenSecretary }: { onOpenSecretary: () => void }) {
       <PageHeader eyebrow={`Hello, ${me?.user.name.split(' ')[0] ?? 'admin'}`} script="control" title="Room" description={o ? `Club at a glance, ${o.as_of}.` : 'Club at a glance.'}
         actions={<Button variant="secondary" onClick={onOpenSecretary} icon={<Sparkles className="size-4 text-accent-text" aria-hidden />}>AI Secretary</Button>} />
       <ErrorState error={q.error} onRetry={() => q.refetch()} className="mb-4" />
-      {/* 2 columns on phones and tablets, 3 from lg (fundraisers spans two), all 5 in a row from xl. */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-5">
+      {/* 2 columns on phones and tablets, 3 from lg: six tiles in even rows. */}
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
         <MetricCard label="Active members" icon={Users} loading={q.isLoading} value={o?.members.active ?? '—'} hint={o ? `${o.members.total} member profiles` : undefined} />
         <MetricCard label="Upcoming registrations" icon={Ticket} loading={q.isLoading} value={o?.upcoming_registrations ?? '—'} hint="confirmed seats at future events" />
         <MetricCard label="Orders today" icon={ShoppingBag} loading={q.isLoading} value={o?.orders_today.count ?? '—'} hint={o ? `${money(o.orders_today.revenue)} paid · ${o.pending_orders} pending overall` : undefined} tone={o?.pending_orders ? 'warning' : 'default'} />
         <MetricCard label="Balance" icon={Wallet} loading={q.isLoading} value={o ? money(o.balance) : '—'} tone="accent" />
-        <Link to="/admin?tab=fundraisers" className="interactive col-span-2 rounded-[var(--radius-lg)] focus-ring xl:col-span-1">
+        <Link to="/admin?tab=finance&view=dues" className="interactive rounded-[var(--radius-lg)] focus-ring">
+          <MetricCard label="Owed to club" icon={Scale} loading={q.isLoading} value={o ? money(o.dues.owed_to_club) : '—'} className="card-hover h-full"
+            hint={o ? <>owed by club <span className={o.dues.owed_by_club ? 'text-danger' : ''}>{money(o.dues.owed_by_club)}</span></> : undefined} />
+        </Link>
+        <Link to="/admin?tab=fundraisers" className="interactive rounded-[var(--radius-lg)] focus-ring">
           <MetricCard label="Active fundraisers" icon={HandCoins} loading={q.isLoading} value={o?.fundraisers.active ?? '—'} className="card-hover h-full"
             hint={o ? (o.fundraisers.behind ? <span className="text-danger">{o.fundraisers.behind} behind</span> : 'all on track') : undefined} />
         </Link>

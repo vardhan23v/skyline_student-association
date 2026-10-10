@@ -135,6 +135,8 @@ Errors are **401** (signed out), **403** `MEMBERSHIP_REQUIRED` (members-only eve
 | Method | Path | Purpose | Status |
 |---|---|---|---|
 | GET | `/api/admin/overview` | `{ members: { active, total }, upcoming_registrations, orders_today: { count, paid, revenue }, pending_orders, balance, as_of }`. "Today" is the club's calendar day | added |
+| GET | `/api/admin/dues` | Who owes what, live: `memberships_due` (latest membership pending, expired or ending within 14 days; amount = dues price), `unpaid_orders` (pending with a pending payment, `minutes_left` on the hold), `unpaid_tickets`, `reimbursements_owed` (approved, not paid, with a receipt link). Each `{ count, total_amount, rows[] }`, plus `totals: { owed_to_club, owed_by_club }` | added |
+| POST | `/api/admin/dues/remind` | `{ group: 'memberships_due' \| 'unpaid_orders', ids }`: emails each person a reminder linking to `/me`, at most once per 24 h per membership / order (`last_reminded_at`). Returns `{ sent, skipped }` | added |
 | GET | `/api/admin/events` | All events including drafts | added |
 | POST | `/api/admin/events` | Create (`title, starts_at, capacity, member_price, non_member_price?, members_only?, status?, venue?, description?, sales_open_at?, sales_close_at?`) | moved from `POST /events` |
 | GET | `/api/admin/events/:id` | One event including drafts | added |

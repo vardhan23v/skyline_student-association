@@ -12,6 +12,7 @@ import { money } from '@/components/format';
 import { LedgerPage } from './LedgerPage';
 import { ExpenseQueuePage } from './ExpenseQueuePage';
 import { SubmitExpensePage } from './SubmitExpensePage';
+import { DuesPanel } from './DuesPanel';
 
 /* Crimson, then a cream ramp and flame: the site palette only. Category identity comes from the legend text. */
 const palette = ['var(--accent)', 'rgba(246, 233, 206, 0.85)', 'var(--accent-text)', 'rgba(246, 233, 206, 0.5)', 'rgba(246, 233, 206, 0.28)', 'rgba(193, 18, 31, 0.55)'];
@@ -36,13 +37,14 @@ function Donut({ title, data }: { title: string; data: { name: string; value: nu
 
 const views = [
   { key: 'summary', label: 'Summary' },
+  { key: 'dues', label: 'Who owes what' },
   { key: 'ledger', label: 'Ledger & CSV' },
   { key: 'expenses', label: 'Expense review' },
   { key: 'submit', label: 'Submit expense' },
 ] as const;
 type View = (typeof views)[number]['key'];
 
-/** Admin › Finance tab: summary, ledger (with CSV export), expense review and submission, switched by `?view=`. */
+/** Admin › Finance tab: summary, who owes what, ledger (with CSV export), expense review and submission, switched by `?view=`. */
 export function FinanceOverview() {
   const [params, setParams] = useSearchParams();
   const view = (views.find((v) => v.key === params.get('view'))?.key ?? 'summary') as View;
@@ -53,6 +55,7 @@ export function FinanceOverview() {
         {views.map((v) => <button key={v.key} type="button" aria-pressed={view === v.key} onClick={() => go(v.key)} className="chip">{v.label}</button>)}
       </div>
       {view === 'summary' && <FinanceSummary onOpen={go} />}
+      {view === 'dues' && <DuesPanel />}
       {view === 'ledger' && <LedgerPage />}
       {view === 'expenses' && <ExpenseQueuePage />}
       {view === 'submit' && <SubmitExpensePage />}

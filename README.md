@@ -52,6 +52,7 @@ Sign in with a demo account:
 | Admin | `core@skyline.edu` | `Core@123` | Second admin, for splitting fundraiser tasks (fresh seeds only) |
 | User · member | `member@skyline.edu` | `Member@123` | Active until 30 June; tickets for CodeStorm 2026 and the Spring Gala; three orders |
 | User · non-member | `student@skyline.edu` | `Student@123` | No membership; can join or register at non-member prices |
+| User · lapsed | `lapsed@skyline.edu` | `Lapsed@123` | Membership ended 30 days ago; listed under "Who owes what" (fresh seeds only) |
 
 > [!WARNING]
 > These passwords are public. Rotate them or delete the accounts before real use. Real students already use the live site.
@@ -66,6 +67,7 @@ Sign in with a demo account:
 - **Door check-in:** rear-camera scanner with a ✓/✗ banner, vibration and a live count; a **Membership** mode verifies member QRs or student IDs at the door.
 - **Merch shop:** sizes with live stock, member pricing, cart sheet, reserved stock while paying, low-stock alerts, and a **live orders** feed for admins over Server-Sent Events.
 - **Fundraisers:** split into tasks assigned to admins with due dates; raised and spent come from the ledger, never from a typed number; overdue flags and an **on track / behind** health badge.
+- **Who owes what (admin-only):** memberships due, unpaid orders and tickets, and reimbursements the club owes, with one-click reminders.
 - **Finance (admin-only):** append-only ledger with reversals and CSV export, expense submission with receipts, a two-person review rule, and rule-based anomaly flags.
 - **Announcements:** public or members-only posts, mailed to the list.
 - **AI Secretary (admin-only):** answers from live data through role-filtered tools, with no text-to-SQL; any action it proposes needs explicit confirmation.
@@ -254,7 +256,8 @@ Base path `/api`. JSON in and out; auth is `Authorization: Bearer <JWT>`. Errors
 
 | Area | Routes |
 |---|---|
-| Overview | `GET /overview` (members, registrations, orders today, balance, active and behind fundraisers) · `GET /users?role=admin` |
+| Overview | `GET /overview` (members, registrations, orders today, balance, owed to / by the club, active and behind fundraisers) · `GET /users?role=admin` |
+| Who owes what | `GET /dues` · `POST /dues/remind` (once per person per 24 h) |
 | Events | `GET/POST /events` · `GET/PATCH /events/:id` · `GET /events/:id/report` (member / non-member split) · `GET /events/:id/registrations` · `POST /checkin` |
 | Members | `GET /members` · `POST /members/walk-in` · `GET /members/:id/verify` · `GET /members/:id/dues` · `PATCH /members/:id/membership` · `POST /members/:id/remind` · `POST /members/:id/cash-payment` |
 | Shop | `GET/POST /products` · `PATCH /products/:id` · `PATCH /variants/:id` · `GET /orders` · `GET /orders/stream` (SSE) · `PATCH /orders/:id` |

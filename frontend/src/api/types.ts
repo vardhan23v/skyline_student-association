@@ -36,5 +36,16 @@ export type OrderStatus = 'pending' | 'paid' | 'fulfilled' | 'cancelled';
 export type Order = { id: number; created_at: string; total: number; status: OrderStatus; payment_id: number | null; payment_status: string | null; fulfilled_at: string | null; items: OrderItem[] };
 export type AdminOrderRow = { id: number; created_at: string; customer: { id: number; name: string; email: string; is_member: boolean }; items: OrderItem[]; total: number; payment_status: string | null; status: OrderStatus };
 export type AdminOrdersPage = { rows: AdminOrderRow[]; total: number; page: number; page_size: number };
-export type AdminOverview = { members: { active: number; total: number }; upcoming_registrations: number; orders_today: { count: number; paid: number; revenue: number }; pending_orders: number; balance: number; fundraisers: { active: number; behind: number }; as_of: string };
+export type AdminOverview = { members: { active: number; total: number }; upcoming_registrations: number; orders_today: { count: number; paid: number; revenue: number }; pending_orders: number; balance: number; dues: { owed_to_club: number; owed_by_club: number }; fundraisers: { active: number; behind: number }; as_of: string };
 export type EventRegistrationRow = { id: number; created_at: string; holder_user_id: number | null; holder_name: string; holder_email: string; ticket_type: string; price: number; status: string; checked_in_at: string | null; user_name: string | null; payment_status: string | null };
+
+type DuesGroup<R> = { count: number; total_amount: number; rows: R[] };
+/** GET /admin/dues — who owes the club and whom the club owes. */
+export type DuesOverview = {
+  memberships_due: DuesGroup<{ id: number; member_id: number; student_id: string; name: string; email: string; status: 'pending' | 'expired' | 'expiring'; expiry_date: string | null; amount: number; reminded_at: string | null }>;
+  unpaid_orders: DuesGroup<{ id: number; name: string; email: string; amount: number; created_at: string; minutes_left: number; reminded_at: string | null }>;
+  unpaid_tickets: DuesGroup<{ id: number; event_title: string; name: string; email: string; amount: number; created_at: string }>;
+  reimbursements_owed: DuesGroup<{ id: number; submitter: string | null; amount: number; category: string; description: string | null; approved_at: string; receipt_url: string | null }>;
+  totals: { owed_to_club: number; owed_by_club: number };
+  as_of: string;
+};

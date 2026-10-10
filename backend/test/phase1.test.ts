@@ -272,7 +272,7 @@ describe('merch orders', () => {
 describe('admin surface', () => {
   /** Every route on the admin router, with params filled in. Checked against the router itself below. */
   const ROUTES: [string, string][] = [
-    ['get', '/overview'], ['get', '/users'],
+    ['get', '/overview'], ['get', '/users'], ['get', '/dues'], ['post', '/dues/remind'],
     ['get', '/events'], ['post', '/events'], ['get', '/events/1'], ['patch', '/events/1'], ['get', '/events/1/report'], ['get', '/events/1/registrations'],
     ['post', '/checkin'],
     ['get', '/members'], ['post', '/members/walk-in'], ['get', '/members/1/verify'], ['post', '/members/1/cash-payment'], ['get', '/members/1/dues'], ['patch', '/members/1/membership'], ['post', '/members/1/remind'],

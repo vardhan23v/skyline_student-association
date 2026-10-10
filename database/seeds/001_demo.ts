@@ -11,6 +11,7 @@ import { addDaysYmd, todayYmd } from '../../backend/src/lib/dates';
  *   core@skyline.edu / Core@123        a second admin, so fundraiser tasks can be split between admins
  *   member@skyline.edu / Member@123    user with an active membership until the academic year ends
  *   student@skyline.edu / Student@123  user without a membership
+ *   lapsed@skyline.edu / Lapsed@123    user whose membership ended 30 days ago (shows in "Who owes what")
  * WIPES every table first.
  */
 export async function seed(k: Knex): Promise<void> {
@@ -41,6 +42,7 @@ export async function seed(k: Knex): Promise<void> {
   const coreId = await user('Core Admin', 'core@skyline.edu', 'Core@123', 'admin');
   const memberId = await user('Meera Iyer', 'member@skyline.edu', 'Member@123', 'user');
   const studentId = await user('Rohan Das', 'student@skyline.edu', 'Student@123', 'user');
+  const lapsedId = await user('Kiran Rao', 'lapsed@skyline.edu', 'Lapsed@123', 'user');
 
   // Member: paid dues online, active until the academic year ends. Student: profile only, no membership.
   const [meeraMember] = await k('members').insert({ user_id: memberId, student_id: 'SKY2026001', phone: '9810000001', joined_at: ymd(now - 40 * day) });
@@ -60,6 +62,13 @@ export async function seed(k: Knex): Promise<void> {
   const duesPay = await pay({ user_id: memberId, amount: 500, purpose: 'dues', reference_type: 'membership', reference_id: msId as number, status: 'paid', key: 'dues', at: now - 40 * day });
   await k('memberships').where({ id: msId }).update({ status: 'active', payment_id: duesPay });
   await income(duesPay, 500, 'dues', 'Dues SKY2026001', now - 40 * day);
+
+  // Kiran: paid cash dues last year; that membership ended 30 days ago and hasn't been renewed.
+  const [kiranMember] = await k('members').insert({ user_id: lapsedId, student_id: 'SKY2025014', phone: '9810000003', joined_at: ymd(now - 400 * day) });
+  const [oldMs] = await k('memberships').insert({ member_id: kiranMember, start_date: ymd(now - 395 * day), expiry_date: ymd(now - 30 * day), status: 'pending' });
+  const oldPay = await pay({ user_id: lapsedId, amount: 500, purpose: 'dues', reference_type: 'membership', reference_id: oldMs as number, status: 'paid', key: 'dues_kiran', at: now - 395 * day, provider: 'cash' });
+  await k('memberships').where({ id: oldMs }).update({ status: 'expired', payment_id: oldPay });
+  await income(oldPay, 500, 'dues', 'Dues SKY2025014', now - 395 * day);
 
   // Four upcoming published events (names match the landing page) and one past event. Members pay less; CodeStorm is members only.
   const events = [
