@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { CreditCard, Info } from 'lucide-react';
 import type { Checkout } from '@/api/types';
-import { money } from './ui';
+import { Modal } from './Modal';
+import { Button } from './Button';
+import { money } from './format';
 
 /**
- * Hosted checkout hand-off. With a real Razorpay key_id this opens Razorpay Checkout; the webhook confirms server-side.
- * In sandbox mode (no key) we explain that the payment is confirmed by the provider webhook — the UI never flips status itself (§7).
+ * Hosted checkout hand-off. With a real Razorpay key_id this opens Razorpay Checkout; the webhook confirms
+ * server-side. The UI never flips payment status itself.
  */
 export function CheckoutModal({ checkout, onClose, title }: { checkout: Checkout; onClose: () => void; title: string }) {
   const qc = useQueryClient();
@@ -17,17 +20,15 @@ export function CheckoutModal({ checkout, onClose, title }: { checkout: Checkout
     rz.open();
   };
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="card max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold">{title}</h3>
-        <p className="text-3xl font-semibold my-3">{money(checkout.amount)}</p>
-        <p className="text-sm text-slate-600">Order <code className="text-xs">{checkout.order_id}</code> via {checkout.provider}. Your seat/stock is held for 15 minutes; it is confirmed only when the payment provider notifies us.</p>
-        {!live && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mt-3">Sandbox mode: no payment keys configured. A treasurer can record this as a cash payment, or the provider webhook can be simulated.</p>}
-        <div className="flex gap-2 mt-4 justify-end">
-          <button className="btn-secondary" onClick={onClose}>Close</button>
-          {live && <button className="btn-primary" onClick={openRazorpay} disabled={opened}>{opened ? 'Waiting for confirmation…' : 'Pay now'}</button>}
-        </div>
-      </div>
-    </div>
+    <Modal open onClose={onClose} title={title} size="sm" footer={<><Button variant="secondary" onClick={onClose}>Close</Button>{live && <Button onClick={openRazorpay} disabled={opened} loading={opened} icon={<CreditCard className="size-4" aria-hidden />}>{opened ? 'Waiting for confirmation…' : 'Pay now'}</Button>}</>}>
+      <div className="t-label">Amount due</div>
+      <div className="t-metric mt-1">{money(checkout.amount)}</div>
+      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div><dt className="t-label">Order</dt><dd className="mt-0.5 break-all font-mono text-xs">{checkout.order_id}</dd></div>
+        <div><dt className="t-label">Provider</dt><dd className="mt-0.5">{checkout.provider}</dd></div>
+      </dl>
+      <p className="t-caption mt-4">Your seat or stock is held for 15 minutes. It is confirmed only when the payment provider notifies us.</p>
+      {!live && <p role="note" className="mt-3 flex items-start gap-2 rounded-[var(--radius-md)] border border-warning/40 bg-warning-soft p-3 text-xs text-warning"><Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />Sandbox mode: no payment keys configured. A treasurer can record this as a cash payment, or the provider webhook can be simulated.</p>}
+    </Modal>
   );
 }

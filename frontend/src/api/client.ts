@@ -12,7 +12,8 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   let body = init.body;
   if (init.json !== undefined) { headers['Content-Type'] = 'application/json'; body = JSON.stringify(init.json); }
   const res = await fetch(`/api${path}`, { ...init, headers, body });
-  if (res.status === 401 && token) clearToken();
+  // A rejected token means the session is over: drop it and tell AuthProvider so cached user state resets.
+  if (res.status === 401 && token) { clearToken(); window.dispatchEvent(new Event('ssa:unauthorized')); }
   const text = await res.text();
   const data = text ? (() => { try { return JSON.parse(text); } catch { return text; } })() : null;
   if (!res.ok) throw new ApiError(res.status, (data as any)?.error ?? res.statusText, (data as any)?.details);

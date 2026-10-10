@@ -1,26 +1,32 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { CalendarDays } from 'lucide-react';
 import { get } from '@/api/client';
 import type { Event } from '@/api/types';
-import { Badge, Empty, PageTitle, datetime, money } from '@/components/ui';
+import { useAuth } from '@/auth/AuthContext';
+import { PageHeader } from '@/components/PageHeader';
+import { EventCard } from '@/components/EventCard';
+import { EmptyState, ErrorState } from '@/components/EmptyState';
+
+type Filter = 'upcoming' | 'past' | 'all';
 
 export function EventsPage() {
+  const { me } = useAuth();
   const q = useQuery({ queryKey: ['events'], queryFn: () => get<Event[]>('/events') });
-  const events = (q.data ?? []).filter((e) => e.status !== 'draft');
+  const [filter, setFilter] = useState<Filter>('upcoming');
+  const now = Date.now();
+  const events = (q.data ?? []).filter((e) => e.status !== 'draft').filter((e) => filter === 'all' ? true : filter === 'upcoming' ? +new Date(e.starts_at) >= now : +new Date(e.starts_at) < now)
+    .sort((a, b) => (filter === 'past' ? +new Date(b.starts_at) - +new Date(a.starts_at) : +new Date(a.starts_at) - +new Date(b.starts_at)));
   return (
     <>
-      <PageTitle title="Events" sub="Members pay less — log in to see your price." />
-      {q.isLoading ? 'Loading…' : events.length === 0 ? <Empty>No events yet.</Empty> : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {events.map((e) => (
-            <Link to={`/events/${e.id}`} key={e.id} className="card hover:shadow-md transition">
-              <div className="flex justify-between items-start gap-2"><h3 className="font-semibold">{e.title}</h3><Badge s={e.status} /></div>
-              <p className="text-sm text-slate-500 mt-1">{datetime(e.starts_at)} · {e.venue}</p>
-              <p className="text-sm mt-3 line-clamp-2 text-slate-600">{e.description}</p>
-              <div className="flex justify-between mt-4 text-sm"><span className="font-medium">{money(e.price_for_you)}{e.you_are_member && <span className="text-emerald-700 text-xs ml-1">member</span>}</span><span className="text-slate-500">{e.seats_left} seats left</span></div>
-            </Link>
-          ))}
-        </div>
+      <PageHeader eyebrow="Events" title="What's on" description={me ? (me.active ? 'Member pricing is applied to everything below.' : 'Activate your membership for member pricing.') : 'Members pay less. Log in to see your price.'}
+        actions={<div role="tablist" aria-label="Filter events" className="card-sunken flex p-1">{(['upcoming', 'past', 'all'] as Filter[]).map((f) => <button key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)} className={`interactive min-h-10 rounded-[var(--radius-sm)] px-3 text-xs font-medium capitalize ${filter === f ? 'bg-surface-elevated text-text-primary' : 'text-text-secondary hover:text-text-primary'}`}>{f}</button>)}</div>} />
+      {q.isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map((i) => <div key={i} className="card h-52 skeleton" />)}</div>
+      ) : q.error ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : events.length === 0 ? (
+        <EmptyState icon={<CalendarDays className="size-5" aria-hidden />} title={filter === 'upcoming' ? 'No upcoming events' : 'No events here'} description="New events are announced to members first." />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{events.map((e) => <EventCard key={e.id} event={e} />)}</div>
       )}
     </>
   );

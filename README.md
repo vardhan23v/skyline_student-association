@@ -32,8 +32,12 @@ React (Vite + Tailwind) frontend · Node/Express API · MySQL · JWT login with 
 npm --prefix backend install && npm --prefix frontend install
 cp backend/.env.example backend/.env      # fill in DB, JWT, Razorpay, email keys
 npm --prefix backend run migrate && npm --prefix backend run seed
-npm --prefix backend run dev              # API  → http://localhost:4000/api
+npm --prefix backend run dev              # API  → http://localhost:3000/api
 npm --prefix frontend run dev             # Site → http://localhost:5173
 ```
 
-Full design details: [`docs/architecture.md`](docs/architecture.md)
+## Design
+
+Dark-first "Signal" visual system: tokens in `frontend/src/index.css`, primitives in `frontend/src/components/` (AppShell, LiquidGlassNav, PageHeader, MetricCard, FeatureCard, StatusBadge, DataTable, EmptyState, EventCard, TaskCard, TransactionRow, Button, Input, Modal, Toast). Direction and rationale: [`docs/design.md`](docs/design.md).
+
+Full architecture: [`docs/architecture.md`](docs/architecture.md)

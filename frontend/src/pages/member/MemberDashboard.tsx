@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { CreditCard, QrCode, ShoppingBag, Ticket } from 'lucide-react';
 import { get, post } from '@/api/client';
 import type { Checkout } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
-import { Badge, Empty, ErrorBox, PageTitle, date, datetime, money } from '@/components/ui';
+import { PageHeader, SectionHeader } from '@/components/PageHeader';
+import { StatusBadge } from '@/components/StatusBadge';
+import { Button } from '@/components/Button';
+import { DataTable } from '@/components/DataTable';
+import { EmptyState, ErrorState } from '@/components/EmptyState';
 import { CheckoutModal } from '@/components/CheckoutModal';
+import { date, datetime, money } from '@/components/format';
 
+/** Member account: membership card with QR, tickets, orders. */
 export function MemberDashboard() {
   const { me } = useAuth();
   const [qr, setQr] = useState<string | null>(null);
@@ -15,39 +22,47 @@ export function MemberDashboard() {
   const pay = useMutation({ mutationFn: () => post<{ checkout: Checkout }>('/memberships', {}), onSuccess: (r) => setCheckout(r.checkout) });
   useEffect(() => {
     if (!me?.qr_token) return setQr(null);
-    (async () => { try { const QR = await import('qrcode'); setQr(await QR.toDataURL(me.qr_token!, { margin: 1, width: 220 })); } catch { setQr(null); } })();
+    (async () => { try { const QR = await import('qrcode'); setQr(await QR.toDataURL(me.qr_token!, { margin: 1, width: 240, color: { dark: '#eef2fb', light: '#00000000' } })); } catch { setQr(null); } })();
   }, [me?.qr_token]);
   if (!me) return null;
   const ms = me.membership;
   return (
     <>
-      <PageTitle title={`Hi ${me.user.name.split(' ')[0]}`} sub="Your membership, tickets and orders." />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="card">
-          <h3 className="font-semibold mb-2">Membership</h3>
-          {!me.member ? <p className="text-sm text-slate-600">No member profile yet. Visit the sign-up table or contact an admin to add your student ID.</p> : (<>
-            <p className="text-sm">Student ID <b>{me.member.student_id}</b></p>
-            <p className="text-sm mt-1">Status <Badge s={me.active ? 'active' : ms?.status ?? 'none'} /> {ms && <span className="text-slate-500">· expires {date(ms.expiry_date)}</span>}</p>
-            {me.active && qr && <div className="mt-3 text-center"><img src={qr} alt="Member QR" className="mx-auto rounded" /><p className="text-xs text-slate-500 mt-1">Show this at events to verify membership.</p></div>}
-            {!me.active && <><button className="btn-primary mt-3 w-full" disabled={pay.isPending} onClick={() => pay.mutate()}>Pay dues · {money(500)}</button><ErrorBox error={pay.error} /></>}
+      <PageHeader eyebrow={`Member · ${me.user.email}`} title="My account" description="Your membership, tickets and orders." />
+      <div className="grid gap-5 lg:grid-cols-3">
+        <section className="card glow-horizon flex flex-col" aria-labelledby="ms-h">
+          <div className="flex items-start justify-between gap-2"><h2 id="ms-h" className="t-section">Membership</h2><StatusBadge status={me.active ? 'active' : ms?.status ?? undefined}>{me.active ? 'active' : ms?.status ?? 'none'}</StatusBadge></div>
+          {!me.member ? <p className="mt-3 text-sm text-text-secondary">No member profile yet. Visit the sign-up table or contact an admin to add your student ID.</p> : (<>
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div><dt className="t-label">Student ID</dt><dd className="mt-0.5 font-mono">{me.member.student_id}</dd></div>
+              <div><dt className="t-label">{me.active ? 'Expires' : 'Status'}</dt><dd className="mt-0.5">{ms?.expiry_date ? date(ms.expiry_date) : '—'}</dd></div>
+            </dl>
+            {me.active && (qr ? <figure className="mt-5 text-center"><img src={qr} alt="Your membership QR code" width={240} height={240} className="mx-auto rounded-[var(--radius-md)] bg-black/30 p-2" /><figcaption className="t-caption mt-2 inline-flex items-center gap-1"><QrCode className="size-3" aria-hidden />Show this at events to verify membership.</figcaption></figure> : <div className="mt-5 mx-auto size-60 skeleton rounded-[var(--radius-md)]" aria-label="Loading QR" />)}
+            {!me.active && <div className="mt-5 space-y-2"><Button className="w-full" loading={pay.isPending} onClick={() => pay.mutate()} icon={<CreditCard className="size-4" aria-hidden />}>Pay dues · {money(500)}</Button><ErrorState error={pay.error} /><p className="t-caption">Activates on payment confirmation and unlocks member pricing.</p></div>}
           </>)}
-        </div>
-        <div className="card lg:col-span-2">
-          <h3 className="font-semibold mb-2">My tickets</h3>
-          {me.tickets.length === 0 ? <Empty>No tickets yet. <Link to="/events" className="text-indigo-600">Browse events</Link></Empty> : (
-            <table className="table"><thead><tr><th>Event</th><th>When</th><th>Type</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody>
-              {me.tickets.map((t) => <tr key={t.id}><td>{t.event_title}</td><td>{datetime(t.starts_at)}</td><td>{t.ticket_type.replace('_', ' ')}</td><td>{money(t.price)}</td><td><Badge s={t.status} /></td><td>{t.status !== 'pending' && t.status !== 'cancelled' && <Link to={`/tickets/${t.id}`} className="text-indigo-600 text-xs">QR</Link>}</td></tr>)}
-            </tbody></table>
-          )}
-        </div>
-        <div className="card lg:col-span-3">
-          <h3 className="font-semibold mb-2">My orders</h3>
-          {!orders.data?.length ? <Empty>No orders yet. <Link to="/shop" className="text-indigo-600">Visit the shop</Link></Empty> : (
-            <table className="table"><thead><tr><th>#</th><th>Total</th><th>Status</th><th>Placed</th></tr></thead><tbody>
-              {orders.data.map((o) => <tr key={o.id}><td>{o.id}</td><td>{money(o.total)}</td><td><Badge s={o.status} /></td><td>{datetime(o.created_at)}</td></tr>)}
-            </tbody></table>
-          )}
-        </div>
+        </section>
+        <section className="lg:col-span-2" aria-labelledby="tk-h">
+          <SectionHeader title={<span id="tk-h">My tickets</span>} meta={`${me.tickets.length}`} actions={<Link to="/events" className="t-label hover:text-accent">Browse events →</Link>} />
+          <DataTable rows={me.tickets} rowKey={(t) => t.id} caption="Your tickets" empty={<EmptyState icon={<Ticket className="size-5" aria-hidden />} title="No tickets yet" action={<Link to="/events" className="btn-secondary">Browse events</Link>} />}
+            columns={[
+              { key: 'event', header: 'Event', render: (t) => <span className="font-medium">{t.event_title}</span> },
+              { key: 'when', header: 'When', render: (t) => datetime(t.starts_at) },
+              { key: 'type', header: 'Type', render: (t) => <span className="capitalize">{t.ticket_type.replace('_', ' ')}</span>, hideOnMobile: true },
+              { key: 'price', header: 'Price', render: (t) => <span className="t-num">{money(t.price)}</span>, align: 'right' },
+              { key: 'status', header: 'Status', render: (t) => <StatusBadge status={t.status} /> },
+              { key: 'qr', header: '', render: (t) => t.status !== 'pending' && t.status !== 'cancelled' ? <Link to={`/tickets/${t.id}`} className="btn-secondary !min-h-9 !px-3 !text-xs"><QrCode className="size-3.5" aria-hidden />QR</Link> : null, align: 'right' },
+            ]} />
+        </section>
+        <section className="lg:col-span-3" aria-labelledby="or-h">
+          <SectionHeader title={<span id="or-h">My orders</span>} actions={<Link to="/shop" className="t-label hover:text-accent">Visit the shop →</Link>} />
+          <DataTable rows={orders.data} loading={orders.isLoading} error={orders.error} onRetry={() => orders.refetch()} rowKey={(o) => o.id} caption="Your merchandise orders" empty={<EmptyState icon={<ShoppingBag className="size-5" aria-hidden />} title="No orders yet" action={<Link to="/shop" className="btn-secondary">Visit the shop</Link>} />}
+            columns={[
+              { key: 'id', header: 'Order', render: (o) => <span className="font-mono">#{o.id}</span> },
+              { key: 'total', header: 'Total', render: (o) => <span className="t-num">{money(o.total)}</span>, align: 'right' },
+              { key: 'status', header: 'Status', render: (o) => <StatusBadge status={o.status} /> },
+              { key: 'placed', header: 'Placed', render: (o) => datetime(o.created_at), hideOnMobile: true },
+            ]} />
+        </section>
       </div>
       {checkout && <CheckoutModal checkout={checkout} title="Membership dues" onClose={() => setCheckout(null)} />}
     </>
