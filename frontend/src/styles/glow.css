@@ -1,0 +1,29 @@
+/* Glow and shimmer utilities */
+@keyframes holographicGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 15px rgba(225, 29, 72, 0.4)) drop-shadow(0 0 30px rgba(251, 146, 60, 0.2));
+  }
+  50% {
+    filter: drop-shadow(0 0 25px rgba(225, 29, 72, 0.7)) drop-shadow(0 0 45px rgba(251, 146, 60, 0.4));
+  }
+}
+
+.glow-crimson-pulse {
+  animation: holographicGlow 4s ease-in-out infinite;
+}
+
+.holo-card-shine {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(225, 29, 72, 0.12) 35%,
+    rgba(251, 146, 60, 0.08) 60%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.badge-glow {
+  box-shadow: 0 0 12px rgba(225, 29, 72, 0.35);
+}
