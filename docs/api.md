@@ -138,6 +138,9 @@ Errors are **401** (signed out), **403** `MEMBERSHIP_REQUIRED`, **409** `ALREADY
 | POST | `/api/admin/checkin` | Body `{ qr_token, event_id? }`. Marks the ticket used, once | moved from `POST /checkin` (was volunteer) |
 | GET | `/api/admin/members` | Directory. Filters: `status`, `expiring_within_days`, `q` | moved from `GET /members` |
 | GET | `/api/admin/members/:id/verify` | At-event membership check, by student ID or member QR | moved from `GET /members/:id/verify` (was volunteer) |
+| GET | `/api/admin/members/:id/dues` | Dues history: every membership period with its payment (`amount`, `method` online/cash, `paid`, `paid_at`) | new |
+| PATCH | `/api/admin/members/:id/membership` | Set the expiry date of the latest paid period, `{ expiry_date }` (today or later). Clears the reminder stamp | new |
+| POST | `/api/admin/members/:id/remind` | Email the member a renewal reminder now | new |
 | POST | `/api/admin/members/:id/cash-payment` | Record cash dues, `{ amount, expiry_date? }`. **Add:** with no active membership it starts one today. **Extend:** with one, it adds a period starting the day after the current expiry; `expiry_date` must be later. Either way it writes a ledger row and returns `extended` | moved from `POST /members/:id/cash-payment` (was treasurer); extend added in Phase 2 |
 | GET | `/api/admin/products` | All products including inactive | added |
 | POST | `/api/admin/products` | Create with variants (`size, price, member_price, stock`) | moved from `POST /products` |
@@ -212,6 +215,8 @@ Added in Phase 4:
 | `VITE_APP_URL` | empty (relative URLs) | Frontend build only: fills the canonical and Open Graph URLs in `index.html`. |
 
 ## Later changes (Phase 4 and after)
+
+- **Membership dues, renewal and verification.** `GET /api/me` adds `days_left`, `can_renew`, `renewal` (a paid-ahead next period) and `dues` (history); `membership_expires` is how far the member is covered, renewal included. `POST /api/memberships` now also renews: from 30 days before expiry it creates the next period, starting the day after the current one ends (earlier still answers `409 ALREADY_MEMBER`). `GET /api/admin/members` adds `dues_amount`, `dues_provider`, `dues_status`, `dues_paid_at` for the latest period. The daily reminder job skips members who already renewed. The admin scanner has a Membership mode that checks a member QR or student ID through `GET /api/admin/members/:id/verify`.
 
 - **Admin-only finance.** `GET /api/finance/summary` needs an admin (401 signed out, 403 for users); before, any signed-in user could read it. The AI Secretary's `getFinanceSummary` tool is admin-only too. The ledger and expenses were already under `/api/admin`.
 - **One public hostname.** In production, a request whose host isn't `APP_URL`'s gets `301` to the same path and query on `APP_URL` (`middleware/canonicalHost.ts`). `/health`, `/api/health` and `/api/webhooks/*` are exempt, so health checks and payment webhooks keep working on an old domain.
