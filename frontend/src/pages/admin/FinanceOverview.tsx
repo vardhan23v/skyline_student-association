@@ -24,10 +24,10 @@ function Donut({ title, data }: { title: string; data: { name: string; value: nu
       <SectionHeader title={title} as="h3" />
       {data.length === 0 ? <p className="t-caption">No entries.</p> : (
         <div className="flex items-center gap-4">
-          <div className="h-36 w-36 shrink-0" role="img" aria-label={`${title}: ${data.map((d) => `${d.name} ${money(d.value)}`).join(', ')}`}>
-            <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={data} dataKey="value" nameKey="name" innerRadius={42} outerRadius={64} stroke="var(--surface)" strokeWidth={2}>{data.map((_, i) => <Cell key={i} fill={palette[i % palette.length]} />)}</Pie><Tooltip {...tip} formatter={(v: number) => money(v)} /></PieChart></ResponsiveContainer>
+          <div className="h-28 w-28 shrink-0 sm:h-36 sm:w-36" role="img" aria-label={`${title}: ${data.map((d) => `${d.name} ${money(d.value)}`).join(', ')}`}>
+            <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={data} dataKey="value" nameKey="name" innerRadius="62%" outerRadius="95%" stroke="var(--surface)" strokeWidth={2}>{data.map((_, i) => <Cell key={i} fill={palette[i % palette.length]} />)}</Pie><Tooltip {...tip} formatter={(v: number) => money(v)} /></PieChart></ResponsiveContainer>
           </div>
-          <ul className="min-w-0 flex-1 space-y-1.5 text-sm">{data.map((d, i) => <li key={d.name} className="flex items-center gap-2"><span className="size-2.5 shrink-0 rounded-sm" style={{ background: palette[i % palette.length] }} aria-hidden /><span className="flex-1 truncate capitalize">{d.name}</span><span className="t-num text-text-secondary">{money(d.value)}</span></li>)}</ul>
+          <ul className="min-w-0 flex-1 space-y-1.5 text-sm">{data.map((d, i) => <li key={d.name} className="flex min-w-0 items-center gap-2"><span className="size-2.5 shrink-0 rounded-sm" style={{ background: palette[i % palette.length] }} aria-hidden /><span className="min-w-0 flex-1 truncate capitalize">{d.name}</span><span className="shrink-0 t-num text-text-secondary">{money(d.value)}</span></li>)}</ul>
         </div>
       )}
     </section>
@@ -49,8 +49,8 @@ export function FinanceOverview() {
   const go = (v: View) => setParams(v === 'summary' ? { tab: 'finance' } : { tab: 'finance', view: v });
   return (
     <>
-      <div role="group" aria-label="Finance views" className="mb-5 flex flex-wrap gap-1.5">
-        {views.map((v) => <button key={v.key} type="button" aria-pressed={view === v.key} onClick={() => go(v.key)} className={`btn-secondary !min-h-9 !px-3 !text-xs ${view === v.key ? '!border-accent !text-text-primary' : ''}`}>{v.label}</button>)}
+      <div role="group" aria-label="Finance views" className="scroll-row fade-x -mx-4 mb-5 gap-2 px-4 md:mx-0 md:flex-wrap md:px-0 md:[mask-image:none]">
+        {views.map((v) => <button key={v.key} type="button" aria-pressed={view === v.key} onClick={() => go(v.key)} className="chip">{v.label}</button>)}
       </div>
       {view === 'summary' && <FinanceSummary onOpen={go} />}
       {view === 'ledger' && <LedgerPage />}
@@ -70,17 +70,19 @@ function FinanceSummary({ onOpen }: { onOpen: (v: View) => void }) {
     <>
       <PageHeader script="club" title="Finances" description="Every payment and reimbursement is in one append-only ledger. Members see the summary on the Finance page." />
       <ErrorState error={s.error} onRetry={() => s.refetch()} className="mb-4" />
-      <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+      {/* Summary figures first: 2-up on phones, 4 from lg. */}
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
         <MetricCard label="Balance" icon={Wallet} loading={s.isLoading} value={money(s.data?.balance)} tone="accent" />
         <MetricCard label="Total in" loading={s.isLoading} value={money(s.data?.total_in)} />
         <MetricCard label="Total out" loading={s.isLoading} value={money(s.data?.total_out)} />
         <MetricCard label="Review queue" icon={Receipt} loading={queue.isLoading} value={queue.data?.length ?? '—'} hint={flagged ? `${flagged} flagged` : 'nothing flagged'} tone={flagged ? 'danger' : (queue.data?.length ?? 0) > 0 ? 'warning' : 'default'} />
       </div>
-      <div className="mt-6 grid gap-5">
-        <div className="space-y-5">
-          <div className="grid gap-5 md:grid-cols-2"><Donut title="Income by category" data={pie('in')} /><Donut title="Spending by category" data={pie('out')} /></div>
+      {/* grid-cols-1 (minmax(0, 1fr)), not the implicit auto track: the chart's min-content would widen the page. */}
+      <div className="mt-6 grid grid-cols-1 gap-5">
+        <div className="min-w-0 space-y-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2"><Donut title="Income by category" data={pie('in')} /><Donut title="Spending by category" data={pie('out')} /></div>
           <section className="card">
-            <SectionHeader title="Recent transactions" actions={<button type="button" onClick={() => onOpen('ledger')} className="t-label hover:text-accent-text">Full ledger →</button>} />
+            <SectionHeader title="Recent transactions" actions={<button type="button" onClick={() => onOpen('ledger')} className="t-label inline-flex min-h-11 items-center hover:text-accent-text">Full ledger →</button>} />
             {recent.isLoading ? <Skeleton rows={5} /> : recent.error ? <ErrorState error={recent.error} onRetry={() => recent.refetch()} /> : !recent.data?.length ? <EmptyState title="No ledger entries yet" className="!py-6" /> : <ul>{recent.data.map((r) => <TransactionRow key={r.id} row={r} />)}</ul>}
           </section>
         </div>

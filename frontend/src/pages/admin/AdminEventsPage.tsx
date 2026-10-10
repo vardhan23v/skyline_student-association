@@ -48,33 +48,33 @@ function EventsList() {
       <PageHeader script="manage" title="Events" description="Only members can register, at the member price." actions={<Button onClick={openNew} icon={<Plus className="size-4" aria-hidden />}>New event</Button>} />
       <DataTable rows={q.data} loading={q.isLoading} error={q.error} onRetry={() => q.refetch()} rowKey={(e) => e.id} caption="All events including drafts" empty={<EmptyState title="No events yet" action={<Button onClick={openNew}>Create the first event</Button>} />}
         columns={[
-          { key: 'event', header: 'Event', render: (e) => <><span className="font-medium">{e.title}</span><span className="block t-caption">{e.venue}</span></> },
+          { key: 'event', header: 'Event', mobile: 'primary', render: (e) => <><span className="font-medium">{e.title}</span><span className="block t-caption">{e.venue}</span></> },
           { key: 'when', header: 'When', render: (e) => datetime(e.starts_at) },
           { key: 'seats', header: 'Seats', render: (e) => <span className="t-num">{e.capacity - e.seats_left}<span className="text-text-tertiary">/{e.capacity}</span></span>, align: 'right' },
           { key: 'price', header: 'Price', render: (e) => <span className="t-num">{Number(e.member_price) === 0 ? 'Free' : money(e.member_price)}</span>, hideOnMobile: true },
-          { key: 'status', header: 'Status', render: (e) => <StatusBadge status={e.status} /> },
-          { key: 'actions', header: '', align: 'right', render: (e) => (
-            <span className="inline-flex flex-wrap justify-end gap-1">
-              <button className="btn-ghost !min-h-9 !px-2.5 !text-xs" onClick={() => edit(e)}><Pencil className="size-3.5" aria-hidden />Edit</button>
-              {e.status === 'draft' && <button className="btn-primary !min-h-9 !px-2.5 !text-xs" disabled={setStatus.isPending} onClick={() => setStatus.mutate({ id: e.id, status: 'published' })}>Publish</button>}
-              {e.status === 'published' && <button className="btn-secondary !min-h-9 !px-2.5 !text-xs" disabled={setStatus.isPending} onClick={() => setStatus.mutate({ id: e.id, status: 'closed' })}>Close</button>}
-              <Link className="btn-ghost !min-h-9 !px-2.5 !text-xs" to={`/admin?tab=events&event=${e.id}`}><BarChart3 className="size-3.5" aria-hidden />Report<span className="sr-only">, registrations for {e.title}</span></Link>
+          { key: 'status', header: 'Status', mobile: 'status', render: (e) => <StatusBadge status={e.status} /> },
+          { key: 'actions', header: '', align: 'right', mobile: 'actions', render: (e) => (
+            // Phones: a 2-up grid of full-width 44px buttons at the bottom of the card. Desktop: one compact row.
+            <span className="grid grid-cols-2 gap-2 [&>*:last-child:nth-child(odd)]:col-span-2 md:inline-flex md:flex-wrap md:justify-end md:gap-1">
+              <button className="btn-secondary !px-3 !text-xs" onClick={() => edit(e)}><Pencil className="size-3.5" aria-hidden />Edit<span className="sr-only"> {e.title}</span></button>
+              {e.status === 'draft' && <button className="btn-primary !px-3 !text-xs" disabled={setStatus.isPending} onClick={() => setStatus.mutate({ id: e.id, status: 'published' })}>Publish</button>}
+              {e.status === 'published' && <button className="btn-secondary !px-3 !text-xs" disabled={setStatus.isPending} onClick={() => setStatus.mutate({ id: e.id, status: 'closed' })}>Close</button>}
+              <Link className="btn-secondary !px-3 !text-xs" to={`/admin?tab=events&event=${e.id}`}><BarChart3 className="size-3.5" aria-hidden />Report<span className="sr-only">, registrations for {e.title}</span></Link>
             </span>
           ) },
         ]} />
-      <Modal open={open} onClose={close} variant="drawer" title={editing ? `Edit event #${editing}` : 'New event'} description="Published events are visible and open for member registration immediately."
+      <Modal open={open} onClose={close} variant="drawer" size="lg" title={editing ? `Edit event #${editing}` : 'New event'} description="Published events are visible and open for member registration immediately."
         footer={<><Button variant="secondary" onClick={close} type="button">Cancel</Button><Button form="event-form" type="submit" loading={save.isPending}>{editing ? 'Save changes' : 'Create event'}</Button></>}>
-        <form id="event-form" className="space-y-4" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+        {/* One column on phones, two from lg; native date-time picker; Save is in the sheet's pinned footer. */}
+        <form id="event-form" className="grid gap-4 lg:grid-cols-2" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
           <LabeledInput label="Title" required value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
-          <LabeledTextarea label="Description" rows={3} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
-          <LabeledInput label="Starts" type="datetime-local" required value={f.starts_at} onChange={(e) => setF({ ...f, starts_at: e.target.value })} />
           <LabeledInput label="Venue" value={f.venue} onChange={(e) => setF({ ...f, venue: e.target.value })} />
-          <div className="grid grid-cols-2 gap-2">
-            <LabeledInput label="Capacity" type="number" inputMode="numeric" min="1" step="1" required value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} />
-            <LabeledInput label="Price ₹ (members, 0 = free)" type="number" inputMode="decimal" min="0" step="0.01" required value={f.member_price} onChange={(e) => setF({ ...f, member_price: e.target.value })} />
-          </div>
+          <div className="lg:col-span-2"><LabeledTextarea label="Description" rows={3} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></div>
+          <LabeledInput label="Starts" type="datetime-local" required value={f.starts_at} onChange={(e) => setF({ ...f, starts_at: e.target.value })} />
           <LabeledSelect label="Status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option>draft</option><option>published</option><option>closed</option></LabeledSelect>
-          <ErrorState error={save.error} />
+          <LabeledInput label="Capacity" type="number" inputMode="numeric" enterKeyHint="next" min="1" step="1" required value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} />
+          <LabeledInput label="Price ₹ (members, 0 = free)" type="number" inputMode="decimal" enterKeyHint="done" min="0" step="0.01" required value={f.member_price} onChange={(e) => setF({ ...f, member_price: e.target.value })} />
+          <ErrorState error={save.error} className="lg:col-span-2" />
         </form>
       </Modal>
     </>

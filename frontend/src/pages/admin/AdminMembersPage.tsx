@@ -32,23 +32,23 @@ export function AdminMembersPage() {
   return (
     <>
       <PageHeader script="member" title="Directory" description="Membership status and expiry for every profile. Open a member to record cash dues." actions={<span className="t-label">{q.data?.length ?? 0} shown</span>} />
-      <div className="card mb-4 flex flex-wrap items-center gap-2 !py-3" role="search">
-        <div className="relative min-w-56 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-tertiary" aria-hidden /><label htmlFor="mq" className="sr-only">Search members</label><Input id="mq" className="!pl-9" placeholder="Name, email or student ID" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} /></div>
+      <div className="card mb-4 flex flex-wrap items-center gap-2 !p-3 sm:!py-3" role="search">
+        <div className="relative w-full min-w-56 flex-1"><Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-text-tertiary" aria-hidden /><label htmlFor="mq" className="sr-only">Search members</label><Input id="mq" type="search" enterKeyHint="search" className="!pl-10" placeholder="Name, email or student ID" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} /></div>
         <label htmlFor="ms" className="sr-only">Membership status</label>
-        <Select id="ms" className="!w-auto" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="">Any status</option><option value="active">Active</option><option value="expired">Expired</option><option value="pending">Pending</option><option value="none">No membership</option></Select>
-        <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-border-strong px-3 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent-soft"><input type="checkbox" className="accent-[var(--accent)]" checked={f.expiring} onChange={(e) => setF({ ...f, expiring: e.target.checked })} />Expiring in 14 days</label>
+        <Select id="ms" className="!w-auto flex-1 sm:flex-none" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="">Any status</option><option value="active">Active</option><option value="expired">Expired</option><option value="pending">Pending</option><option value="none">No membership</option></Select>
+        <label className="inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-full border border-border-strong px-4 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent-soft"><input type="checkbox" className="size-4 accent-[var(--accent)]" checked={f.expiring} onChange={(e) => setF({ ...f, expiring: e.target.checked })} />Expiring in 14 days</label>
       </div>
       <DataTable rows={q.data} loading={q.isLoading} error={q.error} onRetry={() => q.refetch()} rowKey={(m) => m.id} caption="Members" empty={<EmptyState icon={<UserRound className="size-5" aria-hidden />} title="No members match" description="Try a different search or clear the filters." />}
         columns={[
-          { key: 'name', header: 'Name', render: (m) => <button onClick={() => show(m)} className="-my-1 inline-flex min-h-11 flex-col justify-center text-left font-medium hover:text-accent-text focus-ring rounded">{m.name}<span className="block t-caption font-mono md:hidden">{m.student_id}</span></button> },
+          { key: 'name', header: 'Name', mobile: 'primary', render: (m) => <button onClick={() => show(m)} className="-my-1 inline-flex min-h-11 flex-col justify-center text-left font-medium hover:text-accent-text focus-ring rounded">{m.name}<span className="block t-caption font-mono md:hidden">{m.student_id}</span></button> },
           { key: 'sid', header: 'Student ID', render: (m) => <span className="font-mono text-xs">{m.student_id}</span>, hideOnMobile: true },
           { key: 'email', header: 'Email', render: (m) => <span className="text-text-secondary">{m.email}</span>, hideOnMobile: true },
-          { key: 'status', header: 'Membership', render: (m) => <StatusBadge status={m.membership_status} /> },
+          { key: 'status', header: 'Membership', mobile: 'status', render: (m) => <StatusBadge status={m.membership_status} /> },
           { key: 'exp', header: 'Expires', render: (m) => { const d = days(m.expiry_date); return <span className={d != null && d <= 14 && d >= 0 ? 'text-warning' : ''}>{date(m.expiry_date)}{d != null && d >= 0 && d <= 14 && <span className="block t-caption">in {d}d</span>}</span>; } },
           { key: 'joined', header: 'Joined', render: (m) => date(m.joined_at), hideOnMobile: true },
         ]} />
       <Modal open={!!open} onClose={() => show(null)} variant="drawer" title={open?.name ?? ''} description={open?.email}
-        footer={<><button className="btn-secondary" onClick={() => show(null)}>Close</button><Button form="dues-form" type="submit" loading={cash.isPending} icon={<Wallet className="size-4" aria-hidden />}>{open?.membership_status === 'active' ? 'Extend' : 'Activate'} · {money(dues.amount)} cash</Button></>}>
+        footer={<><Button variant="secondary" onClick={() => show(null)}>Close</Button><Button form="dues-form" type="submit" loading={cash.isPending} icon={<Wallet className="size-4" aria-hidden />}>{open?.membership_status === 'active' ? 'Extend' : 'Activate'} · {money(dues.amount)} cash</Button></>}>
         {open && (
           <dl className="grid grid-cols-2 gap-4 text-sm">
             <div><dt className="t-label">Student ID</dt><dd className="mt-0.5 font-mono">{open.student_id}</dd></div>
@@ -63,7 +63,7 @@ export function AdminMembersPage() {
           <form id="dues-form" className="mt-6 space-y-3 border-t border-border pt-5" onSubmit={(e) => { e.preventDefault(); cash.mutate(open); }}>
             <h3 className="t-section">{open.membership_status === 'active' ? 'Extend membership (cash)' : 'Add membership (cash)'}</h3>
             <p className="t-caption">{open.membership_status === 'active' ? `Adds a new period from the day after ${date(open.expiry_date)}.` : 'Activates today.'} Leave the date empty for the academic year end.</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <LabeledInput label="Amount ₹" type="number" inputMode="decimal" min="1" step="0.01" required value={dues.amount} onChange={(e) => setDues({ ...dues, amount: e.target.value })} />
               <LabeledInput label="Valid until (optional)" type="date" value={dues.expiry_date} onChange={(e) => setDues({ ...dues, expiry_date: e.target.value })} />
             </div>

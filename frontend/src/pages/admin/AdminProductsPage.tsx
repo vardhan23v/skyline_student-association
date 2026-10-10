@@ -50,31 +50,33 @@ export function AdminProductsPage() {
           {q.data.map((p) => (
             <section key={p.id} className="card" aria-labelledby={`p-${p.id}`}>
               <SectionHeader title={<span id={`p-${p.id}`}>{p.name}</span>} meta={p.is_active ? undefined : 'inactive'} />
-              <div className="overflow-x-auto"><table className="table min-w-[520px]"><thead><tr><th scope="col">Size</th><th scope="col" className="text-right">Price / member</th><th scope="col" className="text-right">Stock</th><th scope="col" className="text-right">Reserved</th><th scope="col" className="text-right">Available</th><th scope="col" className="text-right">Set stock</th></tr></thead><tbody>
-                {p.variants.map((v) => <tr key={v.id}>
-                  <td><span className="card-sunken inline-flex min-h-9 min-w-9 items-center justify-center whitespace-nowrap px-2.5 text-xs font-semibold">{v.size}</span></td>
-                  <td className="text-right t-num">{money(v.price)} <span className="text-text-tertiary">/</span> {money(v.member_price)}</td>
-                  <td className="text-right t-num">{v.stock}</td><td className="text-right t-num text-text-secondary">{v.reserved}</td>
-                  <td className={`text-right t-num font-medium ${v.available === 0 ? 'text-danger' : v.available < 5 ? 'text-warning' : ''}`}>{v.available}{v.available < 5 && <span className="block t-caption font-normal">{v.available === 0 ? 'out' : 'low'}</span>}</td>
-                  <td className="text-right"><label className="sr-only" htmlFor={`st-${v.id}`}>Stock for size {v.size}</label><input key={v.stock} id={`st-${v.id}`} type="number" inputMode="numeric" min={0} step={1} className="input !w-24 !min-h-10 text-right" defaultValue={v.stock} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={(e) => saveStock(e.currentTarget, v)} /></td>
-                </tr>)}
-              </tbody></table></div>
+              <DataTable rows={p.variants} rowKey={(v) => v.id} caption={`${p.name} stock by size`} className="!border-0 !bg-transparent"
+                columns={[
+                  // Phones: one compact card per size (size + prices/stock line, available, the stock field).
+                  { key: 'size', header: 'Size', mobile: 'primary', render: (v) => <span className="flex items-center gap-3"><span className="card-sunken inline-flex min-h-9 min-w-9 items-center justify-center whitespace-nowrap px-2.5 text-xs font-semibold"><span className="sr-only">Size </span>{v.size}</span><span className="t-caption t-num md:hidden">{money(v.price)} / {money(v.member_price)} · stock {v.stock} · {v.reserved} held</span></span> },
+                  { key: 'price', header: 'Price / member', align: 'right', hideOnMobile: true, render: (v) => <span className="t-num">{money(v.price)} <span className="text-text-tertiary">/</span> {money(v.member_price)}</span> },
+                  { key: 'stock', header: 'Stock', align: 'right', hideOnMobile: true, render: (v) => <span className="t-num">{v.stock}</span> },
+                  { key: 'reserved', header: 'Reserved', align: 'right', hideOnMobile: true, render: (v) => <span className="t-num text-text-secondary">{v.reserved}</span> },
+                  { key: 'available', header: 'Available', align: 'right', mobile: 'status', render: (v) => <span className={`t-num font-medium ${v.available === 0 ? 'text-danger' : v.available < 5 ? 'text-warning' : ''}`}>{v.available}<span className="t-caption font-normal md:hidden"> available</span>{v.available < 5 && <span className="block t-caption font-normal">{v.available === 0 ? 'out' : 'low'}</span>}</span> },
+                  { key: 'set', header: 'Set stock', align: 'right', mobile: 'actions', render: (v) => <div className="flex items-center gap-3 md:block"><label className="t-label shrink-0 md:sr-only" htmlFor={`st-${v.id}`}>Set stock<span className="sr-only"> for size {v.size}</span></label><input key={v.stock} id={`st-${v.id}`} type="number" inputMode="numeric" enterKeyHint="done" min={0} step={1} className="input text-right md:!w-24" defaultValue={v.stock} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={(e) => saveStock(e.currentTarget, v)} /></div> },
+                ]} />
             </section>
           ))}
         </div>
       )}
-      <Modal open={open} onClose={close} variant="drawer" title="New product" description="One variant is created per size with the same price and stock; adjust stock per size afterwards."
+      <Modal open={open} onClose={close} variant="drawer" size="lg" title="New product" description="One variant is created per size with the same price and stock; adjust stock per size afterwards."
         footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button form="prod-form" type="submit" loading={create.isPending}>Create product</Button></>}>
-        <form id="prod-form" className="space-y-4" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
+        {/* One column on phones, two from lg; the Create button sits in the sheet's pinned footer. */}
+        <form id="prod-form" className="grid gap-4 lg:grid-cols-2" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
           <LabeledInput label="Name" required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-          <LabeledInput label="Description" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
-          <LabeledInput label="Sizes (comma-separated)" required value={f.sizes} onChange={(e) => setF({ ...f, sizes: e.target.value })} />
-          <div className="grid grid-cols-3 gap-2">
+          <LabeledInput label="Sizes (comma-separated)" required autoCapitalize="characters" value={f.sizes} onChange={(e) => setF({ ...f, sizes: e.target.value })} />
+          <LabeledInput label="Description" className="lg:col-span-2" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
+          <div className="grid gap-4 sm:grid-cols-3 lg:col-span-2">
             <LabeledInput label="Price ₹" type="number" inputMode="decimal" min="0" step="0.01" required value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />
             <LabeledInput label="Member ₹" type="number" inputMode="decimal" min="0" step="0.01" required value={f.member_price} onChange={(e) => setF({ ...f, member_price: e.target.value })} />
             <LabeledInput label="Stock / size" type="number" inputMode="numeric" min="0" step="1" required value={f.stock} onChange={(e) => setF({ ...f, stock: e.target.value })} />
           </div>
-          <ErrorState error={create.error} />
+          <ErrorState error={create.error} className="lg:col-span-2" />
         </form>
       </Modal>
     </>
@@ -133,31 +135,33 @@ export function AdminOrdersPanel() {
     <>
       <PageHeader eyebrow="Merchandise" script="club" title="Orders" description="New orders and status changes appear here as they happen."
         actions={<span className={`badge ${live === 'live' ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'}`} role="status"><Radio className="size-3" aria-hidden />{live === 'live' ? 'Live' : live === 'connecting' ? 'Connecting…' : 'Refreshing every 10 s'}</span>} />
-      <div className="card mb-4 flex flex-wrap items-center gap-2 !py-3" role="search">
-        <div className="relative min-w-56 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-tertiary" aria-hidden /><label htmlFor="oq" className="sr-only">Search orders</label><Input id="oq" className="!pl-9" placeholder="Customer name or email" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value, page: 1 })} /></div>
-        <label htmlFor="os" className="sr-only">Order status</label>
-        <Select id="os" className="!w-auto" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value, page: 1 })}><option value="">Any status</option>{(Object.keys(LABEL) as OrderStatus[]).map((k) => <option key={k} value={k}>{LABEL[k]}</option>)}</Select>
+      {/* Search on top, then the status filter as a sideways-scrolling chip row (one row on any phone). */}
+      <div className="mb-4 space-y-3" role="search">
+        <div className="relative"><Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-text-tertiary" aria-hidden /><label htmlFor="oq" className="sr-only">Search orders</label><Input id="oq" type="search" enterKeyHint="search" className="!pl-10" placeholder="Customer name or email" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value, page: 1 })} /></div>
+        <div role="group" aria-label="Order status" className="scroll-row fade-x -mx-4 gap-2 px-4 md:mx-0 md:px-0 md:[mask-image:none]">
+          {(['', ...Object.keys(LABEL)] as (OrderStatus | '')[]).map((k) => <button key={k || 'any'} type="button" className="chip" aria-pressed={f.status === k} onClick={() => setF({ ...f, status: k, page: 1 })}>{k ? LABEL[k] : 'All'}</button>)}
+        </div>
       </div>
       <DataTable rows={q.data?.rows} loading={q.isLoading} error={q.error} onRetry={() => q.refetch()} rowKey={(o) => o.id} caption="Merchandise orders"
-        rowClassName={(o) => `transition-colors duration-700 ${flash.includes(o.id) ? 'bg-accent-soft' : ''}`}
+        rowClassName={(o) => `transition-colors duration-700 ${flash.includes(o.id) ? '!bg-accent-soft' : ''}`}
         empty={<EmptyState title={f.q || f.status ? 'No orders match' : 'No orders yet'} />}
         columns={[
-          { key: 'id', header: 'Order #', className: 'whitespace-nowrap', render: (o) => <span className="font-mono">#{o.id}</span> },
-          { key: 'date', header: 'Date', render: (o) => <span className="whitespace-nowrap">{datetime(o.created_at)}</span>, hideOnMobile: true },
-          { key: 'customer', header: 'Customer', render: (o) => <><span className="font-medium">{o.customer.name}</span>{o.customer.is_member && <span className="ml-1.5 whitespace-nowrap t-label !text-success">member</span>}<span className="block t-caption break-all">{o.customer.email}</span></> },
+          { key: 'id', header: 'Order #', mobile: 'primary', className: 'whitespace-nowrap', render: (o) => <span className="font-mono">#{o.id}</span> },
+          { key: 'date', header: 'Date', className: 'md:hidden lg:table-cell', render: (o) => <span className="whitespace-nowrap">{datetime(o.created_at)}</span>, hideOnMobile: true },
+          { key: 'customer', header: 'Customer', mobile: 'primary', render: (o) => <><span className="font-medium">{o.customer.name}</span>{o.customer.is_member && <span className="ml-1.5 whitespace-nowrap t-label !text-success">member</span>}<span className="block t-caption [overflow-wrap:anywhere]">{o.customer.email}</span></> },
           { key: 'items', header: 'Items', render: (o) => <ul className="text-sm text-text-secondary">{o.items.map((i, n) => <li key={n}>{i.product} ({i.size}) × {i.qty}</li>)}</ul> },
           { key: 'total', header: 'Total', align: 'right', className: 'whitespace-nowrap', render: (o) => <span className="t-num font-medium">{money(o.total)}</span> },
-          { key: 'payment', header: 'Payment', render: (o) => <StatusBadge status={o.payment_status} />, hideOnMobile: true },
-          { key: 'status', header: 'Status', render: (o) => <StatusBadge status={o.status} /> },
-          { key: 'action', header: 'Action', align: 'right', render: (o) => NEXT[o.status].length === 0 ? <span className="t-caption">—</span> : (
+          { key: 'payment', header: 'Payment', className: 'md:hidden lg:table-cell', render: (o) => <StatusBadge status={o.payment_status} />, hideOnMobile: true },
+          { key: 'status', header: 'Status', mobile: 'status', render: (o) => <StatusBadge status={o.status} /> },
+          { key: 'action', header: 'Action', mobile: 'actions', align: 'right', render: (o) => NEXT[o.status].length === 0 ? null : (
             <><label htmlFor={`os-${o.id}`} className="sr-only">Change status of order {o.id}</label>
-            <Select id={`os-${o.id}`} className="!min-h-10 !w-40" value="" disabled={update.isPending && update.variables?.id === o.id} onChange={(e) => e.target.value && change(o, e.target.value as OrderStatus)}>
+            <Select id={`os-${o.id}`} className="md:!w-44" value="" disabled={update.isPending && update.variables?.id === o.id} onChange={(e) => e.target.value && change(o, e.target.value as OrderStatus)}>
               <option value="">Mark as…</option>{NEXT[o.status].map((s) => <option key={s} value={s}>{s === 'paid' ? 'Paid (cash received)' : LABEL[s]}</option>)}
             </Select></>
           ) },
         ]} />
       {q.data && q.data.total > PAGE_SIZE && (
-        <nav className="mt-3 flex items-center justify-end gap-2 text-sm" aria-label="Order pages">
+        <nav className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm md:justify-end" aria-label="Order pages">
           <Button size="sm" variant="secondary" disabled={f.page <= 1} onClick={() => setF({ ...f, page: f.page - 1 })}>Previous</Button>
           <span className="t-caption">Page {f.page} of {pages} · {q.data.total} orders</span>
           <Button size="sm" variant="secondary" disabled={f.page >= pages} onClick={() => setF({ ...f, page: f.page + 1 })}>Next</Button>

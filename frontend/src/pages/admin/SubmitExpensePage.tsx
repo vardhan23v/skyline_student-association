@@ -35,14 +35,14 @@ export function SubmitExpensePage() {
       <PageHeader eyebrow="Reimbursements" script="submit" title="Expense" description="Attach the receipt. Another admin reviews it, then marks it paid." />
       <div className="grid gap-5 lg:grid-cols-5">
         <form className="card space-y-4 lg:col-span-2" onSubmit={(e) => { e.preventDefault(); submit.mutate(); }}>
-          <LabeledInput label="Amount (₹)" type="number" inputMode="decimal" min="1" step="0.01" required value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} />
+          <LabeledInput label="Amount (₹)" type="number" inputMode="decimal" enterKeyHint="next" min="1" step="0.01" required value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} />
           <LabeledSelect label="Category" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>{['supplies', 'food', 'venue', 'printing', 'decor', 'transport', 'other'].map((c) => <option key={c}>{c}</option>)}</LabeledSelect>
           <LabeledInput label="Description" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
           <LabeledSelect label="Linked event (optional)" value={f.event_id} onChange={(e) => setF({ ...f, event_id: e.target.value })}><option value="">—</option>{events.data?.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}</LabeledSelect>
           <LabeledSelect label="Linked fundraiser (optional)" value={f.fundraiser_id} onChange={(e) => setF({ ...f, fundraiser_id: e.target.value })}><option value="">—</option>{frs.data?.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</LabeledSelect>
           <Field label="Receipt" hint="jpeg, png or pdf · up to 5 MB. Amounts over ₹200 without a receipt are flagged." htmlFor="receipt">
-            <label htmlFor="receipt" className={`card-sunken flex cursor-pointer items-center gap-3 border-dashed p-3 text-sm ${file ? 'border-success/50' : ''}`}>
-              <Upload className="size-4 shrink-0 text-text-tertiary" aria-hidden /><span className="truncate">{file ? file.name : 'Choose a file…'}</span>
+            <label htmlFor="receipt" className={`card-sunken flex min-h-12 cursor-pointer items-center gap-3 border-dashed p-3 text-sm ${file ? 'border-success/50' : ''}`}>
+              <Upload className="size-4 shrink-0 text-text-tertiary" aria-hidden /><span className="truncate">{file ? file.name : 'Take a photo or choose a file…'}</span>
               <input id="receipt" type="file" className="sr-only" accept="image/jpeg,image/png,application/pdf" onChange={(e) => { setFile(e.target.files?.[0] ?? null); e.target.value = ''; /* lets the same file be picked again after a submit */ }} />
             </label>
           </Field>
@@ -53,10 +53,10 @@ export function SubmitExpensePage() {
           <SectionHeader title="My expenses" meta={mine.data ? `${mine.data.length}` : undefined} />
           <DataTable rows={mine.data} loading={mine.isLoading} error={mine.error} onRetry={() => mine.refetch()} rowKey={(x) => x.id} caption="Your submitted expenses" empty={<EmptyState title="No expenses yet" description="Submitted expenses and their review status show here." />}
             columns={[
-              { key: 'id', header: 'Ref', render: (x) => <span className="font-mono">#{x.id}</span> },
+              { key: 'id', header: 'Ref', mobile: 'primary', render: (x) => <span className="font-mono">#{x.id}</span> },
               { key: 'amount', header: 'Amount', render: (x) => <span className="t-num font-medium">{money(x.amount)}</span>, align: 'right' },
               { key: 'what', header: 'What', render: (x) => <><span>{x.description ?? x.category}</span>{x.review_note && <span className="block t-caption">Note: {x.review_note}</span>}</> },
-              { key: 'status', header: 'Status', render: (x) => <StatusBadge status={x.status} /> },
+              { key: 'status', header: 'Status', mobile: 'status', render: (x) => <StatusBadge status={x.status} /> },
             ]} />
         </section>
       </div>

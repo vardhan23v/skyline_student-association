@@ -28,7 +28,8 @@ export function AdminAnnouncementsPage() {
           <LabeledTextarea label="Body" rows={10} required value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} hint={`${f.body.length} characters · line breaks are kept`} />
           <LabeledSelect label="Audience" value={f.audience} onChange={(e) => setF({ ...f, audience: e.target.value })}><option value="all">Everyone</option><option value="members">Active members only</option></LabeledSelect>
           <ErrorState error={pub.error} />
-          <Button type="submit" className="w-full" icon={<Send className="size-4" aria-hidden />}>Publish & email</Button>
+          {/* Phones: pinned to the bottom of the screen while the form is in view, clear of the home indicator. */}
+          <div className="sticky bottom-safe z-10 -mx-2 rounded-full sm:static sm:mx-0"><Button type="submit" className="w-full !min-h-12 shadow-[var(--shadow-float)] sm:shadow-none" icon={<Send className="size-4" aria-hidden />}>Publish & email</Button></div>
         </form>
         <section className="lg:col-span-2">
           <SectionHeader title="Archive" meta={q.data ? `${q.data.length}` : undefined} />

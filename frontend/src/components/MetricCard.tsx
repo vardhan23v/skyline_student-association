@@ -8,12 +8,13 @@ export function MetricCard({ label, value, hint, icon: Icon, trend, loading, ton
   // `accent` is the highlighted tile: full cream (red would read as a loss on money figures).
   const toneText = tone === 'accent' ? 'text-cream' : tone === 'warning' ? 'text-warning' : tone === 'danger' ? 'text-danger' : 'text-text-primary';
   return (
-    <div className={`card flex flex-col gap-3 min-w-0 ${className}`}>
+    <div className={`card flex min-w-0 flex-col gap-2 !p-4 sm:gap-3 sm:!p-5 ${className}`}>
       <div className="flex items-start justify-between gap-2">
         <span className="t-label">{label}</span>
-        {Icon && <Icon className="size-4 text-text-tertiary shrink-0" aria-hidden />}
+        {/* Decorative; dropped on phones, where a two-word label needs the whole tile width. */}
+        {Icon && <Icon className="hidden size-4 shrink-0 text-text-tertiary sm:block" aria-hidden />}
       </div>
-      {loading ? <div className="skeleton h-9 w-24" aria-label="Loading" /> : <div className={`t-metric truncate ${toneText}`}>{value}</div>}
+      {loading ? <div className="skeleton h-9 w-24" aria-label="Loading" /> : <div className={`t-metric truncate !text-[1.6rem] sm:!text-[1.85rem] xl:!text-[2.25rem] ${toneText}`}>{value}</div>}
       {(hint || trend) && (
         <div className="flex items-center gap-2 t-caption min-w-0">
           {trend && (

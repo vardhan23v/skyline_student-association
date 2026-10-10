@@ -67,17 +67,18 @@ function Overview({ onOpenSecretary }: { onOpenSecretary: () => void }) {
       <PageHeader eyebrow={`Hello, ${me?.user.name.split(' ')[0] ?? 'admin'}`} script="control" title="Room" description={o ? `Club at a glance, ${o.as_of}.` : 'Club at a glance.'}
         actions={<Button variant="secondary" onClick={onOpenSecretary} icon={<Sparkles className="size-4 text-accent-text" aria-hidden />}>AI Secretary</Button>} />
       <ErrorState error={q.error} onRetry={() => q.refetch()} className="mb-4" />
-      <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+      {/* 2 columns on phones and tablets, 4 from lg. */}
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
         <MetricCard label="Active members" icon={Users} loading={q.isLoading} value={o?.members.active ?? '—'} hint={o ? `${o.members.total} member profiles` : undefined} />
         <MetricCard label="Upcoming registrations" icon={Ticket} loading={q.isLoading} value={o?.upcoming_registrations ?? '—'} hint="confirmed seats at future events" />
         <MetricCard label="Orders today" icon={ShoppingBag} loading={q.isLoading} value={o?.orders_today.count ?? '—'} hint={o ? `${money(o.orders_today.revenue)} paid · ${o.pending_orders} pending overall` : undefined} tone={o?.pending_orders ? 'warning' : 'default'} />
         <MetricCard label="Balance" icon={Wallet} loading={q.isLoading} value={o ? money(o.balance) : '—'} tone="accent" />
       </div>
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {TABS.filter((t) => t.key !== 'overview').map((t) => (
-          <Link key={t.key} to={`/admin?tab=${t.key}`} className="card card-hover interactive group flex items-center gap-3 focus-ring">
+          <Link key={t.key} to={`/admin?tab=${t.key}`} className="card card-hover interactive group flex min-h-16 items-center gap-3 !py-3 focus-ring">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-accent-soft text-accent-text"><t.icon className="size-4" aria-hidden /></span>
-            <span className="font-medium">{t.label}</span>
+            <span className="min-w-0 truncate font-medium">{t.label}</span>
           </Link>
         ))}
       </div>
