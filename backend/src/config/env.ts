@@ -22,6 +22,8 @@ const schema = z.object({
   MEMBERSHIP_YEAR_END: z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, 'MM-DD').default('06-30'), // academic year end
   // The club's calendar: "today" for membership expiry/reminders and the cron schedules.
   APP_TIMEZONE: z.string().refine(validTimeZone, 'Unknown IANA time zone').default('Asia/Kolkata'),
+  // Demo checkout: POST /api/payments/demo-confirm/:id marks a payment paid. Ignored while Razorpay keys are set.
+  DEMO_PAYMENTS: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
 });
 
 const parsed = schema.parse(process.env);
@@ -41,4 +43,6 @@ export const env = {
   PAYMENT_WEBHOOK_SECRET: parsed.PAYMENT_WEBHOOK_SECRET ?? (prod ? '' : 'whsec_test'),
 };
 export const isProd = prod;
+/** Demo payments only stand in for a missing gateway: with Razorpay keys configured, money must go through Razorpay. */
+export const demoPaymentsEnabled = () => env.DEMO_PAYMENTS && !(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET);
 export const isTest = env.NODE_ENV === 'test';

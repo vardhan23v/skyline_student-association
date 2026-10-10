@@ -1,11 +1,12 @@
 import type { Knex } from 'knex';
 import { getDb, lockRow } from '../../config/db';
 import { env } from '../../config/env';
-import { badRequest, conflict, forbidden, notFound } from '../../lib/errors';
+import { conflict, forbidden, notFound } from '../../lib/errors';
 import { logger } from '../../lib/logger';
-import { recordEntry } from '../finance/service';
-import { createPendingPayment } from '../payments/service';
+import { recordEntry, reversePaymentIncome } from '../finance/service';
+import { createPendingPayment, settlePayment } from '../payments/service';
 import { isActiveMember } from '../memberships/service';
+import { emitOrder } from './events';
 
 /** `created_at` comes from the DB default: DATETIME on MySQL, 'YYYY-MM-DD HH:MM:SS' (UTC) text on SQLite — a JS Date binds as epoch ms there. */
 const createdAtBound = (db: Knex, d: Date) => (db.client.config.client === 'mysql2' ? d : d.toISOString().replace('T', ' ').slice(0, 19));
@@ -13,7 +14,7 @@ const createdAtBound = (db: Knex, d: Date) => (db.client.config.client === 'mysq
 export async function listProducts(user?: { id: number }, includeInactive = false) {
   const db = getDb();
   const products = await db('products').modify((qb) => { if (!includeInactive) qb.where('is_active', true); }).orderBy('name');
-  const variants = await db('product_variants').whereIn('product_id', products.map((p: any) => p.id));
+  const variants = await db('product_variants').whereIn('product_id', products.map((p: any) => p.id)).orderBy('id'); // sizes in the order they were added (S, M, L…)
   const member = await isActiveMember(db, user?.id);
   return products.map((p: any) => ({ ...p, variants: variants.filter((v: any) => v.product_id === p.id).map((v: any) => ({ ...v, available: v.stock - v.reserved, price_for_you: Number(member ? v.member_price : v.price) })) }));
 }
@@ -71,23 +72,26 @@ export async function placeOrder(user_id: number, items: { variant_id: number; q
   // The provider order (an HTTP call to Razorpay) is created after the variant row locks are released; if it fails,
   // release the reservation straight away instead of holding stock for the 15-minute expiry window.
   try {
-    return await db.transaction(async (trx) => {
+    const placed = await db.transaction(async (trx) => {
       const { payment_id, checkout } = await createPendingPayment(trx, { user_id, amount: hold.subtotal, purpose: 'merch', reference_type: 'order', reference_id: hold.order_id });
       await trx('orders').where({ id: hold.order_id }).update({ payment_id });
       return { order: await trx('orders').where({ id: hold.order_id }).first(), items: hold.lines, checkout };
     });
+    emitOrder(hold.order_id);
+    return placed;
   } catch (err) {
     await cancelPendingOrder(db, hold.order_id);
+    emitOrder(hold.order_id);
     throw err;
   }
 }
 
-/** Webhook: reserved → sold (stock decremented), ledger `in`. */
-export async function markOrderPaid(trx: Knex.Transaction, order_id: number, payment_id: number) {
+/** settlePayment (webhook, demo-confirm, admin cash): reserved → sold (stock decremented), ledger `in`. */
+export async function markOrderPaid(trx: Knex.Transaction, order_id: number, payment_id: number, entered_by?: number) {
   const o = await trx('orders').where({ id: order_id }).first();
   if (!o) throw notFound('Order not found');
   const recordIncome = (memo = `Order #${order_id}`) => Number(o.total) > 0
-    ? recordEntry(trx, { direction: 'in', amount: Number(o.total), category: 'merch', source_type: 'payment', source_id: payment_id, memo, entered_by: o.user_id })
+    ? recordEntry(trx, { direction: 'in', amount: Number(o.total), category: 'merch', source_type: 'payment', source_id: payment_id, memo, entered_by: entered_by ?? o.user_id })
     : undefined;
   const items = await trx('order_items').where({ order_id }).orderBy('variant_id');
   if (o.status === 'cancelled') {
@@ -117,32 +121,106 @@ export async function markOrderPaid(trx: Knex.Transaction, order_id: number, pay
   return trx('orders').where({ id: order_id }).first();
 }
 
+const itemsQuery = (db: Knex, order_ids: number[]) => db('order_items as i')
+  .join('product_variants as v', 'v.id', 'i.variant_id').join('products as p', 'p.id', 'v.product_id')
+  .whereIn('i.order_id', order_ids).select('i.order_id', 'i.variant_id', 'i.qty', 'i.unit_price', 'v.size', 'p.id as product_id', 'p.name as product').orderBy('i.id');
+
+const shapeItem = (i: any) => ({ variant_id: i.variant_id, product_id: i.product_id, product: i.product, size: i.size, qty: Number(i.qty), unit_price: Number(i.unit_price) });
+
 export async function getOrder(id: number, user: { id: number; role: string }) {
-  const o = await getDb()('orders').where({ id }).first();
+  const db = getDb();
+  const o = await db('orders as o').leftJoin('payments as pay', 'pay.id', 'o.payment_id').where('o.id', id).first('o.*', 'pay.status as payment_status');
   if (!o) throw notFound('Order not found');
   if (o.user_id !== user.id && user.role !== 'admin') throw forbidden();
-  const items = await getDb()('order_items as i').join('product_variants as v', 'v.id', 'i.variant_id').join('products as p', 'p.id', 'v.product_id')
-    .select('i.*', 'v.size', 'p.name').where('i.order_id', id);
-  return { ...o, items };
+  return { ...o, items: (await itemsQuery(db, [id])).map(shapeItem) };
 }
-export const listOrders = (user: { id: number; role: string }) =>
-  getDb()('orders').modify((qb) => { if (user.role !== 'admin') qb.where({ user_id: user.id }); }).orderBy('id', 'desc');
 
-export async function fulfilOrder(id: number) {
-  const o = await getDb()('orders').where({ id }).first();
-  if (!o) throw notFound('Order not found');
-  if (o.status !== 'paid') throw badRequest('Only paid orders can be fulfilled');
-  // Conditional so two concurrent clicks can't both "fulfil" (and overwrite fulfilled_at).
-  const n = await getDb()('orders').where({ id, status: 'paid' }).update({ status: 'fulfilled', fulfilled_at: new Date() });
-  if (!n) throw badRequest('Only paid orders can be fulfilled');
-  return getDb()('orders').where({ id }).first();
+/** GET /orders/mine — the caller's orders, newest first, with their lines. */
+export async function myOrders(user_id: number) {
+  const db = getDb();
+  const orders = await db('orders as o').leftJoin('payments as pay', 'pay.id', 'o.payment_id').where('o.user_id', user_id)
+    .select('o.id', 'o.created_at', 'o.total', 'o.status', 'o.payment_id', 'o.fulfilled_at', 'pay.status as payment_status').orderBy('o.id', 'desc');
+  const items = orders.length ? await itemsQuery(db, orders.map((o: any) => o.id)) : [];
+  return orders.map((o: any) => ({ ...o, total: Number(o.total), items: items.filter((i: any) => i.order_id === o.id).map(shapeItem) }));
+}
+
+export type AdminOrdersQuery = { status?: string; q?: string; page?: number; page_size?: number };
+
+/** GET /admin/orders — the Orders table. `q` matches customer name or email. */
+export async function adminOrders(q: AdminOrdersQuery) {
+  const db = getDb();
+  const page = q.page ?? 1, page_size = q.page_size ?? 25;
+  const base = () => db('orders as o').join('users as u', 'u.id', 'o.user_id').modify((qb) => {
+    if (q.status) qb.where('o.status', q.status);
+    if (q.q) qb.where((w) => w.where('u.name', 'like', `%${q.q}%`).orWhere('u.email', 'like', `%${q.q}%`));
+  });
+  const [{ n }] = await base().count({ n: '*' });
+  const ids = await base().orderBy('o.id', 'desc').limit(page_size).offset((page - 1) * page_size).pluck('o.id');
+  return { rows: await adminOrderRows(db, ids), total: Number(n), page, page_size };
+}
+
+/** The admin row shape, shared by the list and the live stream so the dashboard can upsert either. */
+async function adminOrderRows(db: Knex, ids: number[]) {
+  if (!ids.length) return [];
+  const orders = await db('orders as o').join('users as u', 'u.id', 'o.user_id').leftJoin('payments as pay', 'pay.id', 'o.payment_id').whereIn('o.id', ids)
+    .select('o.id', 'o.created_at', 'o.total', 'o.status', 'o.user_id', 'u.name', 'u.email', 'pay.status as payment_status').orderBy('o.id', 'desc');
+  const items = await itemsQuery(db, ids);
+  const members = new Set<number>();
+  for (const uid of new Set(orders.map((o: any) => Number(o.user_id)))) if (await isActiveMember(db, uid)) members.add(uid);
+  return orders.map((o: any) => ({
+    id: o.id, created_at: o.created_at,
+    customer: { id: o.user_id, name: o.name, email: o.email, is_member: members.has(Number(o.user_id)) },
+    items: items.filter((i: any) => i.order_id === o.id).map((i: any) => ({ product: i.product, size: i.size, qty: Number(i.qty), unit_price: Number(i.unit_price) })),
+    total: Number(o.total), payment_status: o.payment_status ?? null, status: o.status,
+  }));
+}
+
+export async function adminOrderRow(id: number) {
+  return (await adminOrderRows(getDb(), [id]))[0] ?? null;
+}
+
+type OrderStatus = 'pending' | 'paid' | 'fulfilled' | 'cancelled';
+/** Allowed admin transitions: pending → paid → fulfilled, and anything except cancelled → cancelled. */
+const NEXT: Record<OrderStatus, OrderStatus[]> = { pending: ['paid', 'cancelled'], paid: ['fulfilled', 'cancelled'], fulfilled: ['cancelled'], cancelled: [] };
+
+/**
+ * PATCH /admin/orders/:id. pending → paid records the money as cash taken by the admin (same settle path as the
+ * webhook, so stock and the ledger move identically). Cancelling a pending order releases its reservation; cancelling a
+ * paid or fulfilled one puts the stock back, reverses the ledger income and marks the payment refunded.
+ */
+export async function setOrderStatus(admin_id: number, order_id: number, to: OrderStatus) {
+  const db = getDb();
+  await db.transaction(async (trx) => {
+    const o = await lockRow(trx('orders').where({ id: order_id })).first();
+    if (!o) throw notFound('Order not found');
+    if (!NEXT[o.status as OrderStatus].includes(to)) throw conflict(`Cannot move an order from ${o.status} to ${to}`, 'INVALID_TRANSITION', { from: o.status, to, allowed: NEXT[o.status as OrderStatus] });
+    const payment = o.payment_id ? await lockRow(trx('payments').where({ id: o.payment_id })).first() : null;
+    if (to === 'paid') {
+      if (!payment) throw conflict('Order has no payment to settle', 'INVALID_TRANSITION');
+      await settlePayment(trx, payment, `cash_order_${order_id}_${Date.now()}`, { entered_by: admin_id, provider: 'cash' });
+      if ((await trx('orders').where({ id: order_id }).first()).status !== 'paid') throw conflict('Stock is no longer available for this order', 'INSUFFICIENT_STOCK');
+    } else if (to === 'fulfilled') {
+      await trx('orders').where({ id: order_id }).update({ status: 'fulfilled', fulfilled_at: new Date() });
+    } else if (o.status === 'pending') {
+      await trx('orders').where({ id: order_id }).update({ status: 'cancelled' });
+      for (const it of await trx('order_items').where({ order_id }).orderBy('variant_id')) await trx('product_variants').where({ id: it.variant_id }).decrement('reserved', it.qty);
+    } else {
+      await trx('orders').where({ id: order_id }).update({ status: 'cancelled' });
+      for (const it of await trx('order_items').where({ order_id }).orderBy('variant_id')) await trx('product_variants').where({ id: it.variant_id }).increment('stock', it.qty);
+      if (payment?.status === 'paid') {
+        await reversePaymentIncome(trx, payment.id, `Order #${order_id} cancelled after payment: refund due`, admin_id);
+        await trx('payments').where({ id: payment.id }).update({ status: 'refunded' });
+      }
+    }
+  });
+  return adminOrderRow(order_id);
 }
 
 /** Job: cancel stale pending orders and release reserved stock. */
 export async function expirePendingOrders(db: Knex = getDb()) {
   const cutoff = new Date(Date.now() - env.PENDING_HOLD_MINUTES * 60_000);
   const stale = await db('orders').where({ status: 'pending' }).where('created_at', '<', createdAtBound(db, cutoff));
-  for (const o of stale) await cancelPendingOrder(db, o.id);
+  for (const o of stale) { await cancelPendingOrder(db, o.id); emitOrder(o.id); }
   return stale.length;
 }
 

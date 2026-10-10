@@ -27,7 +27,7 @@ beforeAll(async () => {
   const db = getDb();
   const bcrypt = await import('bcryptjs');
   const hash = await bcrypt.hash('password123', 4);
-  for (const [name, role] of [['treasurer', 'treasurer'], ['volunteer', 'volunteer']]) {
+  for (const [name, role] of [['admin', 'admin'], ['admin2', 'admin']]) {
     const [id] = await db('users').insert({ name, email: `${name}@p.test`, password_hash: hash, role });
     ids[name] = id as number;
     tokens[name] = (await request(app).post('/api/auth/login').send({ email: `${name}@p.test`, password: 'password123' })).body.token;
@@ -63,7 +63,7 @@ describe('online dues', () => {
     const paid = await db('payments').where({ purpose: 'dues', status: 'paid', user_id: ids.alice }).pluck('id');
     expect(paid).toHaveLength(2);
     expect(await db('ledger_entries').where({ source_type: 'payment' }).whereIn('source_id', paid)).toHaveLength(2);
-    expect((await request(app).post('/api/memberships').set(auth('alice')).send({})).status).toBe(400); // already active
+    expect((await request(app).post('/api/memberships').set(auth('alice')).send({})).body.code).toBe('ALREADY_MEMBER');
   });
 });
 
@@ -84,22 +84,22 @@ describe('webhook hardening', () => {
 describe('cash dues', () => {
   it('rejects an expiry date in the past', async () => {
     const member = await getDb()('members').where({ user_id: ids.cara }).first();
-    expect((await request(app).post(`/api/members/${member.id}/cash-payment`).set(auth('treasurer')).send({ amount: 500, expiry_date: '2020-01-01' })).status).toBe(400);
+    expect((await request(app).post(`/api/admin/members/${member.id}/cash-payment`).set(auth('admin')).send({ amount: 500, expiry_date: '2020-01-01' })).status).toBe(400);
   });
-  it('records the member as payer and the treasurer as ledger author', async () => {
+  it('records the member as payer and the admin as ledger author', async () => {
     const db = getDb();
     const member = await db('members').where({ user_id: ids.cara }).first();
-    const r = await request(app).post(`/api/members/${member.id}/cash-payment`).set(auth('treasurer')).send({ amount: 500 });
+    const r = await request(app).post(`/api/admin/members/${member.id}/cash-payment`).set(auth('admin')).send({ amount: 500 });
     expect(r.status).toBe(201); expect(r.body.status).toBe('active');
     const payment = await db('payments').where({ id: r.body.payment_id }).first();
     expect(payment.user_id).toBe(ids.cara);
-    expect((await db('ledger_entries').where({ source_type: 'payment', source_id: payment.id }).first()).entered_by).toBe(ids.treasurer);
+    expect((await db('ledger_entries').where({ source_type: 'payment', source_id: payment.id }).first()).entered_by).toBe(ids.admin);
   });
 });
 
 describe('member verification', () => {
   it('matches a numeric student ID before a member row id', async () => {
-    const r = await request(app).get('/api/members/1/verify').set(auth('volunteer'));
+    const r = await request(app).get('/api/admin/members/1/verify').set(auth('admin2'));
     expect(r.body.member.student_id).toBe('1');
     expect(r.body.member.name).toBe('bob');
   });
@@ -114,13 +114,16 @@ describe('auth & errors', () => {
     const bad = jwt.sign({ sub: String(ids.alice), role: 'superuser' }, env.JWT_SECRET, { algorithm: 'HS256' });
     expect((await request(app).get('/api/me').set({ Authorization: `Bearer ${bad}` })).status).toBe(401);
     const noSub = jwt.sign({ role: 'admin' }, env.JWT_SECRET, { algorithm: 'HS256' });
-    expect((await request(app).get('/api/members').set({ Authorization: `Bearer ${noSub}` })).status).toBe(401);
+    expect((await request(app).get('/api/admin/members').set({ Authorization: `Bearer ${noSub}` })).status).toBe(401);
+    // A token minted before the two-role migration carries a retired role: re-login, not a crash or a silent downgrade.
+    const legacy = jwt.sign({ sub: String(ids.alice), role: 'treasurer' }, env.JWT_SECRET, { algorithm: 'HS256' });
+    expect((await request(app).get('/api/me').set({ Authorization: `Bearer ${legacy}` })).status).toBe(401);
   });
   it('a deactivated account gets 401 from /me instead of `user: undefined`', async () => {
     await getDb()('users').where({ id: ids.bob }).update({ is_active: false });
     expect((await request(app).get('/api/me').set(auth('bob'))).status).toBe(401);
     await getDb()('users').where({ id: ids.bob }).update({ is_active: true });
-    const me = await request(app).get('/api/me').set(auth('treasurer'));
+    const me = await request(app).get('/api/me').set(auth('admin'));
     expect(me.status).toBe(200); expect(me.body.active).toBe(false); expect(me.body.user.is_active).toBeUndefined();
   });
   it('maps a lost unique-key race to 409', () => {

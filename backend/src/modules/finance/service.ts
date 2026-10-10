@@ -37,17 +37,30 @@ export async function recordEntry(trx: Knex, e: Entry) {
 }
 
 /** Corrections are reversing entries, never updates. */
-export async function reverseEntry(treasurer_id: number, entry_id: number, memo: string) {
-  const db = getDb();
-  const orig = await db('ledger_entries').where({ id: entry_id }).first();
-  if (!orig) throw notFound('Ledger entry not found');
-  // recordEntry is idempotent on (source_type, source_id), so a second reversal used to answer 201 without writing anything.
-  if (await db('ledger_entries').where({ source_type: 'reversal', source_id: entry_id }).first()) throw conflict('Entry already reversed');
-  return recordEntry(db, {
-    direction: orig.direction === 'in' ? 'out' : 'in', amount: Number(orig.amount), category: orig.category,
-    source_type: 'reversal', source_id: entry_id, event_id: orig.event_id, fundraiser_id: orig.fundraiser_id,
-    memo: `Reversal of #${entry_id}: ${memo}`, entered_by: treasurer_id,
+export async function reverseEntry(admin_id: number, entry_id: number, memo: string) {
+  return getDb().transaction(async (trx) => {
+    const orig = await trx('ledger_entries').where({ id: entry_id }).first();
+    if (!orig) throw notFound('Ledger entry not found');
+    // recordEntry is idempotent on (source_type, source_id), so a second reversal used to answer 201 without writing anything.
+    if (await trx('ledger_entries').where({ source_type: 'reversal', source_id: entry_id }).first()) throw conflict('Entry already reversed');
+    return writeReversal(trx, orig, memo, admin_id);
   });
+}
+
+const writeReversal = (trx: Knex, orig: any, memo: string, entered_by: number | null) => recordEntry(trx, {
+  direction: orig.direction === 'in' ? 'out' : 'in', amount: Number(orig.amount), category: orig.category,
+  source_type: 'reversal', source_id: orig.id, event_id: orig.event_id, fundraiser_id: orig.fundraiser_id,
+  memo: `Reversal of #${orig.id}: ${memo}`, entered_by,
+});
+
+/**
+ * Reverse the income a payment brought in (cancelled paid order, cancelled paid ticket). Idempotent: an already
+ * reversed entry is left alone. Returns the reversal's id, or null when the payment never reached the ledger.
+ */
+export async function reversePaymentIncome(trx: Knex, payment_id: number, memo: string, entered_by: number | null) {
+  const orig = await trx('ledger_entries').where({ source_type: 'payment', source_id: payment_id }).first();
+  if (!orig) return null;
+  return writeReversal(trx, orig, memo, entered_by);
 }
 
 const sumBy = async (db: Knex, group: string[], where: (qb: Knex.QueryBuilder) => void) =>
@@ -143,7 +156,7 @@ const signedReceiptPath = (id: number) => { const exp = Math.floor(Date.now() / 
 
 export async function listExpenses(user: { id: number; role: string }, q: { status?: string; flagged?: boolean; mine?: boolean }) {
   const db = getDb();
-  const treasurer = user.role === 'treasurer';
+  const admin = user.role === 'admin';
   // Without CLOUDINARY_URL receipt_url is a data: URL of up to ~7 MB per row; never pull it into the list. Such rows get a
   // short-lived signed same-origin link instead (a top-level link to a data: URL is blocked by browsers anyway).
   const rows = await db('expenses as x').leftJoin('users as u', 'u.id', 'x.submitted_by')
@@ -151,14 +164,14 @@ export async function listExpenses(user: { id: number; role: string }, q: { stat
       'x.receipt_hash', 'x.status', 'x.reviewed_by', 'x.reviewed_at', 'x.review_note', 'x.flags', 'u.name as submitted_by_name',
       db.raw("CASE WHEN x.receipt_url LIKE 'data:%' THEN 'data:' ELSE x.receipt_url END as receipt_url"))
     .modify((qb) => {
-      if (!treasurer || q.mine) qb.where('x.submitted_by', user.id);
+      if (!admin || q.mine) qb.where('x.submitted_by', user.id);
       if (q.status) qb.where('x.status', q.status);
     }).orderBy('x.id', 'desc');
   return rows.map((r: any) => ({ ...r, receipt_url: r.receipt_url === 'data:' ? signedReceiptPath(r.id) : r.receipt_url, flags: typeof r.flags === 'string' ? JSON.parse(r.flags) : r.flags ?? [] }))
     .filter((r: any) => !q.flagged || (r.flags?.length ?? 0) > 0);
 }
 
-export async function reviewExpense(treasurer_id: number, id: number, decision: 'approved' | 'rejected', note?: string) {
+export async function reviewExpense(reviewer_id: number, id: number, decision: 'approved' | 'rejected', note?: string) {
   const db = getDb();
   // Also reached from AI proposals (payload chosen by the LLM): only approve/reject — never e.g. 'paid', which would
   // mark an expense paid with no ledger entry.
@@ -167,9 +180,10 @@ export async function reviewExpense(treasurer_id: number, id: number, decision: 
   const x = await getExpense(id);
   if (!x) throw notFound('Expense not found');
   if (x.status !== 'submitted') throw badRequest(`Expense is already ${x.status}`);
-  if (Number(x.submitted_by) === treasurer_id) throw forbidden('Cannot review your own expense');
-  // Conditional update: two treasurers reviewing at once can't both win (last write used to overwrite the first).
-  const n = await db('expenses').where({ id, status: 'submitted' }).update({ status: decision, reviewed_by: treasurer_id, reviewed_at: new Date(), review_note: note ?? null });
+  // Four-eyes rule: another admin reviews. Kept from the treasurer era; it is the main control on reimbursements.
+  if (Number(x.submitted_by) === reviewer_id) throw forbidden('Cannot review your own expense');
+  // Conditional update: two admins reviewing at once can't both win (last write used to overwrite the first).
+  const n = await db('expenses').where({ id, status: 'submitted' }).update({ status: decision, reviewed_by: reviewer_id, reviewed_at: new Date(), review_note: note ?? null });
   if (!n) throw conflict('Expense was reviewed by someone else');
   await sendMail({ to: x.submitted_by_email, subject: `Reimbursement ${decision}: ₹${x.amount}`, html: `<p>Your expense "${escapeHtml(x.description ?? x.category)}" was <b>${decision}</b>.</p>${note ? `<p>Note: ${escapeHtml(note)}</p>` : ''}` })
     .catch((err) => logger.error({ err, expense_id: id }, 'review email failed')); // review is committed; don't 500 on a mail outage
@@ -177,26 +191,26 @@ export async function reviewExpense(treasurer_id: number, id: number, decision: 
 }
 
 /** Money handed over → status 'paid' + ledger `out` entry. */
-export async function payExpense(treasurer_id: number, id: number) {
+export async function payExpense(admin_id: number, id: number) {
   const db = getDb();
   return db.transaction(async (trx) => {
     const x = await lockRow(trx('expenses').where({ id })).first();
     if (!x) throw notFound('Expense not found');
     if (x.status !== 'approved') throw badRequest('Only approved expenses can be paid');
     await trx('expenses').where({ id }).update({ status: 'paid' });
-    await recordEntry(trx, { direction: 'out', amount: Number(x.amount), category: 'reimbursement', source_type: 'expense', source_id: id, event_id: x.event_id, fundraiser_id: x.fundraiser_id, memo: x.description ?? x.category, entered_by: treasurer_id });
+    await recordEntry(trx, { direction: 'out', amount: Number(x.amount), category: 'reimbursement', source_type: 'expense', source_id: id, event_id: x.event_id, fundraiser_id: x.fundraiser_id, memo: x.description ?? x.category, entered_by: admin_id });
     return trx('expenses').where({ id }).first();
   });
 }
 
-/** Treasurer records cash income for a fundraiser (bake sale) → ledger. */
-export async function recordFundraiserCash(treasurer_id: number, fundraiser_id: number, amount: number, memo?: string) {
+/** Admin records cash income for a fundraiser (bake sale) → ledger. */
+export async function recordFundraiserCash(admin_id: number, fundraiser_id: number, amount: number, memo?: string) {
   const db = getDb();
   const f = await db('fundraisers').where({ id: fundraiser_id }).first();
   if (!f) throw notFound('Fundraiser not found');
   return db.transaction(async (trx) => {
-    const [cash_id] = await trx('cash_receipts').insert({ fundraiser_id, amount, memo: memo ?? null, entered_by: treasurer_id });
-    const id = await recordEntry(trx, { direction: 'in', amount, category: 'fundraiser', source_type: 'cash_receipt', source_id: cash_id as number, fundraiser_id, memo: memo ?? `Cash income: ${f.name}`, entered_by: treasurer_id });
+    const [cash_id] = await trx('cash_receipts').insert({ fundraiser_id, amount, memo: memo ?? null, entered_by: admin_id });
+    const id = await recordEntry(trx, { direction: 'in', amount, category: 'fundraiser', source_type: 'cash_receipt', source_id: cash_id as number, fundraiser_id, memo: memo ?? `Cash income: ${f.name}`, entered_by: admin_id });
     return trx('ledger_entries').where({ id }).first();
   });
 }

@@ -9,7 +9,7 @@ const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
 
 export type UserRow = { id: number; name: string; email: string; password_hash: string; role: Role; is_active: number | boolean };
 
-export async function register(input: { name: string; email: string; password: string; student_id?: string; phone?: string }, role: Role = 'member') {
+export async function register(input: { name: string; email: string; password: string; student_id?: string; phone?: string }, role: Role = 'user') {
   const db = getDb();
   const existing = await db('users').where({ email: input.email.toLowerCase() }).first();
   if (existing) throw conflict('Email already registered');

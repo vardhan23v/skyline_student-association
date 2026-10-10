@@ -1,7 +1,7 @@
 import type { Knex } from 'knex';
 import { getDb, lockRow } from '../../config/db';
 import { env } from '../../config/env';
-import { badRequest, notFound } from '../../lib/errors';
+import { HttpError, badRequest, conflict, notFound } from '../../lib/errors';
 import { signMemberQr, verifyQr } from '../../lib/qr';
 import { addDaysYmd, todayYmd, ymdInTz, ymdOf } from '../../lib/dates';
 import { recordEntry } from '../finance/service';
@@ -35,13 +35,19 @@ export async function isActiveMember(db: Knex, user_id: number | undefined) {
  * POST /memberships — start online dues payment. The amount is the club's dues, never a client-supplied number
  * (the webhook only checks the captured amount against this payment row, so a client amount of ₹1 would buy a membership).
  */
-export async function startDues(user_id: number) {
+export async function startDues(user_id: number, profile: { student_id?: string; phone?: string } = {}) {
   const db = getDb();
   return db.transaction(async (trx) => {
     // Lock the member row so two clicks / tabs can't both pass the checks below.
-    const member = await lockRow(trx('members').where({ user_id })).first();
-    if (!member) throw badRequest('Complete your member profile (student ID) first');
-    if (await currentMembership(trx, member.id)) throw badRequest('Membership already active');
+    let member = await lockRow(trx('members').where({ user_id })).first();
+    if (!member) {
+      // Signed up without a student ID: take it with the first membership purchase instead of sending them elsewhere.
+      if (!profile.student_id) throw new HttpError(400, 'Add your student ID to buy a membership', 'PROFILE_REQUIRED');
+      if (await trx('members').where({ student_id: profile.student_id }).first()) throw conflict('Student ID already registered', 'STUDENT_ID_TAKEN');
+      await trx('members').insert({ user_id, student_id: profile.student_id, phone: profile.phone ?? null, joined_at: today() });
+      member = await lockRow(trx('members').where({ user_id })).first();
+    }
+    if (await currentMembership(trx, member.id)) throw conflict('Membership already active', 'ALREADY_MEMBER');
     const start = today(), expiry_date = academicYearEnd();
     // Reuse an abandoned pending membership instead of piling up rows: the admin list shows the latest row, and two pending
     // rows could each be paid and activated, silently charging the member twice.
@@ -55,13 +61,13 @@ export async function startDues(user_id: number) {
     }
     const { payment_id, checkout } = await createPendingPayment(trx, { user_id, amount: DEFAULT_DUES, purpose: 'dues', reference_type: 'membership', reference_id: membership_id });
     await trx('memberships').where({ id: membership_id }).update({ payment_id });
-    return { membership_id, checkout };
+    return { membership_id, payment_id, amount: DEFAULT_DUES, expiry_date, checkout };
   });
 }
 
 /**
  * Called from the payment webhook (or cash entry) — the only places a membership becomes active.
- * `entered_by` defaults to the payer; cash entry passes the treasurer who took the money.
+ * `entered_by` defaults to the payer; cash entry passes the admin who took the money.
  */
 export async function activateMembership(trx: Knex.Transaction, membership_id: number, payment_id: number, entered_by?: number) {
   const m = await trx('memberships').where({ id: membership_id }).first();
@@ -76,8 +82,8 @@ export async function activateMembership(trx: Knex.Transaction, membership_id: n
   return trx('memberships').where({ id: membership_id }).first();
 }
 
-/** Treasurer records cash dues at the sign-up table. */
-export async function recordCashDues(treasurer_id: number, member_id: number, amount: number, expiry_date?: string) {
+/** An admin records cash dues at the sign-up table. */
+export async function recordCashDues(admin_id: number, member_id: number, amount: number, expiry_date?: string) {
   if (expiry_date && expiry_date < today()) throw badRequest('expiry_date is in the past');
   const db = getDb();
   return db.transaction(async (trx) => {
@@ -86,9 +92,9 @@ export async function recordCashDues(treasurer_id: number, member_id: number, am
     if (!member) throw notFound('Member not found');
     if (await currentMembership(trx, member_id)) throw badRequest('Membership already active');
     const [membership_id] = await trx('memberships').insert({ member_id, start_date: today(), expiry_date: expiry_date ?? academicYearEnd(), status: 'pending' });
-    // payments.user_id is the payer (the member); the treasurer is recorded as the ledger's entered_by.
+    // payments.user_id is the payer (the member); the admin is recorded as the ledger's entered_by.
     const payment_id = await createCashPayment(trx, { user_id: member.user_id, amount, purpose: 'dues', reference_type: 'membership', reference_id: membership_id as number });
-    return activateMembership(trx, membership_id as number, payment_id, treasurer_id);
+    return activateMembership(trx, membership_id as number, payment_id, admin_id);
   });
 }
 
@@ -135,8 +141,12 @@ export async function verifyMember(idOrStudent: string, qr_token?: string) {
 export async function myMembership(user_id: number) {
   const db = getDb();
   const member = await memberForUser(db, user_id);
-  if (!member) return { member: null, membership: null, active: false, qr_token: null };
+  if (!member) return { member: null, membership: null, active: false, is_member: false, membership_expires: null, qr_token: null };
   const ms = await currentMembership(db, member.id);
   const latest = await db('memberships').where({ member_id: member.id }).orderBy('id', 'desc').first();
-  return { member, membership: ms ?? latest ?? null, active: !!ms, qr_token: ms ? signMemberQr({ uid: user_id }) : null };
+  return {
+    member, membership: ms ?? latest ?? null, active: !!ms,
+    is_member: !!ms, membership_expires: ms ? ymdOf(ms.expiry_date) : null,
+    qr_token: ms ? signMemberQr({ uid: user_id }) : null,
+  };
 }

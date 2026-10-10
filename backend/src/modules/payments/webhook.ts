@@ -3,14 +3,14 @@ import { getDb, lockRow } from '../../config/db';
 import { paymentProvider } from './provider';
 import { asyncHandler } from '../../middleware/errorHandler';
 import { logger } from '../../lib/logger';
-import { onPaymentPaid } from './onPaid';
-import { recordEntry } from '../finance/service';
+import { settlePayment } from './service';
+import { emitOrder } from '../merchandise/events';
 
 export const webhookRouter = Router();
 
 /**
  * POST /api/webhooks/payment — verify HMAC over the raw body BEFORE parsing. Idempotent on provider_payment_id.
- * The payments.status → 'paid' flip happens here and in treasurer cash entry only (§8).
+ * The payments.status → 'paid' flip goes through settlePayment only (this webhook, demo-confirm, admin cash entry).
  */
 webhookRouter.post('/payment', raw({ type: '*/*', limit: '1mb' }), asyncHandler(async (req, res) => {
   const rawBody: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body ?? {}));
@@ -35,6 +35,7 @@ webhookRouter.post('/payment', raw({ type: '*/*', limit: '1mb' }), asyncHandler(
     return res.json({ ok: true, ignored: true });
   }
 
+  let settledOrder: number | null = null;
   const result = await db.transaction(async (trx) => {
     const payment = await lockRow(trx('payments').where({ provider_order_id: parsed.provider_order_id })).first();
     if (!payment) return 'unknown_order';
@@ -48,20 +49,11 @@ webhookRouter.post('/payment', raw({ type: '*/*', limit: '1mb' }), asyncHandler(
       logger.warn({ payment_id: payment.id, expected: payment.amount, got: parsed.amount }, 'webhook amount mismatch');
       return 'amount_mismatch';
     }
-    await trx('payments').where({ id: payment.id }).update({ status: 'paid', paid_at: new Date(), provider_payment_id: parsed.provider_payment_id });
-    await onPaymentPaid(trx, { ...payment, status: 'paid' });
-    // §4.3(4): every paid payment has exactly one ledger row. If the item could not take the money (its hold expired and
-    // the ticket/order was cancelled, or the membership was already paid for) the money still arrived: book it, flag a refund.
-    if (Number(payment.amount) > 0 && !(await trx('ledger_entries').where({ source_type: 'payment', source_id: payment.id }).first())) {
-      await recordEntry(trx, {
-        direction: 'in', amount: Number(payment.amount), category: payment.purpose, source_type: 'payment', source_id: payment.id,
-        memo: `Unfulfilled ${payment.reference_type} #${payment.reference_id}: refund due`, entered_by: payment.user_id,
-      });
-      logger.error({ payment_id: payment.id, reference_type: payment.reference_type, reference_id: payment.reference_id }, 'payment captured but nothing was fulfilled: refund due');
-      return 'paid_unfulfilled';
-    }
-    return 'confirmed';
+    const r = await settlePayment(trx, payment, parsed.provider_payment_id);
+    if (payment.purpose === 'merch') settledOrder = payment.reference_id;
+    return r;
   });
+  if (settledOrder) emitOrder(settledOrder);
   await db('webhook_events').where({ id: whId }).update({ result });
   res.json({ ok: true, result });
 }));

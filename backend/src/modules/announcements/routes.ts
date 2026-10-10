@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { getDb } from '../../config/db';
-import { hasRole, requireRole } from '../../middleware/auth';
+import { hasRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../middleware/errorHandler';
 import { sendMail } from '../../lib/email';
@@ -9,6 +9,8 @@ import { logger } from '../../lib/logger';
 import { todayYmd } from '../../lib/dates';
 
 export const announcementsRouter = Router();
+/** Mounted at /api/admin/announcements (the admin router enforces requireRole('admin')). */
+export const adminAnnouncementsRouter = Router();
 const escapeHtml = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const body = z.object({ title: z.string().min(1).max(200), body: z.string().min(1).max(16000), /* TEXT is 64 KB on MySQL: 16k chars × 4 bytes (utf8mb4) still fits */ audience: z.enum(['all', 'members']).default('all') });
 
@@ -24,7 +26,7 @@ announcementsRouter.get('/', asyncHandler(async (req, res) => {
 }));
 
 /** One post → website + mailing list. Nothing is editable after publish; append a correction instead. */
-announcementsRouter.post('/', requireRole('admin'), validate({ body }), asyncHandler(async (req, res) => {
+adminAnnouncementsRouter.post('/', validate({ body }), asyncHandler(async (req, res) => {
   const db = getDb();
   const [id] = await db('announcements').insert({ ...req.body, author_id: req.user!.id, published_at: new Date() });
   const recipients: string[] = req.body.audience === 'all'

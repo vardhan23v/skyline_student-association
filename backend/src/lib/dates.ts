@@ -21,3 +21,12 @@ export function addDaysYmd(ymd: string, days: number): string {
 
 /** A DATE column value as YYYY-MM-DD (string from SQLite / mysql2 `dateStrings`, or a Date from older drivers). */
 export const ymdOf = (v: string | Date) => (v instanceof Date ? ymdInTz(v) : String(v).slice(0, 10));
+
+/** The UTC instant at which calendar day `ymd` starts in `timeZone` (e.g. IST midnight = 18:30 UTC the day before). */
+export function startOfDayInTz(ymd: string, timeZone = env.APP_TIMEZONE): Date {
+  const guess = new Date(`${ymd}T00:00:00Z`);
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(guess);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  const wall = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  return new Date(guess.getTime() - (wall - guess.getTime()));
+}

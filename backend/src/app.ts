@@ -4,20 +4,22 @@ import rateLimit from 'express-rate-limit';
 import pinoHttp from 'pino-http';
 import path from 'node:path';
 import fs from 'node:fs';
-import { parseAuth, requireAuth } from './middleware/auth';
+import { parseAuth, queryTokenAuth, requireAuth } from './middleware/auth';
 import { errorHandler, asyncHandler } from './middleware/errorHandler';
 import { logger } from './lib/logger';
 import { unauthorized } from './lib/errors';
 import { isTest } from './config/env';
 import { getDb } from './config/db';
 import { authRouter } from './modules/auth/routes';
-import { membersRouter, membershipsRouter } from './modules/memberships/routes';
-import { checkinRouter, eventsRouter, ticketsRouter } from './modules/events/routes';
+import { membershipInfoRouter, membershipsRouter } from './modules/memberships/routes';
+import { eventsRouter, ticketsRouter } from './modules/events/routes';
 import { announcementsRouter } from './modules/announcements/routes';
-import { ordersRouter, productsRouter, variantsRouter } from './modules/merchandise/routes';
-import { fundraisersRouter, tasksRouter } from './modules/fundraisers/routes';
+import { ordersRouter, productsRouter } from './modules/merchandise/routes';
+import { fundraisersRouter } from './modules/fundraisers/routes';
 import { expensesRouter, financeRouter } from './modules/finance/routes';
 import { webhookRouter } from './modules/payments/webhook';
+import { paymentsRouter } from './modules/payments/routes';
+import { adminRouter } from './modules/admin/routes';
 import { aiRouter } from './modules/ai/routes';
 import { myMembership } from './modules/memberships/service';
 import { myTickets } from './modules/events/service';
@@ -28,7 +30,9 @@ export function createApp() {
   // COOP `same-origin` (helmet's default) severs window.opener for Razorpay Checkout's bank/UPI popups, so the payment
   // window cannot report back to the page; allow-popups keeps the isolation for everything else.
   app.use(helmet({ contentSecurityPolicy: false, crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' } }));
-  if (!isTest) app.use(pinoHttp({ logger }));
+  // The SSE stream carries its JWT as ?token= (EventSource can't set headers): never write query strings to the log.
+  if (!isTest) app.use(pinoHttp({ logger, serializers: { req: (r) => ({ id: r.id, method: r.method, url: String(r.url).split('?')[0] }) } }));
+  app.get('/health', (_req, res) => res.type('text').send('ok'));
 
   const api = express.Router();
   // Webhook needs the raw body for HMAC — mounted before express.json().
@@ -45,24 +49,26 @@ export function createApp() {
     delete user.is_active;
     res.json({ user, ...(await myMembership(req.user!.id)), tickets: await myTickets(req.user!.id) });
   }));
-  api.use('/memberships', membershipsRouter);
-  api.use('/members', membersRouter);
-  // Seat/stock holds are public and email the buyer: cap them per IP so a script can't hold every seat or spam inboxes.
+  api.use('/membership', membershipInfoRouter);
+  // Seat/stock holds and checkouts: cap them per IP so a script can't hold every seat or every T-shirt.
   const purchaseLimit = rateLimit({ windowMs: 15 * 60_000, limit: isTest ? 10_000 : 30, standardHeaders: 'draft-7', legacyHeaders: false });
-  api.post('/events/:id/tickets', purchaseLimit);
+  api.post('/events/:id/register', purchaseLimit);
   api.post('/orders', purchaseLimit);
+  api.post('/memberships', purchaseLimit);
+  api.use('/memberships', membershipsRouter);
+  api.use('/payments', paymentsRouter);
   api.use('/events', eventsRouter);
   api.use('/tickets', ticketsRouter);
-  api.use('/checkin', rateLimit({ windowMs: 60_000, limit: isTest ? 10_000 : 120 }), checkinRouter);
   api.use('/announcements', announcementsRouter);
   api.use('/products', productsRouter);
-  api.use('/variants', variantsRouter);
   api.use('/orders', ordersRouter);
   api.use('/fundraisers', fundraisersRouter);
-  api.use('/tasks', tasksRouter);
   api.use('/expenses', expensesRouter);
   api.use('/finance', financeRouter);
   api.use('/ai', aiRouter);
+  api.use('/admin/checkin', rateLimit({ windowMs: 60_000, limit: isTest ? 10_000 : 120 }));
+  api.use('/admin/orders/stream', queryTokenAuth);
+  api.use('/admin', adminRouter);
   api.use((_req, res) => res.status(404).json({ error: 'Route not found' }));
   app.use('/api', api);
 

@@ -1,12 +1,13 @@
 import type { Knex } from 'knex';
 import { getDb, lockRow } from '../../config/db';
 import { env } from '../../config/env';
-import { badRequest, conflict, forbidden, notFound } from '../../lib/errors';
+import { HttpError, conflict, forbidden, notFound } from '../../lib/errors';
 import { qrDataUrl, signTicketQr, verifyQr } from '../../lib/qr';
 import { sendMail } from '../../lib/email';
 import { logger } from '../../lib/logger';
-import { recordEntry } from '../finance/service';
-import { createCashPayment, createPendingPayment } from '../payments/service';
+import { recordEntry, reversePaymentIncome } from '../finance/service';
+import { checkoutFor, createCashPayment, createPendingPayment } from '../payments/service';
+import { membershipRequired } from '../../middleware/auth';
 import { isActiveMember } from '../memberships/service';
 
 const HELD = ['pending', 'confirmed', 'checked_in'];
@@ -15,24 +16,48 @@ const escapeHtml = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
 const createdAtBound = (db: Knex, d: Date) => (db.client.config.client === 'mysql2' ? d : d.toISOString().replace('T', ' ').slice(0, 19));
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+type Viewer = { logged_in: boolean; is_member: boolean; registered: boolean; ticket: { id: number; status: string } | null };
+
+/** Public list. Drafts only for admins. Each event carries seats_left and, for the caller, a `viewer` block. */
 export async function listEvents(user?: { id: number }, includeDrafts = false) {
   const db = getDb();
   const rows = await db('events').modify((qb) => { if (!includeDrafts) qb.whereNot('status', 'draft'); }).orderBy('starts_at', 'asc');
-  const member = await isActiveMember(db, user?.id);
-  return Promise.all(rows.map((e: any) => withAvailability(db, e, member)));
+  const held = await heldCounts(db, rows.map((e: any) => e.id));
+  const viewer = await viewerFor(db, user?.id, rows.map((e: any) => e.id));
+  return rows.map((e: any) => withAvailability(e, held.get(e.id) ?? 0, viewer(e.id)));
 }
 
 export async function getEvent(id: number, user?: { id: number }, includeDrafts = false) {
   const db = getDb();
   const e = await db('events').where({ id }).first();
   if (!e || (!includeDrafts && e.status === 'draft')) throw notFound('Event not found');
-  return withAvailability(db, e, await isActiveMember(db, user?.id));
+  const held = await heldCounts(db, [id]);
+  return withAvailability(e, held.get(id) ?? 0, (await viewerFor(db, user?.id, [id]))(id));
 }
 
-async function withAvailability(db: Knex, e: any, member: boolean) {
-  const [{ held }] = await db('tickets').where({ event_id: e.id }).whereIn('status', HELD).count({ held: '*' });
-  return { ...e, seats_left: Math.max(0, e.capacity - Number(held)), price_for_you: Number(member ? e.member_price : e.non_member_price), you_are_member: member };
+async function heldCounts(db: Knex, ids: number[]) {
+  if (!ids.length) return new Map<number, number>();
+  const rows = await db('tickets').whereIn('event_id', ids).whereIn('status', HELD).select('event_id').count({ n: '*' }).groupBy('event_id');
+  return new Map(rows.map((r: any) => [Number(r.event_id), Number(r.n)]));
 }
+
+/** One query for the caller's membership and one for their tickets, however many events are listed. */
+async function viewerFor(db: Knex, user_id: number | undefined, ids: number[]): Promise<(event_id: number) => Viewer> {
+  if (!user_id) return () => ({ logged_in: false, is_member: false, registered: false, ticket: null });
+  const is_member = await isActiveMember(db, user_id);
+  const tickets = ids.length ? await db('tickets').where({ holder_user_id: user_id }).whereIn('event_id', ids).whereNot('status', 'cancelled').select('id', 'event_id', 'status') : [];
+  const byEvent = new Map(tickets.map((t: any) => [Number(t.event_id), t]));
+  return (event_id) => {
+    const t = byEvent.get(event_id);
+    return { logged_in: true, is_member, registered: !!t && t.status !== 'pending', ticket: t ? { id: t.id, status: t.status } : null };
+  };
+}
+
+const withAvailability = (e: any, held: number, viewer: Viewer) => ({
+  ...e, seats_left: Math.max(0, e.capacity - held), price: Number(e.member_price), viewer,
+  // Deprecated: the pre-Phase-2 pages still read these. Remove once the frontend uses `price` and `viewer`.
+  price_for_you: Number(e.member_price), you_are_member: viewer.is_member,
+});
 
 export async function createEvent(input: any) {
   const [id] = await getDb()('events').insert(input);
@@ -45,44 +70,60 @@ export async function updateEvent(id: number, input: any) {
   return getDb()('events').where({ id }).first();
 }
 
-/** §6.1 — capacity enforced under a row lock on the event (the pending ticket holds the seat); payment created after. */
-export async function buyTicket(event_id: number, user: { id: number; email: string } | undefined, body: { holder_name?: string; holder_email?: string }) {
+/**
+ * POST /events/:id/register — members only (requireMember ran first; re-checked under the lock). One ticket per user
+ * per event (UNIQUE(event_id, holder_user_id)): a cancelled row is reused, a pending one resumes its checkout.
+ * Capacity is enforced under the event row lock; the pending ticket holds the seat while the payment is created after.
+ */
+export async function registerForEvent(event_id: number, user_id: number) {
   const db = getDb();
-  const hold = await db.transaction(async (trx): Promise<{ done: { ticket: any; checkout: null } } | { ticket_id: number; price: number }> => {
+  type Hold = { done: any } | { resume: any; payment: any } | { ticket_id: number; price: number };
+  const hold = await db.transaction(async (trx): Promise<Hold> => {
     const e = await lockRow(trx('events').where({ id: event_id })).first();
-    if (!e || e.status !== 'published') throw notFound('Event not on sale');
+    if (!e || e.status !== 'published') throw notFound('Event not open for registration');
     const now = new Date();
-    if (e.sales_open_at && new Date(e.sales_open_at) > now) throw badRequest('Sales not open yet');
-    if (e.sales_close_at && new Date(e.sales_close_at) < now) throw badRequest('Sales closed');
-    const [{ held }] = await trx('tickets').where({ event_id }).whereIn('status', HELD).count({ held: '*' });
-    if (Number(held) >= e.capacity) throw conflict('Sold out');
+    if (new Date(e.starts_at) <= now) throw new HttpError(400, 'Event has already started', 'REGISTRATION_CLOSED');
+    if (e.sales_open_at && new Date(e.sales_open_at) > now) throw new HttpError(400, 'Registration is not open yet', 'REGISTRATION_NOT_OPEN');
+    if (e.sales_close_at && new Date(e.sales_close_at) < now) throw new HttpError(400, 'Registration has closed', 'REGISTRATION_CLOSED');
+    if (!(await isActiveMember(trx, user_id))) throw membershipRequired();
 
-    let holder_name = body.holder_name, holder_email = body.holder_email;
-    const member = await isActiveMember(trx, user?.id);
-    if (user) {
-      const u = await trx('users').where({ id: user.id }).first();
-      holder_name ??= u.name; holder_email ??= u.email;
+    const existing = await trx('tickets').where({ event_id, holder_user_id: user_id }).first();
+    if (existing && ['confirmed', 'checked_in'].includes(existing.status)) throw conflict('You are already registered for this event', 'ALREADY_REGISTERED', { ticket_id: existing.id });
+    if (existing?.status === 'pending') {
+      const payment = existing.payment_id ? await trx('payments').where({ id: existing.payment_id }).first() : null;
+      if (payment?.status === 'pending') return { resume: existing, payment };
     }
-    if (!holder_name || !holder_email) throw badRequest('Name and email are required');
-    const ticket_type = member ? 'member' : 'non_member';
-    const price = Number(member ? e.member_price : e.non_member_price);
+    if (existing?.status !== 'pending') {
+      const [{ held }] = await trx('tickets').where({ event_id }).whereIn('status', HELD).count({ held: '*' });
+      if (Number(held) >= e.capacity) throw conflict('This event is sold out', 'SOLD_OUT');
+    }
 
-    const [ticket_id] = await trx('tickets').insert({ event_id, holder_user_id: user?.id ?? null, holder_name, holder_email, ticket_type, price, status: 'pending' });
+    const u = await trx('users').where({ id: user_id }).first();
+    const price = Number(e.member_price);
+    const row = { holder_name: u.name, holder_email: u.email, ticket_type: 'member', price, status: 'pending', payment_id: null, qr_token: null, checked_in_at: null, checked_in_by: null };
+    let ticket_id: number;
+    if (existing) {
+      // created_at restarts the hold window (the expiry job compares it); fn.now() writes the DB's own format.
+      await trx('tickets').where({ id: existing.id }).update({ ...row, created_at: trx.fn.now(), updated_at: trx.fn.now() });
+      ticket_id = existing.id;
+    } else {
+      [ticket_id] = await trx('tickets').insert({ event_id, holder_user_id: user_id, ...row });
+    }
     if (price === 0) {
-      const payment_id = await createCashPayment(trx, { user_id: user?.id ?? null, amount: 0, purpose: 'ticket', reference_type: 'ticket', reference_id: ticket_id as number });
-      const t = await confirmTicket(trx, ticket_id as number, payment_id);
-      return { done: { ticket: t, checkout: null } };
+      const payment_id = await createCashPayment(trx, { user_id, amount: 0, purpose: 'ticket', reference_type: 'ticket', reference_id: ticket_id });
+      return { done: await confirmTicket(trx, ticket_id, payment_id) };
     }
-    return { ticket_id: ticket_id as number, price }; // seat is held by the committed pending ticket
+    return { ticket_id, price }; // seat is held by the committed pending ticket
   });
-  if ('done' in hold) return hold.done;
+  if ('done' in hold) return { ticket: hold.done, checkout: null, resumed: false };
+  if ('resume' in hold) return { ticket: hold.resume, checkout: checkoutFor(hold.payment), resumed: true };
   // The provider order (an HTTP call to Razorpay) is created after the event row lock is released, so a slow or hung
-  // gateway no longer serialises every purchase for the event. If it fails, release the seat straight away.
+  // gateway no longer serialises every registration for the event. If it fails, release the seat straight away.
   try {
     return await db.transaction(async (trx) => {
-      const { payment_id, checkout } = await createPendingPayment(trx, { user_id: user?.id ?? null, amount: hold.price, purpose: 'ticket', reference_type: 'ticket', reference_id: hold.ticket_id });
+      const { payment_id, checkout } = await createPendingPayment(trx, { user_id, amount: hold.price, purpose: 'ticket', reference_type: 'ticket', reference_id: hold.ticket_id });
       await trx('tickets').where({ id: hold.ticket_id }).update({ payment_id });
-      return { ticket: await trx('tickets').where({ id: hold.ticket_id }).first(), checkout };
+      return { ticket: await trx('tickets').where({ id: hold.ticket_id }).first(), checkout, resumed: false };
     });
   } catch (err) {
     await db('tickets').where({ id: hold.ticket_id, status: 'pending' }).update({ status: 'cancelled' });
@@ -90,7 +131,39 @@ export async function buyTicket(event_id: number, user: { id: number; email: str
   }
 }
 
-/** Called only from the payment webhook / cash entry. Issues the signed QR and writes the ledger entry. */
+/**
+ * DELETE /events/:id/register — the holder cancels before the event starts and the seat is freed. A paid ticket gets a
+ * reversing ledger row and its payment is marked refunded (the money itself goes back through Razorpay or in cash).
+ */
+export async function cancelRegistration(event_id: number, user_id: number) {
+  return getDb().transaction(async (trx) => {
+    const e = await lockRow(trx('events').where({ id: event_id })).first();
+    if (!e) throw notFound('Event not found');
+    const t = await trx('tickets').where({ event_id, holder_user_id: user_id }).first();
+    if (!t || t.status === 'cancelled') throw notFound('You are not registered for this event');
+    if (t.status === 'checked_in') throw conflict('Ticket was already used at the door', 'ALREADY_CHECKED_IN');
+    if (new Date(e.starts_at) <= new Date()) throw new HttpError(400, 'The event has already started', 'EVENT_STARTED');
+    await trx('tickets').where({ id: t.id }).update({ status: 'cancelled', qr_token: null, updated_at: trx.fn.now() });
+    const payment = t.payment_id ? await trx('payments').where({ id: t.payment_id }).first() : null;
+    if (t.status === 'confirmed' && payment?.status === 'paid' && Number(payment.amount) > 0) {
+      await reversePaymentIncome(trx, payment.id, `Refund due: ticket #${t.id} cancelled by holder`, user_id);
+      await trx('payments').where({ id: payment.id }).update({ status: 'refunded' });
+    }
+    return trx('tickets').where({ id: t.id }).first();
+  });
+}
+
+/** GET /admin/events/:id/registrations */
+export async function eventRegistrations(event_id: number) {
+  const db = getDb();
+  if (!(await db('events').where({ id: event_id }).first())) throw notFound('Event not found');
+  return db('tickets as t').leftJoin('users as u', 'u.id', 't.holder_user_id').leftJoin('payments as p', 'p.id', 't.payment_id')
+    .where('t.event_id', event_id)
+    .select('t.id', 't.created_at', 't.holder_user_id', 't.holder_name', 't.holder_email', 't.ticket_type', 't.price', 't.status', 't.checked_in_at', 'u.name as user_name', 'p.status as payment_status')
+    .orderBy('t.id', 'asc');
+}
+
+/** Called only from settlePayment (webhook, demo-confirm) and free registrations. Issues the signed QR and writes the ledger entry. */
 export async function confirmTicket(trx: Knex.Transaction, ticket_id: number, payment_id: number, entered_by?: number | null) {
   const t = await trx('tickets').where({ id: ticket_id }).first();
   if (!t) throw notFound('Ticket not found');
@@ -100,7 +173,7 @@ export async function confirmTicket(trx: Knex.Transaction, ticket_id: number, pa
     : undefined;
   if (t.status === 'cancelled') {
     // Payment captured after the 15-min hold expired. The money was received, so it must reach the ledger
-    // (§4.3 inv. 4); re-issue the seat only if capacity still allows (same row lock as buyTicket), else leave it for a refund.
+    // (§4.3 inv. 4); re-issue the seat only if capacity still allows (same row lock as registerForEvent), else leave it for a refund.
     await lockRow(trx('events').where({ id: t.event_id })).first();
     const [{ held }] = await trx('tickets').where({ event_id: t.event_id }).whereIn('status', HELD).count({ held: '*' });
     if (Number(held) >= e.capacity) {
@@ -119,27 +192,6 @@ export async function confirmTicket(trx: Knex.Transaction, ticket_id: number, pa
   sendMail({ to: t.holder_email, subject: `Your ticket: ${e.title}`, html: `<p>Hi ${escapeHtml(t.holder_name)}, show this QR at the door.</p><img src="${qr}" alt="QR"/>` })
     .catch((err) => logger.error({ err, ticket_id }, 'ticket email failed'));
   return confirmed;
-}
-
-/** Treasurer/admin door sale for cash. */
-export async function sellCashTicket(seller_id: number, event_id: number, body: { holder_name: string; holder_email: string; member_id?: number }) {
-  const db = getDb();
-  return db.transaction(async (trx) => {
-    const e = await lockRow(trx('events').where({ id: event_id })).first();
-    if (!e || e.status === 'draft') throw notFound('Event not found');
-    const [{ held }] = await trx('tickets').where({ event_id }).whereIn('status', HELD).count({ held: '*' });
-    if (Number(held) >= e.capacity) throw conflict('Sold out');
-    let holder_user_id: number | null = null, member = false;
-    if (body.member_id) {
-      const m = await trx('members').where({ id: body.member_id }).first();
-      if (m) { holder_user_id = m.user_id; member = await isActiveMember(trx, m.user_id); }
-    }
-    const price = Number(member ? e.member_price : e.non_member_price);
-    const [ticket_id] = await trx('tickets').insert({ event_id, holder_user_id, holder_name: body.holder_name, holder_email: body.holder_email, ticket_type: member ? 'member' : 'non_member', price, status: 'pending' });
-    const payment_id = await createCashPayment(trx, { user_id: seller_id, amount: price, purpose: 'ticket', reference_type: 'ticket', reference_id: ticket_id as number });
-    // Ledger `entered_by` is whoever took the cash, not the (often anonymous) holder.
-    return confirmTicket(trx, ticket_id as number, payment_id, seller_id);
-  });
 }
 
 export async function getTicket(id: number, user: { id: number; role: string }) {

@@ -1,26 +1,31 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireRole, requireAuth } from '../../middleware/auth';
+import { requireAuth } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../middleware/errorHandler';
 import * as svc from './service';
-import { cashDuesSchema, idParam, listMembersQuery, startDuesSchema, verifyQuery } from './schemas';
+import { cashDuesSchema, idParam, listMembersQuery, membershipOffer, startDuesSchema, verifyQuery } from './schemas';
+import { academicYearEnd } from './service';
 
 export const membershipsRouter = Router();
-export const membersRouter = Router();
+/** Mounted at /api/admin/members (the admin router enforces requireRole('admin')). */
+export const adminMembersRouter = Router();
+export const membershipInfoRouter = Router();
 
-membershipsRouter.post('/', requireRole('member'), validate({ body: startDuesSchema }), asyncHandler(async (req, res) => {
+/** GET /api/membership/info — public: what a membership costs, what it includes and until when it runs. */
+membershipInfoRouter.get('/info', (_req, res) => res.json({ ...membershipOffer(), valid_until: academicYearEnd() }));
+
+membershipsRouter.post('/', requireAuth, validate({ body: startDuesSchema }), asyncHandler(async (req, res) => {
   // Dues are set by the club; a client-sent `amount` is ignored (it used to let a member pay ₹1 for a membership).
-  res.status(201).json(await svc.startDues(req.user!.id));
+  res.status(201).json(await svc.startDues(req.user!.id, req.body));
 }));
 
-membersRouter.get('/', requireRole('admin', 'treasurer'), validate({ query: listMembersQuery }), asyncHandler(async (req, res) => {
+adminMembersRouter.get('/', validate({ query: listMembersQuery }), asyncHandler(async (req, res) => {
   res.json(await svc.listMembers(req.query as any));
 }));
-membersRouter.get('/:id/verify', requireRole('volunteer', 'treasurer'), validate({ params: z.object({ id: z.string() }), query: verifyQuery }), asyncHandler(async (req, res) => {
+adminMembersRouter.get('/:id/verify', validate({ params: z.object({ id: z.string() }), query: verifyQuery }), asyncHandler(async (req, res) => {
   res.json(await svc.verifyMember(req.params.id, (req.query as any).qr_token));
 }));
-membersRouter.post('/:id/cash-payment', requireRole('treasurer'), validate({ params: idParam, body: cashDuesSchema }), asyncHandler(async (req, res) => {
+adminMembersRouter.post('/:id/cash-payment', validate({ params: idParam, body: cashDuesSchema }), asyncHandler(async (req, res) => {
   res.status(201).json(await svc.recordCashDues(req.user!.id, Number(req.params.id), req.body.amount, req.body.expiry_date));
 }));
-membersRouter.use(requireAuth);
