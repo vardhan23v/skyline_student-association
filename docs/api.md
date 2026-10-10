@@ -111,18 +111,19 @@ Unpaid holds (a ticket seat, reserved stock) expire after `PENDING_HOLD_MINUTES`
 All of this runs in one transaction:
 1. Lock the event row (`SELECT … FOR UPDATE`).
 2. Check that the event is published, the sales window is open and it hasn't started.
-3. Re-check the membership.
+3. Check the membership. Any signed-in user can register; on a `members_only` event a non-member gets **403** `MEMBERSHIP_REQUIRED`.
 4. Check that the user isn't already registered, enforced by `UNIQUE(event_id, holder_user_id)`.
 5. Check the seats.
-6. Create the ticket at `member_price`.
+6. Create the ticket: a member gets `ticket_type: 'member'` at `member_price`, anyone else `ticket_type: 'non_member'` at `non_member_price`.
 
 The result depends on the price and on what the user already holds:
 - **Free event:** the ticket is confirmed at once with a signed `qr_token`. Response **201**, `checkout: null`.
 - **Paid event:** the ticket is `pending` and holds the seat. The response is **201** with a `checkout`. The ticket confirms, gets its QR and writes its ledger row when the payment settles.
 - **Pending ticket already exists:** registering again resumes that checkout. Response **200**, `resumed: true`.
+  If the user has become a member (or lapsed) since, the held seat is re-priced instead: the old payment is marked `failed` and a new checkout is created at the new price (**201**).
 - **Cancelled ticket already exists:** the row is reused.
 
-Errors are **401** (signed out), **403** `MEMBERSHIP_REQUIRED`, **409** `ALREADY_REGISTERED` or `SOLD_OUT`, and **400** `REGISTRATION_NOT_OPEN` or `REGISTRATION_CLOSED`.
+Errors are **401** (signed out), **403** `MEMBERSHIP_REQUIRED` (members-only events), **409** `ALREADY_REGISTERED` or `SOLD_OUT`, and **400** `REGISTRATION_NOT_OPEN` or `REGISTRATION_CLOSED`.
 
 ### Admin: `/api/admin/*`, all `requireRole('admin')`
 
@@ -130,7 +131,7 @@ Errors are **401** (signed out), **403** `MEMBERSHIP_REQUIRED`, **409** `ALREADY
 |---|---|---|---|
 | GET | `/api/admin/overview` | `{ members: { active, total }, upcoming_registrations, orders_today: { count, paid, revenue }, pending_orders, balance, as_of }`. "Today" is the club's calendar day | added |
 | GET | `/api/admin/events` | All events including drafts | added |
-| POST | `/api/admin/events` | Create (`title, starts_at, capacity, member_price, status?, venue?, description?, sales_open_at?, sales_close_at?`) | moved from `POST /events` |
+| POST | `/api/admin/events` | Create (`title, starts_at, capacity, member_price, non_member_price?, members_only?, status?, venue?, description?, sales_open_at?, sales_close_at?`) | moved from `POST /events` |
 | GET | `/api/admin/events/:id` | One event including drafts | added |
 | PATCH | `/api/admin/events/:id` | Edit, publish or close | moved from `PATCH /events/:id` |
 | GET | `/api/admin/events/:id/report` | Sold, checked in, no-shows, revenue net of reversals | moved from `GET /events/:id/report` |
@@ -234,4 +235,12 @@ Added in Phase 4:
 - `tickets` gets `UNIQUE(event_id, holder_user_id)`.
   - Existing duplicates are kept, not deleted. The best row (checked in, then confirmed, then pending, then newest) stays on the account.
   - The others are detached (`holder_user_id = NULL`) but keep their holder name, email and QR, so they still scan at the door.
-- No tables or rows are dropped. `events.non_member_price` stays as a legacy column, default 0.
+- No tables or rows are dropped. `events.non_member_price` stayed as a column, default 0; it is in use again since member / non-member pricing returned (see Later changes).
+
+### Member and non-member ticket prices
+
+- Migration `20261014000000_event_members_only` adds `events.members_only BOOLEAN NOT NULL DEFAULT false` and sets it on every existing event (they were members-only, and their `non_member_price` is the old default 0). An admin sets the non-member price and unticks *Members only* to open one up.
+- `POST /api/events/:id/register` is `requireAuth` (was `requireMember`). Members pay `member_price`, everyone else `non_member_price`; `members_only` events still answer 403 `MEMBERSHIP_REQUIRED` to non-members.
+- `GET /api/events` and `/api/events/:id` add `members_only`, `non_member_price` and `price_for_you` (what this caller pays; `null` on a members-only event for a non-member; signed out, the non-member price). `price` is still the member price.
+- `GET /api/admin/events/:id/report` adds `split: { member, non_member }`, each `{ sold, checked_in, revenue }`. Revenue here is the price of tickets still held (refunds are cancelled tickets); the top-level `revenue` stays the ledger figure.
+- Payments stay in demo mode (`DEMO_PAYMENTS=true`, "Pay (demo)"); Razorpay is wired but not switched on.

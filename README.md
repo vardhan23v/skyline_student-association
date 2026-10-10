@@ -23,7 +23,7 @@
 [![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com)
 [![Razorpay](https://img.shields.io/badge/Razorpay-0C2451?style=for-the-badge&logo=razorpay&logoColor=white)](https://razorpay.com)
 
-[![API tests](https://img.shields.io/badge/API_TESTS-109_PASSING-8FD0A4?style=for-the-badge&logo=vitest&logoColor=white&labelColor=0B0B0D)](#testing)
+[![API tests](https://img.shields.io/badge/API_TESTS-116_PASSING-8FD0A4?style=for-the-badge&logo=vitest&logoColor=white&labelColor=0B0B0D)](#testing)
 [![Playwright](https://img.shields.io/badge/PLAYWRIGHT-44%2F44_VIEWPORT_CHECKS-2EAD33?style=for-the-badge&logo=playwright&logoColor=white&labelColor=0B0B0D)](#testing)
 [![Mobile first](https://img.shields.io/badge/MOBILE_FIRST-320px_→_DESKTOP-F6E9CE?style=for-the-badge&labelColor=0B0B0D)](docs/design.md#responsive-phase-4)
 [![Accessibility](https://img.shields.io/badge/LIGHTHOUSE_A11Y-100-F6E9CE?style=for-the-badge&logo=lighthouse&logoColor=white&labelColor=0B0B0D)](#quality)
@@ -63,7 +63,7 @@ SSA runs on a single deployable unit: an **Express** service that serves both th
 | Landing page: upcoming and past events, merch, the club story, gallery, join form | Tabbed dashboard at `/admin`: overview, events, fundraisers, check-in, members, orders, products, announcements, finance |
 | Standalone login and register, with role-based landing (`/me` or `/admin`) | **Live orders** over Server-Sent Events, with a polling fallback |
 | Buy a membership in one bottom sheet (Razorpay or demo pay); **renew online** from 30 days before expiry | Door **check-in scanner**: rear camera, ✓/✗ banner with vibration, live attendance count, and a **Membership** mode that verifies member QRs or student IDs |
-| Members-only **event registration** with QR tickets (wake lock on the ticket screen) | Members directory with **dues status** (paid online/cash, unpaid), dues history, **cash dues** that add or extend a membership, **set expiry date** and **send renewal reminder** |
+| **Event registration** with QR tickets: members pay the member price, others the non-member price (or join first to save); members-only events stay gated | Members directory with **dues status** (paid online/cash, unpaid), dues history, **cash dues** that add or extend a membership, **set expiry date** and **send renewal reminder** |
 | **Merch shop** with live stock, size chips, member pricing and a cart sheet | Products and stock per size; events with capacity, pricing and reports. **Fundraisers:** tasks split between admins with due dates, raised vs target from the ledger, overdue flags and an on-track / behind health badge |
 | Account page: membership status, days left, benefits, **dues history**, a renewal banner, membership QR, tickets and order status | **Finance (admin-only):** summary, append-only ledger with CSV export and reversals, expense review |
 | Fully usable on phones from 320 px | AI Secretary that answers from live data; actions need explicit confirmation |
@@ -77,7 +77,7 @@ SSA runs on a single deployable unit: an **Express** service that serves both th
 **Key decisions**
 
 - **One origin.** Express serves `frontend/dist` and `/api/*`; the SPA calls `/api` relative, so no CORS and no API URL to configure.
-- **Two roles, membership as a status.** Admin routes live under `/api/admin/*` behind a single `requireRole('admin')`. A non-member who tries to register gets `403 MEMBERSHIP_REQUIRED` with the offer, and the UI resumes the registration after they pay.
+- **Two roles, membership as a status.** Admin routes live under `/api/admin/*` behind a single `requireRole('admin')`. Non-members can register at the non-member price, or join first and pay the member price; on a members-only event they get `403 MEMBERSHIP_REQUIRED` with the offer, and the UI resumes the registration after they pay.
 - **One payment path.** `settlePayment()` is shared by the Razorpay webhook, `POST /payments/demo-confirm/:id` and admin cash, so tickets, orders and memberships confirm the same way. Seats and stock are held for 15 minutes.
 - **Append-only money.** Every rupee is a ledger row; mistakes are fixed with reversing entries, never edits.
 - **In-process realtime and jobs.** The orders SSE feed and `node-cron` jobs run in the web process, so the service stays at `numReplicas: 1`. Scaling out would need Redis pub/sub and a job lock.
@@ -134,7 +134,7 @@ The seed also adds four upcoming events (CodeStorm 2026, Tech Trivia, Rhythm Unp
 ## Testing
 
 ```bash
-npm test                                   # API: 109 tests on an in-memory database
+npm test                                   # API: 116 tests on an in-memory database
 ```
 
 **Responsive checks** load every key page at **360, 390, 768 and 1280 px**. Each check fails on any horizontal scroll or a key control under 44 px, and writes a full-page screenshot to `frontend/tests/screenshots/` (git-ignored). They use your installed Chrome, so nothing is downloaded:
@@ -240,7 +240,7 @@ Full rationale, contrast figures and the responsive rules: [`docs/design.md`](do
 
 | Area | How it's held |
 |---|---|
-| Correctness | 109 API tests: roles, membership gate, payments, holds, ledger, domain redirect |
+| Correctness | 116 API tests: roles, membership gate, payments, holds, ledger, domain redirect |
 | Responsive | Playwright at 4 viewports; no horizontal scroll down to 320 px (WCAG reflow) |
 | Accessibility | 44 px touch targets, AA contrast on every background, focus traps in sheets, announced form errors. Lighthouse accessibility 100 |
 | Performance | Admin, scanner and charts are split into separate chunks; public pages load about 160 KB of gzipped JS. Phone image sizes, lazy media, immutable asset caching. CLS 0 |
