@@ -7,11 +7,11 @@ type Props = { script: string; title: string; eyebrow?: ReactNode; description?:
 /** Page title block: the landing SectionHeading (script accent + uppercase title) as the page's h1. */
 export function PageHeader({ script, title, eyebrow, description, actions, className = '' }: Props) {
   return (
-    <header className={`mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 ${className}`}>
+    <header className={`mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4 md:mb-8 ${className}`}>
       <div className="min-w-0">
         {eyebrow && <div className="t-label mb-3">{eyebrow}</div>}
         <SectionHeading as="h1" size="md" script={script} title={title} />
-        {description && <p className="mt-3 max-w-2xl text-sm text-text-secondary">{description}</p>}
+        {description && <p className="mt-3 max-w-2xl text-base text-text-secondary">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-end gap-2">{actions}</div>}
     </header>

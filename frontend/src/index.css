@@ -152,11 +152,13 @@
   .focus-ring:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
   .interactive { transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
   .interactive:active { transform: translateY(1px); }
-  .card-hover:hover { border-color: var(--border-strong); background: var(--surface-elevated); }
+  @media (hover: hover) { .card-hover:hover { border-color: var(--border-strong); background: var(--surface-elevated); } }
+  /* Touch has no hover: custom :hover rules sit under @media (hover: hover) so a tapped card doesn't stay lit.
+     (Tailwind v4's hover: variant already does this.) */
 
   /* Fields: transparent glass, cream hairline, crimson focus ring. The border is a little stronger than the
      10% card hairline so an empty field still reads as a field. */
-  .input { @apply w-full rounded-[var(--radius-md)] px-3.5 py-2.5 text-sm min-h-11; background: var(--surface-sunken); border: 1px solid var(--border-strong); color: var(--text-primary); text-transform: none; letter-spacing: 0; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+  .input { @apply w-full rounded-[var(--radius-md)] px-3.5 py-2.5 min-h-12; font-size: 1rem; line-height: 1.5; scroll-margin-block: 6rem 8rem; background: var(--surface-sunken); border: 1px solid var(--border-strong); color: var(--text-primary); text-transform: none; letter-spacing: 0; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
   .input::placeholder { color: var(--text-tertiary); }
   .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .input:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -169,13 +171,13 @@
   .btn-primary, .btn-secondary, .btn-danger, .btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-full min-h-11 disabled:opacity-50 disabled:cursor-not-allowed; padding: 0.6rem 1.25rem; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
   .btn-primary:active, .btn-secondary:active, .btn-danger:active, .btn-ghost:active { transform: scale(0.98); }
   .btn-primary { background: var(--btn-primary-bg); color: var(--btn-primary-fg); border: 1px solid var(--btn-primary-bg); }
-  .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-primary-bg) 82%, transparent); }
+  @media (hover: hover) { .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--btn-primary-bg) 82%, transparent); } }
   .btn-secondary { background: transparent; border: 1px solid color-mix(in srgb, var(--cream) 60%, transparent); color: var(--cream); }
-  .btn-secondary:hover:not(:disabled) { background: var(--cream); border-color: var(--cream); color: var(--midnight); }
+  @media (hover: hover) { .btn-secondary:hover:not(:disabled) { background: var(--cream); border-color: var(--cream); color: var(--midnight); } }
   .btn-danger { background: var(--accent); border: 1px solid var(--accent); color: var(--accent-foreground); }
-  .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 85%, white); }
+  @media (hover: hover) { .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 85%, white); } }
   .btn-ghost { background: transparent; border: 1px solid transparent; color: var(--text-secondary); padding-inline: 0.85rem; }
-  .btn-ghost:hover:not(:disabled) { color: var(--text-primary); background: color-mix(in srgb, var(--cream) 8%, transparent); }
+  @media (hover: hover) { .btn-ghost:hover:not(:disabled) { color: var(--text-primary); background: color-mix(in srgb, var(--cream) 8%, transparent); } }
 
   /* Tables: uppercase cream/60 headers, cream-tinted dividers, cream 4% row hover. */
   .table { @apply w-full text-sm; border-collapse: separate; border-spacing: 0; }
@@ -183,20 +185,20 @@
   .table td { @apply py-3 pr-3 align-top; border-bottom: 1px solid color-mix(in srgb, var(--cream) 8%, transparent); }
   .table tbody tr:last-child td { border-bottom: 0; }
   .table tbody tr { transition: background-color var(--dur-fast) var(--ease-out); }
-  .table tbody tr:hover { background: color-mix(in srgb, var(--cream) 4%, transparent); }
+  @media (hover: hover) { .table tbody tr:hover { background: color-mix(in srgb, var(--cream) 4%, transparent); } }
 
-  /* Responsive DataTable: stacks into labelled rows under md. */
-  @media (max-width: 767px) {
-    .table-stack thead { display: none; }
-    .table-stack, .table-stack tbody, .table-stack tr, .table-stack td { display: block; width: 100%; }
-    .table-stack tr { border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 0.5rem 0.875rem; margin-bottom: 0.625rem; background: var(--surface-sunken); }
-    /* Label floats left, the cell's content flows right-aligned beside it, so multi-part cells (name + email,
-       several items) keep their own line breaks instead of becoming side-by-side flex items. */
-    .table-stack td { display: flow-root; padding: 0.55rem 0; border-bottom: 1px dashed var(--border); text-align: right; overflow-wrap: break-word; }
-    .table-stack td:last-child { border-bottom: 0; }
-    .table-stack td::before { content: attr(data-label); float: left; margin-right: 1rem; padding-top: 0.15em; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary); text-align: left; }
-    .table-stack td[data-label=""]::before { content: none; }
+  /* DataTable from md up: when the columns don't fit, the table scrolls inside its card (never the page) and the
+     first column stays pinned. Under xl only: wide screens never scroll, and the pinned cell's solid fill would show. */
+  @media (max-width: 1279px) {
+    .table-pin th:first-child, .table-pin td:first-child { position: sticky; left: 0; z-index: 1; background: color-mix(in srgb, var(--midnight) 92%, transparent); }
   }
+  /* DataTable under md: one card per row (title + status on top, label/value pairs, full-width actions). */
+  .dt-card { background: var(--surface-sunken); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 0.875rem 1rem; transition: background-color 700ms var(--ease-out); }
+  .dt-card dl > div { display: flex; justify-content: space-between; gap: 1rem; padding: 0.5rem 0; border-top: 1px dashed var(--border); }
+  .dt-card dt { flex-shrink: 0; padding-top: 0.15em; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary); }
+  .dt-card dd { min-width: 0; text-align: right; overflow-wrap: anywhere; }
+  .dt-actions > * { width: 100%; }
+  .dt-actions :is(.btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-l-primary, .btn-l-secondary, select) { width: 100%; }
 
   /* Skeleton + motion recipes */
   .skeleton { position: relative; overflow: hidden; background: color-mix(in srgb, var(--cream) 7%, transparent); border-radius: var(--radius-sm); }
@@ -213,6 +215,33 @@
   @keyframes pulseRing { 0% { box-shadow: 0 0 0 0 var(--accent-soft); } 70% { box-shadow: 0 0 0 10px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
 
   .scrollbar-thin { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+  /* Safe areas (notch, home indicator) for fixed and sticky layers. */
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+  .top-nav-safe { top: calc(env(safe-area-inset-top) + 0.75rem); }
+  .bottom-safe { bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+  /* Horizontal scrollers (admin tabs, filter chips): snap to items and fade both edges so the cut-off item reads
+     as "more this way". */
+  .scroll-row { display: flex; overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 1rem; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+  .scroll-row::-webkit-scrollbar { display: none; }
+  .scroll-row > * { scroll-snap-align: start; flex-shrink: 0; }
+  .fade-x { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 1rem, #000 calc(100% - 1.5rem), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 1rem, #000 calc(100% - 1.5rem), transparent 100%); }
+  .chip { @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full px-4; border: 1px solid var(--border-strong); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-secondary); white-space: nowrap; transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+  .chip[aria-pressed="true"], .chip[aria-checked="true"], .chip[aria-selected="true"] { background: var(--cream); border-color: var(--cream); color: var(--midnight); }
+  .chip:disabled, .chip[aria-disabled="true"] { opacity: 0.4; text-decoration: line-through; cursor: not-allowed; }
+  @media (hover: hover) { .chip:not(:disabled):not([aria-pressed="true"]):not([aria-checked="true"]):hover { border-color: var(--cream); color: var(--text-primary); } }
+  /* Bottom sheet (Modal under 640px): drag handle, top corners only, follows the finger while dragged down. */
+  .sheet-handle { display: block; width: 2.5rem; height: 0.3rem; margin: 0.5rem auto 0; border-radius: 9999px; background: color-mix(in srgb, var(--cream) 30%, transparent); }
+  @media (min-width: 640px) { .sheet-handle { display: none; } }
+  /* Entry motion: the sheet rises on phones; from sm the dialog fades up and the drawer slides in from the right. */
+  .sheet-panel { animation: slideUp var(--dur-slow) var(--ease-out) both; }
+  /* Sheets and dialogs carry forms and prices over busy pages: denser than the nav glass so their text never competes
+     with what's behind (and stays legible where backdrop-filter isn't supported). */
+  .glass.sheet-panel { background: color-mix(in srgb, var(--midnight) 88%, transparent); }
+  @media (min-width: 640px) {
+    .sheet-panel[data-variant="modal"] { animation-name: fadeIn; }
+    .sheet-panel[data-variant="drawer"] { animation-name: slideInRight; }
+  }
   .safe-bottom { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
 }
 
@@ -254,14 +283,22 @@
   .landing :focus-visible { outline: 2px solid var(--cream); outline-offset: 3px; border-radius: 6px; }
   .landing ::selection { background: var(--cream); color: var(--midnight); }
   .landing input, .landing textarea { text-transform: var(--case-body); letter-spacing: 0; }
+  /* Section rhythm: 16px gutter on phones, 24px on tablets, 32px on desktop; 80px vertical padding on phones
+     (~60% of the 128px desktop value). */
+  .l-section { padding-block: 5rem; }
+  @media (min-width: 768px) { .l-section { padding-block: 6.5rem; } }
+  @media (min-width: 1024px) { .l-section { padding-block: 8rem; } }
+  .l-gutter { padding-inline: 1rem; }
+  @media (min-width: 768px) { .l-gutter { padding-inline: 1.5rem; } }
+  @media (min-width: 1024px) { .l-gutter { padding-inline: 2rem; } }
 
   /* Type scale. Headings and UI text uppercase; body sentence case; script lowercase. */
-  .t-display { font-family: var(--font-landing); font-size: clamp(3rem, 8vw, 7.5rem); font-weight: 800; line-height: 0.95; letter-spacing: 0.02em; text-transform: var(--case-heading); }
-  .t-h2 { font-family: var(--font-landing); font-size: clamp(2rem, 4.5vw, 4rem); font-weight: 800; line-height: 1; letter-spacing: 0.02em; text-transform: var(--case-heading); }
+  .t-display { font-family: var(--font-landing); font-size: clamp(2.25rem, 11.5vw, 7.5rem); font-weight: 800; line-height: 0.95; letter-spacing: 0.02em; text-transform: var(--case-heading); }
+  .t-h2 { font-family: var(--font-landing); font-size: clamp(1.875rem, 1.2rem + 3.4vw, 4rem); font-weight: 800; line-height: 1; letter-spacing: 0.02em; text-transform: var(--case-heading); }
   .t-h2-md { font-family: var(--font-landing); font-size: clamp(1.75rem, 1.2rem + 2.2vw, 2.75rem); font-weight: 800; line-height: 1.05; letter-spacing: 0.02em; text-transform: var(--case-heading); }
   .t-h3 { font-family: var(--font-landing); font-size: clamp(1.25rem, 1.1rem + 0.5vw, 1.5rem); font-weight: 700; line-height: 1.15; letter-spacing: 0.02em; text-transform: var(--case-heading); }
   .t-body { font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem); font-weight: 400; line-height: 1.6; letter-spacing: 0; text-transform: var(--case-body); }
-  .t-label, .label-wide { font-size: clamp(0.7rem, 0.68rem + 0.1vw, 0.78rem); font-weight: 600; line-height: 1.3; letter-spacing: 0.16em; text-transform: var(--case-heading); color: var(--text-tertiary); }
+  .t-label, .label-wide { font-size: clamp(0.75rem, 0.72rem + 0.1vw, 0.8rem); font-weight: 600; line-height: 1.3; letter-spacing: 0.16em; text-transform: var(--case-heading); color: var(--text-tertiary); }
   .t-nav { font-size: 0.8rem; font-weight: 500; letter-spacing: 0.18em; text-transform: var(--case-heading); }
   .t-script { font-family: var(--font-script); font-weight: 400; letter-spacing: 0; line-height: 1; text-transform: var(--case-script); }
   /* Editorial lockup: script at 1.4x the paired sans, lifted 0.1em, set tight to the sans word (a negative overlap reads as a missing space with the Pinyon fallback; revisit with Rumble Brave). */
@@ -272,13 +309,13 @@
   /* Buttons: primary solid cream + midnight text; secondary cream outline that fills cream on hover. */
   .btn-l-primary, .btn-l-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.75rem; border-radius: 9999px; white-space: nowrap; padding: 0.85rem 1.75rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.18em; text-transform: var(--case-heading); transition: background-color 200ms, color 200ms, border-color 200ms, filter 200ms, transform 120ms; }
   .btn-l-primary { background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
-  .btn-l-primary:hover { background: color-mix(in srgb, var(--btn-primary-bg) 82%, transparent); }
+  @media (hover: hover) { .btn-l-primary:hover { background: color-mix(in srgb, var(--btn-primary-bg) 82%, transparent); } }
   .btn-l-secondary { border: 1px solid var(--cream); color: var(--cream); background: transparent; }
-  .btn-l-secondary:hover { background: var(--cream); color: var(--midnight); }
+  @media (hover: hover) { .btn-l-secondary:hover { background: var(--cream); color: var(--midnight); } }
   .btn-l-primary:active, .btn-l-secondary:active { transform: scale(0.98); }
   .btn-l-sm { min-height: 2.5rem; padding: 0.6rem 1.1rem; font-size: 0.72rem; }
   .btn-l-primary:disabled, .btn-l-secondary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-  .btn-l-secondary:disabled:hover { background: transparent; color: var(--cream); }
+  @media (hover: hover) { .btn-l-secondary:disabled:hover { background: transparent; color: var(--cream); } }
 
   /* Glass surfaces over the photography: translucent midnight + hairline. No backdrop-filter here:
      on scrolling content over a fixed background it re-blurs every frame (the events→past jank).
@@ -291,6 +328,9 @@
     animation: grain-shift 1.2s steps(6) infinite; }
   @keyframes grain-shift { 0% { transform: translate(0,0); } 25% { transform: translate(-3%,2%); } 50% { transform: translate(2%,-3%); } 75% { transform: translate(-2%,-1%); } 100% { transform: translate(0,0); } }
 
+  /* Per-breakpoint focal point for the background photos (backgrounds.ts focal / focalMobile). */
+  .bg-focal { object-position: var(--focal-m, var(--focal)); background-position: var(--focal-m, var(--focal)); }
+  @media (min-width: 768px) { .bg-focal { object-position: var(--focal); background-position: var(--focal); } }
   /* Legibility scrim over every background (per-section darkening is in backgrounds.ts). */
   .bg-scrim { background: linear-gradient(180deg, rgba(11, 11, 13, 0.55) 0%, rgba(11, 11, 13, 0.35) 40%, rgba(11, 11, 13, 0.75) 100%); }
   /* Depth layers over the photography. The heat glow sits where the scrim is darkest (75% at the
@@ -300,7 +340,9 @@
 
   .marquee-track { display: flex; width: max-content; gap: 1rem; animation: marquee 60s linear infinite; }
   .marquee-track[data-reverse] { animation-direction: reverse; }
-  .marquee-row:hover .marquee-track, .marquee-row:focus-within .marquee-track { animation-play-state: paused; }
+  @media (hover: hover) { .marquee-row:hover .marquee-track { animation-play-state: paused; } }
+  .marquee-row:focus-within .marquee-track { animation-play-state: paused; }
+  @media (max-width: 767px) { .marquee-track { animation-duration: 80s; gap: 0.75rem; } }
   @keyframes marquee { to { transform: translateX(calc(-50% - 0.5rem)); } }
 
   /* StudentCursor (every page): hide the native pointer, keep the I-beam in text fields. */

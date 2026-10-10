@@ -2,18 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 
 type Options = { ease?: number; maxTilt?: number; enabled?: boolean };
 
-/** True on devices with a precise pointer and no reduced-motion preference. */
-export function useFinePointer() {
-  const query = '(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)';
-  const [ok, setOk] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+/** Live `matchMedia` result (re-renders when it changes). */
+export function useMediaQuery(query: string) {
+  const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
   useEffect(() => {
     const mq = window.matchMedia(query);
-    const on = () => setOk(mq.matches);
+    const on = () => setMatch(mq.matches);
+    on();
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);
-  }, []);
-  return ok;
+  }, [query]);
+  return match;
 }
+
+/** True on devices with a precise pointer and no reduced-motion preference. */
+export const useFinePointer = () => useMediaQuery('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
 
 /**
  * Moves the referenced element toward the pointer with a lerp every animation frame
