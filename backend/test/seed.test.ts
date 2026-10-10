@@ -1,0 +1,58 @@
+import { beforeAll, describe, expect, it } from 'vitest';
+import request from 'supertest';
+import { freshDb, getDb } from './setup';
+import { createApp } from '../src/app';
+// Imported directly: knex's own seed loader uses native import(), which can't load TypeScript under vitest.
+import { seed } from '../../database/seeds/001_demo';
+
+let app: ReturnType<typeof createApp>;
+const login = async (email: string, password: string) => {
+  const r = await request(app).post('/api/auth/login').send({ email, password });
+  expect(r.status).toBe(200);
+  return { Authorization: `Bearer ${r.body.token}` };
+};
+
+describe('demo seed', () => {
+  beforeAll(async () => { await freshDb(); app = createApp(); });
+
+  it('refuses to run in production unless ALLOW_DEMO_SEED=true', async () => {
+    const saved = { NODE_ENV: process.env.NODE_ENV, ALLOW_DEMO_SEED: process.env.ALLOW_DEMO_SEED };
+    try {
+      process.env.NODE_ENV = 'production'; delete process.env.ALLOW_DEMO_SEED;
+      await expect(seed(getDb())).rejects.toThrow(/ALLOW_DEMO_SEED/);
+      expect(await getDb()('users').count({ n: '*' })).toEqual([{ n: 0 }]);
+    } finally {
+      process.env.NODE_ENV = saved.NODE_ENV;
+      if (saved.ALLOW_DEMO_SEED === undefined) delete process.env.ALLOW_DEMO_SEED; else process.env.ALLOW_DEMO_SEED = saved.ALLOW_DEMO_SEED;
+    }
+  });
+
+  it('creates the three demo logins with the documented states', async () => {
+    await seed(getDb());
+    const admin = await login('admin@skyline.edu', 'Admin@123');
+    const member = await login('member@skyline.edu', 'Member@123');
+    const student = await login('student@skyline.edu', 'Student@123');
+    expect((await request(app).get('/api/me').set(admin)).body.user.role).toBe('admin');
+    const m = (await request(app).get('/api/me').set(member)).body;
+    expect(m.user.role).toBe('user'); expect(m.is_member).toBe(true); expect(m.membership_expires).toMatch(/-06-30$/);
+    const s = (await request(app).get('/api/me').set(student)).body;
+    expect(s.user.role).toBe('user'); expect(s.is_member).toBe(false);
+    const hash = (await getDb()('users').where({ email: 'admin@skyline.edu' }).first()).password_hash;
+    expect(hash).toMatch(/^\$2[aby]\$10\$/);
+  });
+
+  it('seeds four upcoming events (Spring Gala nearly full), one past event, four products and three orders', async () => {
+    const events = (await request(app).get('/api/events')).body;
+    const upcoming = events.filter((e: any) => e.status === 'published' && new Date(e.starts_at) > new Date());
+    expect(upcoming).toHaveLength(4);
+    expect(events.filter((e: any) => new Date(e.starts_at) < new Date())).toHaveLength(1);
+    expect(upcoming.find((e: any) => e.title === 'Spring Gala')).toMatchObject({ capacity: 2, seats_left: 1 });
+    const products = (await request(app).get('/api/products')).body;
+    expect(products.map((p: any) => p.name).sort()).toEqual(['Bag', 'Stickers', 'T-shirt', 'Water bottle']);
+    expect(products.find((p: any) => p.name === 'T-shirt').variants.map((v: any) => v.size)).toEqual(['S', 'M', 'L', 'XL']);
+    const orders = (await request(app).get('/api/orders/mine').set(await login('member@skyline.edu', 'Member@123'))).body;
+    expect(orders.map((o: any) => o.status).sort()).toEqual(['fulfilled', 'paid', 'pending']);
+    // The ledger agrees with the paid things: dues 500 + gala 299 + orders (449 + 2×79) + 359.
+    expect((await request(app).get('/api/admin/overview').set(await login('admin@skyline.edu', 'Admin@123'))).body.balance).toBe(500 + 299 + 607 + 359);
+  });
+});

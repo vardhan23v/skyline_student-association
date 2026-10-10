@@ -1,117 +1,120 @@
 import type { Knex } from 'knex';
-import bcrypt from '../../backend/node_modules/bcryptjs';
+import bcrypt from '../../backend/node_modules/bcryptjs/index.js';
 import { signTicketQr } from '../../backend/src/lib/qr';
+import { academicYearEnd } from '../../backend/src/modules/memberships/service';
 
-/** Demo data: ~50 members, 5 events, ~40 ledger rows. Password for every demo user: `password123`. */
+/**
+ * Demo data for the two-role model. Logins (change them before real use):
+ *   admin@skyline.edu / Admin@123      admin
+ *   member@skyline.edu / Member@123    user with an active membership until the academic year ends
+ *   student@skyline.edu / Student@123  user without a membership
+ * WIPES every table first.
+ */
 export async function seed(k: Knex): Promise<void> {
-  // This seed wipes every table. `npm start` runs it on every boot while SEED_DEMO=true, so a forgotten flag (or a Railway
-  // restart) would erase real members, payments and the ledger. In production only seed an empty database.
-  if (process.env.NODE_ENV === 'production' && process.env.SEED_FORCE !== 'true' && (await k('users').first())) {
-    console.warn('[seed] skipped: database already has users. Remove SEED_DEMO, or set SEED_FORCE=true to wipe and reseed.');
+  const prod = process.env.NODE_ENV === 'production';
+  if (prod && process.env.ALLOW_DEMO_SEED !== 'true') {
+    throw new Error('[seed] refusing to seed demo data in production. Set ALLOW_DEMO_SEED=true to allow it.');
+  }
+  // `npm start` runs this on every boot while ALLOW_DEMO_SEED=true: never wipe a database that already has users
+  // unless SEED_FORCE=true is set as well (and remove it again after one boot).
+  if (prod && process.env.SEED_FORCE !== 'true' && (await k('users').first())) {
+    console.warn('[seed] skipped: database already has users. Set SEED_FORCE=true for one boot to wipe and reseed.');
     return;
   }
   for (const t of ['webhook_events', 'ai_proposals', 'ai_audit', 'cash_receipts', 'ledger_entries', 'expenses', 'tasks', 'fundraisers', 'order_items', 'orders', 'product_variants', 'products', 'announcements', 'tickets', 'events', 'memberships', 'payments', 'members', 'users']) await k(t).del();
-  const hash = await bcrypt.hash('password123', 10);
+
   const day = 86_400_000; const now = Date.now();
   const ymd = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  // created_at in the column's own format: a JS Date on SQLite binds as epoch ms and breaks the hold-expiry comparisons.
+  const ts = (ms: number) => (k.client.config.client === 'mysql2' ? new Date(ms) : new Date(ms).toISOString().replace('T', ' ').slice(0, 19));
+  /** The landing page's date for the event while it's still ahead, otherwise the same event `fallbackDays` from now. */
+  const upcoming = (date: string, fallbackDays: number) => { const d = new Date(`${date}T10:00:00+05:30`); return d.getTime() > now + day ? d : new Date(now + fallbackDays * day); };
 
-  const staff = [
-    { name: 'Asha Admin', email: 'admin@ssa.test', role: 'admin' },
-    { name: 'Tarun Treasurer', email: 'treasurer@ssa.test', role: 'treasurer' },
-    { name: 'Vikram Volunteer', email: 'volunteer@ssa.test', role: 'volunteer' },
-  ];
-  const first = ['Aarav', 'Diya', 'Ishaan', 'Kiara', 'Rohan', 'Sara', 'Vihaan', 'Zara', 'Arjun', 'Meera', 'Kabir', 'Anaya', 'Dev', 'Riya', 'Yash', 'Nisha', 'Om', 'Tara', 'Rahul', 'Pooja'];
-  const last = ['Sharma', 'Patel', 'Reddy', 'Nair', 'Singh', 'Iyer', 'Khan', 'Das', 'Mehta', 'Rao'];
-  const members = Array.from({ length: 50 }, (_, i) => ({ name: `${first[i % 20]} ${last[Math.floor(i / 5) % 10]}`, email: `member${i + 1}@ssa.test`, role: 'member' }));
-  const userIds: number[] = [];
-  for (const u of [...staff, ...members]) { const [id] = await k('users').insert({ ...u, password_hash: hash, is_active: true }); userIds.push(id as number); }
-  const [adminId, treasurerId, volunteerId] = userIds;
-  const memberUserIds = userIds.slice(3);
+  const user = async (name: string, email: string, password: string, role: 'admin' | 'user') => {
+    const [id] = await k('users').insert({ name, email, password_hash: await bcrypt.hash(password, 10), role, is_active: true });
+    return id as number;
+  };
+  const adminId = await user('Asha Rao', 'admin@skyline.edu', 'Admin@123', 'admin');
+  const memberId = await user('Meera Iyer', 'member@skyline.edu', 'Member@123', 'user');
+  const studentId = await user('Rohan Das', 'student@skyline.edu', 'Student@123', 'user');
 
-  // Members + memberships: 40 active (5 expiring soon), 6 expired, 4 none
-  const memberIds: number[] = [];
-  for (let i = 0; i < memberUserIds.length; i++) {
-    const [mid] = await k('members').insert({ user_id: memberUserIds[i], student_id: `SKY${String(2024000 + i + 1)}`, phone: `98${String(10000000 + i * 7919).slice(0, 8)}`, joined_at: ymd(now - (365 - i * 5) * day) });
-    memberIds.push(mid as number);
-    if (i >= 46) continue;
-    const expired = i >= 40;
-    const expiring = i < 5;
-    const expiry = expired ? ymd(now - (10 + i) * day) : expiring ? ymd(now + (3 + i * 2) * day) : ymd(now + 200 * day);
-    const [pid] = await k('payments').insert({ user_id: memberUserIds[i], amount: 500, currency: 'INR', purpose: 'dues', reference_type: 'membership', reference_id: 0, provider: i % 3 === 0 ? 'cash' : 'razorpay', provider_payment_id: `seed_dues_${i}`, status: 'paid', paid_at: new Date(now - (300 - i * 3) * day) });
-    const [msid] = await k('memberships').insert({ member_id: mid, start_date: ymd(now - 300 * day), expiry_date: expiry, status: expired ? 'expired' : 'active', payment_id: pid });
-    await k('payments').where({ id: pid }).update({ reference_id: msid });
-    await k('ledger_entries').insert({ direction: 'in', amount: 500, category: 'dues', source_type: 'payment', source_id: pid, memo: `Dues SKY${2024000 + i + 1}`, entered_by: treasurerId, occurred_at: new Date(now - (300 - i * 3) * day) });
-  }
+  // Member: paid dues online, active until the academic year ends. Student: profile only, no membership.
+  const [meeraMember] = await k('members').insert({ user_id: memberId, student_id: 'SKY2026001', phone: '9810000001', joined_at: ymd(now - 40 * day) });
+  await k('members').insert({ user_id: studentId, student_id: 'SKY2026002', phone: '9810000002', joined_at: ymd(now - 5 * day) });
+  const pay = async (p: { user_id: number; amount: number; purpose: 'dues' | 'ticket' | 'merch'; reference_type: string; reference_id: number; status: 'paid' | 'pending'; key: string; at: number; provider?: 'razorpay' | 'cash' }) => {
+    const [id] = await k('payments').insert({
+      user_id: p.user_id, amount: p.amount, currency: 'INR', purpose: p.purpose, reference_type: p.reference_type, reference_id: p.reference_id,
+      provider: p.provider ?? 'razorpay', provider_order_id: `order_seed_${p.key}`, provider_payment_id: p.status === 'paid' ? `pay_seed_${p.key}` : null,
+      status: p.status, paid_at: p.status === 'paid' ? new Date(p.at) : null,
+    });
+    return id as number;
+  };
+  const income = (payment_id: number, amount: number, category: 'dues' | 'ticket' | 'merch', memo: string, at: number, event_id: number | null = null) =>
+    k('ledger_entries').insert({ direction: 'in', amount, category, source_type: 'payment', source_id: payment_id, event_id, memo, entered_by: memberId, occurred_at: new Date(at) });
 
-  // Events
+  const [msId] = await k('memberships').insert({ member_id: meeraMember, start_date: ymd(now - 40 * day), expiry_date: academicYearEnd(), status: 'pending' });
+  const duesPay = await pay({ user_id: memberId, amount: 500, purpose: 'dues', reference_type: 'membership', reference_id: msId as number, status: 'paid', key: 'dues', at: now - 40 * day });
+  await k('memberships').where({ id: msId }).update({ status: 'active', payment_id: duesPay });
+  await income(duesPay, 500, 'dues', 'Dues SKY2026001', now - 40 * day);
+
+  // Four upcoming published events (names match the landing page) and one past event.
   const events = [
-    { title: 'Spring Gala', description: 'Annual formal with dinner and live band.', starts_at: new Date(now + 20 * day), venue: 'Main Hall', capacity: 120, member_price: 300, non_member_price: 500, status: 'published' },
-    { title: 'Welcome Mixer', description: 'Meet the committee.', starts_at: new Date(now - 60 * day), venue: 'Quad', capacity: 80, member_price: 0, non_member_price: 50, status: 'closed' },
-    { title: 'Tech Talk: Agentic AI', description: 'Guest speaker session.', starts_at: new Date(now + 7 * day), venue: 'Room 204', capacity: 40, member_price: 0, non_member_price: 100, status: 'published' },
-    { title: 'Movie Night', description: 'Outdoor screening.', starts_at: new Date(now - 15 * day), venue: 'Lawn', capacity: 100, member_price: 50, non_member_price: 100, status: 'closed' },
-    { title: 'Alumni Dinner (draft)', description: 'Planning.', starts_at: new Date(now + 60 * day), venue: 'TBD', capacity: 60, member_price: 400, non_member_price: 700, status: 'draft' },
+    { title: 'CodeStorm 2026', description: 'A 24-hour hackathon: build solutions to real-world problems with software, AI and emerging tech, then pitch them to a panel of judges. Teams of 2–4.', starts_at: upcoming('2026-10-24', 14), venue: 'Main Auditorium', capacity: 120, member_price: 0, status: 'published' },
+    { title: 'Tech Trivia', description: 'Programming, computer science, cybersecurity and tech trends across rapid-fire and problem-solving rounds. Individual entry.', starts_at: upcoming('2026-10-28', 18), venue: 'Seminar Hall 2', capacity: 80, member_price: 0, status: 'published' },
+    { title: 'Rhythm Unplugged', description: 'Music, dance and artistic expression: solo performances, group dance battles and live acts.', starts_at: upcoming('2026-10-31', 21), venue: 'Open-Air Theatre', capacity: 300, member_price: 99, status: 'published' },
+    { title: 'Spring Gala', description: 'The formal evening of the year: dinner, a live band and the club awards. Seats are limited.', starts_at: new Date(now + 30 * day), venue: 'Convention Hall', capacity: 2, member_price: 299, status: 'published' },
+    { title: 'CodeStorm 2025: Kick-off', description: 'Problem statements, team formation and mentor intros for last year’s hackathon.', starts_at: new Date(now - 45 * day), venue: 'Seminar Hall 2', capacity: 100, member_price: 0, status: 'closed' },
   ];
-  const eventIds: number[] = [];
-  for (const e of events) { const [id] = await k('events').insert(e); eventIds.push(id as number); }
-  // Past event tickets (Movie Night): 30 sold, 24 checked in
-  for (let i = 0; i < 30; i++) {
-    const uid = memberUserIds[i]; const price = i < 20 ? 50 : 100;
-    const [pid] = await k('payments').insert({ user_id: uid, amount: price, currency: 'INR', purpose: 'ticket', reference_type: 'ticket', reference_id: 0, provider: 'razorpay', provider_payment_id: `seed_tkt_${i}`, status: 'paid', paid_at: new Date(now - 20 * day) });
-    const [tid] = await k('tickets').insert({ event_id: eventIds[3], holder_user_id: uid, holder_name: members[i].name, holder_email: members[i].email, ticket_type: i < 20 ? 'member' : 'non_member', price, payment_id: pid, qr_token: `seed_qr_${i}`, status: i < 24 ? 'checked_in' : 'confirmed', checked_in_at: i < 24 ? new Date(now - 15 * day) : null, checked_in_by: i < 24 ? volunteerId : null });
-    await k('payments').where({ id: pid }).update({ reference_id: tid });
-    await k('ledger_entries').insert({ direction: 'in', amount: price, category: 'ticket', source_type: 'payment', source_id: pid, event_id: eventIds[3], memo: `Ticket #${tid} Movie Night`, entered_by: uid, occurred_at: new Date(now - 20 * day) });
-  }
-  // Upcoming gala: 12 confirmed
-  for (let i = 30; i < 42; i++) {
-    const uid = memberUserIds[i];
-    const [pid] = await k('payments').insert({ user_id: uid, amount: 300, currency: 'INR', purpose: 'ticket', reference_type: 'ticket', reference_id: 0, provider: 'razorpay', provider_payment_id: `seed_gala_${i}`, status: 'paid', paid_at: new Date(now - 2 * day) });
-    const [tid] = await k('tickets').insert({ event_id: eventIds[0], holder_user_id: uid, holder_name: members[i].name, holder_email: members[i].email, ticket_type: 'member', price: 300, payment_id: pid, status: 'confirmed' });
-    // A real signed QR (same as confirmTicket issues) so these upcoming tickets can actually be scanned at the door.
-    await k('tickets').where({ id: tid }).update({ qr_token: signTicketQr({ tid: tid as number, eid: eventIds[0] }, new Date(events[0].starts_at.getTime() + day)) });
-    await k('payments').where({ id: pid }).update({ reference_id: tid });
-    await k('ledger_entries').insert({ direction: 'in', amount: 300, category: 'ticket', source_type: 'payment', source_id: pid, event_id: eventIds[0], memo: `Ticket #${tid} Spring Gala`, entered_by: uid, occurred_at: new Date(now - 2 * day) });
-  }
+  const ids: number[] = [];
+  for (const e of events) { const [id] = await k('events').insert({ ...e, non_member_price: 0 }); ids.push(id as number); }
+  const [codestorm, , , gala, kickoff] = ids;
+
+  // Meera: registered for CodeStorm (free), holds 1 of the 2 Spring Gala seats (paid), attended the kick-off.
+  const ticket = async (event_id: number, starts_at: Date, price: number, status: 'confirmed' | 'checked_in', key: string, at: number) => {
+    const [tid] = await k('tickets').insert({ event_id, holder_user_id: memberId, holder_name: 'Meera Iyer', holder_email: 'member@skyline.edu', ticket_type: 'member', price, status, checked_in_at: status === 'checked_in' ? starts_at : null, checked_in_by: status === 'checked_in' ? adminId : null });
+    const pid = price > 0
+      ? await pay({ user_id: memberId, amount: price, purpose: 'ticket', reference_type: 'ticket', reference_id: tid as number, status: 'paid', key, at })
+      : (await k('payments').insert({ user_id: memberId, amount: 0, currency: 'INR', purpose: 'ticket', reference_type: 'ticket', reference_id: tid, provider: 'cash', provider_payment_id: `cash_seed_${key}`, status: 'paid', paid_at: new Date(at) }))[0] as number;
+    // A real signed QR (what confirmTicket issues) so the upcoming tickets scan at the door.
+    await k('tickets').where({ id: tid }).update({ payment_id: pid, qr_token: signTicketQr({ tid: tid as number, eid: event_id }, new Date(starts_at.getTime() + day)) });
+    if (price > 0) await income(pid, price, 'ticket', `Ticket #${tid}`, at, event_id);
+  };
+  await ticket(codestorm, events[0].starts_at, 0, 'confirmed', 'codestorm', now - 3 * day);
+  await ticket(gala, events[3].starts_at, 299, 'confirmed', 'gala', now - 2 * day);
+  await ticket(kickoff, events[4].starts_at, 0, 'checked_in', 'kickoff', now - 50 * day);
 
   await k('announcements').insert([
-    { title: 'Welcome to the new semester!', body: 'First general meeting is next Tuesday at 5pm in Room 204.', author_id: adminId, audience: 'all', published_at: new Date(now - 30 * day), email_sent_at: new Date(now - 30 * day), email_recipient_count: 53 },
-    { title: 'Gala tickets on sale', body: 'Members get ₹200 off. Limited seats.', author_id: adminId, audience: 'all', published_at: new Date(now - 5 * day), email_sent_at: new Date(now - 5 * day), email_recipient_count: 53 },
-    { title: 'Members-only: AGM voting', body: 'Vote for next year\'s committee by Friday.', author_id: adminId, audience: 'members', published_at: new Date(now - 1 * day), email_sent_at: new Date(now - 1 * day), email_recipient_count: 40 },
+    { title: 'CodeStorm 2026 registrations are open', body: 'Teams of 2–4, 24 hours, Main Auditorium. Members register free from the Events page.', author_id: adminId, audience: 'all', published_at: new Date(now - 4 * day) },
+    { title: 'Spring Gala: last seats', body: 'Only a couple of seats are left for the gala. Members, register from the event page.', author_id: adminId, audience: 'members', published_at: new Date(now - 1 * day) },
   ]);
 
-  const [hoodie] = await k('products').insert({ name: 'SSA Hoodie', description: 'Navy, embroidered logo.', is_active: true });
-  const [tee] = await k('products').insert({ name: 'SSA T-shirt', description: 'White, printed.', is_active: true });
-  await k('product_variants').insert([
-    ...['S', 'M', 'L', 'XL'].map((size, i) => ({ product_id: hoodie, size, price: 1200, member_price: 999, stock: [8, 15, 12, 3][i], reserved: 0 })),
-    ...['S', 'M', 'L'].map((size, i) => ({ product_id: tee, size, price: 500, member_price: 400, stock: [20, 25, 10][i], reserved: 0 })),
-  ]);
-
-  const [bake] = await k('fundraisers').insert({ name: 'Bake Sale for Library Fund', description: 'Two-day bake sale.', target_amount: 15000, budget: 4000, starts_on: ymd(now - 10 * day), ends_on: ymd(now + 10 * day), status: 'active' });
-  const [run] = await k('fundraisers').insert({ name: 'Charity 5K', description: 'Sponsored run.', target_amount: 50000, budget: 12000, starts_on: ymd(now + 30 * day), ends_on: ymd(now + 45 * day), status: 'planning' });
-  await k('tasks').insert([
-    { fundraiser_id: bake, title: 'Book the stall', assignee_id: volunteerId, due_on: ymd(now - 8 * day), status: 'done', done_at: new Date(now - 9 * day) },
-    { fundraiser_id: bake, title: 'Print posters', assignee_id: volunteerId, due_on: ymd(now - 2 * day), status: 'doing' },
-    { fundraiser_id: bake, title: 'Collect baked goods', assignee_id: memberUserIds[0], due_on: ymd(now + 1 * day), status: 'todo' },
-    { fundraiser_id: bake, title: 'Arrange cash box', assignee_id: null, due_on: ymd(now + 2 * day), status: 'todo' },
-    { fundraiser_id: run, title: 'Get route permit', assignee_id: adminId, due_on: ymd(now + 15 * day), status: 'todo' },
-    { fundraiser_id: run, title: 'Find sponsors', assignee_id: null, due_on: ymd(now + 20 * day), status: 'todo' },
-  ]);
-  for (const [i, amt] of [2400, 3100, 1800].entries()) {
-    const [cid] = await k('cash_receipts').insert({ fundraiser_id: bake, amount: amt, memo: `Bake sale day ${i + 1}`, entered_by: treasurerId });
-    await k('ledger_entries').insert({ direction: 'in', amount: amt, category: 'fundraiser', source_type: 'cash_receipt', source_id: cid, fundraiser_id: bake, memo: `Bake sale day ${i + 1}`, entered_by: treasurerId, occurred_at: new Date(now - (8 - i * 2) * day) });
-  }
-
-  // Expenses: 3 paid, 1 approved, 2 submitted (one flagged)
-  const expenses = [
-    { submitted_by: volunteerId, event_id: eventIds[3], amount: 1500, category: 'venue', description: 'Projector rental', status: 'paid' },
-    { submitted_by: volunteerId, event_id: eventIds[3], amount: 800, category: 'food', description: 'Popcorn and drinks', status: 'paid' },
-    { submitted_by: memberUserIds[0], fundraiser_id: bake, amount: 950, category: 'supplies', description: 'Flour, sugar, butter', status: 'paid' },
-    { submitted_by: volunteerId, fundraiser_id: bake, amount: 600, category: 'printing', description: 'Posters', status: 'approved' },
-    { submitted_by: volunteerId, event_id: eventIds[0], amount: 2200, category: 'decor', description: 'Gala decorations deposit', status: 'submitted', flags: JSON.stringify([]) },
-    { submitted_by: memberUserIds[1], amount: 9800, category: 'food', description: 'Catering advance', status: 'submitted', flags: JSON.stringify([{ code: 'HIGH_AMOUNT', rule: 'Amount > 2.5× median of approved food expenses' }, { code: 'NO_RECEIPT', rule: 'Amount > ₹200 without a receipt' }]) },
+  // Merch: the landing page's four products and prices; members pay a little less.
+  const products = [
+    { name: 'T-shirt', description: 'Black cotton tee with the orange Skyline logo on the chest.', image_url: '/media/merch/tshirt.jpg', variants: ['S', 'M', 'L', 'XL'].map((size, i) => ({ size, price: 499, member_price: 449, stock: [10, 20, 15, 6][i] })) },
+    { name: 'Bag', description: 'White tote bag with the orange Skyline logo.', image_url: '/media/merch/bag.jpg', variants: [{ size: 'One size', price: 299, member_price: 269, stock: 25 }] },
+    { name: 'Water bottle', description: 'Black 750 ml sports bottle with the orange Skyline logo.', image_url: '/media/merch/bottle.jpg', variants: [{ size: '750 ml', price: 399, member_price: 359, stock: 18 }] },
+    { name: 'Stickers', description: 'Pack of five Skyline logo stickers.', image_url: '/media/merch/stickers.jpg', variants: [{ size: 'Pack of 5', price: 99, member_price: 79, stock: 100 }] },
   ];
-  for (const x of expenses) {
-    const reviewed = x.status !== 'submitted';
-    const [id] = await k('expenses').insert({ ...x, receipt_hash: reviewed ? `seedhash${x.amount}` : null, reviewed_by: reviewed ? treasurerId : null, reviewed_at: reviewed ? new Date(now - 5 * day) : null });
-    if (x.status === 'paid') await k('ledger_entries').insert({ direction: 'out', amount: x.amount, category: 'reimbursement', source_type: 'expense', source_id: id, event_id: x.event_id ?? null, fundraiser_id: x.fundraiser_id ?? null, memo: x.description, entered_by: treasurerId, occurred_at: new Date(now - 4 * day) });
+  const variant: Record<string, number> = {};
+  for (const { variants, ...p } of products) {
+    const [pid] = await k('products').insert({ ...p, is_active: true });
+    for (const v of variants) { const [vid] = await k('product_variants').insert({ ...v, product_id: pid, reserved: 0 }); variant[`${p.name}:${v.size}`] = vid as number; }
   }
+
+  // Three orders from Meera at member prices: fulfilled, paid (awaiting hand-over) and pending (stock reserved).
+  const order = async (status: 'fulfilled' | 'paid' | 'pending', lines: [string, number, number][], at: number, key: string) => {
+    const total = lines.reduce((s, [, qty, unit]) => s + qty * unit, 0);
+    const [oid] = await k('orders').insert({ user_id: memberId, subtotal: total, total, status, fulfilled_at: status === 'fulfilled' ? new Date(at + day) : null, created_at: ts(at) });
+    await k('order_items').insert(lines.map(([v, qty, unit_price]) => ({ order_id: oid, variant_id: variant[v], qty, unit_price })));
+    const pid = await pay({ user_id: memberId, amount: total, purpose: 'merch', reference_type: 'order', reference_id: oid as number, status: status === 'pending' ? 'pending' : 'paid', key, at });
+    await k('orders').where({ id: oid }).update({ payment_id: pid });
+    for (const [v, qty] of lines) {
+      if (status === 'pending') await k('product_variants').where({ id: variant[v] }).increment('reserved', qty);
+      else await k('product_variants').where({ id: variant[v] }).decrement('stock', qty);
+    }
+    if (status !== 'pending') await income(pid, total, 'merch', `Order #${oid}`, at);
+  };
+  await order('fulfilled', [['T-shirt:M', 1, 449], ['Stickers:Pack of 5', 2, 79]], now - 20 * day, 'o1');
+  await order('paid', [['Water bottle:750 ml', 1, 359]], now - 1 * day, 'o2');
+  await order('pending', [['Bag:One size', 1, 269]], now, 'o3');
 }

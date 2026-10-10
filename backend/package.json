@@ -12,7 +12,7 @@
     "seed": "tsx src/scripts/migrate.ts seed",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "seed:if-enabled": "node -e \"if(process.env.SEED_DEMO==='true')require('child_process').execSync('npm run seed',{stdio:'inherit'})\""
+    "seed:if-enabled": "node -e \"if(process.env.ALLOW_DEMO_SEED==='true')require('child_process').execSync('npm run seed',{stdio:'inherit'})\""
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
