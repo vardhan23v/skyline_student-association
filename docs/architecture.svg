@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title>Skyline Student Association: system architecture</title>
+  <desc>Browsers reach one Railway web service (Express serving the React SPA and the /api) backed by Railway MySQL, with Razorpay, Resend, Cloudinary and Anthropic as external services.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141015"/><stop offset="1" stop-color="#0B0B0D"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="100%" r="70%">
+      <stop offset="0" stop-color="#C1121F" stop-opacity="0.28"/><stop offset="1" stop-color="#C1121F" stop-opacity="0"/>
+    </radialGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F6E9CE" fill-opacity="0.75"/>
+    </marker>
+    <marker id="arrowRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#FF6B5E"/>
+    </marker>
+    <style>
+      .h { fill: #F6E9CE; font-weight: 800; letter-spacing: 0.12em; font-size: 13px; }
+      .t { fill: #F6E9CE; font-size: 13px; }
+      .s { fill: #F6E9CE; fill-opacity: 0.7; font-size: 12px; }
+      .k { fill: #FF6B5E; font-weight: 700; font-size: 11px; letter-spacing: 0.14em; }
+      .box { fill: #0B0B0D; fill-opacity: 0.72; stroke: #F6E9CE; stroke-opacity: 0.22; rx: 16; }
+      .inner { fill: #F6E9CE; fill-opacity: 0.04; stroke: #F6E9CE; stroke-opacity: 0.14; rx: 10; }
+      .accent { fill: #C1121F; fill-opacity: 0.16; stroke: #C1121F; stroke-opacity: 0.7; rx: 10; }
+      .line { stroke: #F6E9CE; stroke-opacity: 0.55; stroke-width: 1.6; fill: none; }
+      .dash { stroke: #FF6B5E; stroke-width: 1.6; fill: none; stroke-dasharray: 6 5; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="760" fill="url(#bg)"/>
+  <rect width="1200" height="760" fill="url(#glow)"/>
+
+  <!-- Title -->
+  <text x="40" y="52" fill="#FF6B5E" font-family="'Snell Roundhand', 'Apple Chancery', cursive" font-size="34" font-style="italic">skyline</text>
+  <text x="162" y="52" fill="#F6E9CE" font-size="26" font-weight="800" letter-spacing="0.06em">ARCHITECTURE</text>
+  <text x="40" y="78" class="s">One Railway project · one Node service serves the SPA and the API from a single origin · MySQL for state</text>
+
+  <!-- Clients -->
+  <rect x="40" y="110" width="220" height="250" class="box"/>
+  <text x="62" y="140" class="k">CLIENTS</text>
+  <rect x="58" y="156" width="184" height="54" class="inner"/>
+  <text x="72" y="180" class="t">Visitors</text><text x="72" y="198" class="s">landing · events · shop</text>
+  <rect x="58" y="220" width="184" height="54" class="inner"/>
+  <text x="72" y="244" class="t">Users / members</text><text x="72" y="262" class="s">/me · tickets · orders</text>
+  <rect x="58" y="284" width="184" height="54" class="accent"/>
+  <text x="72" y="308" class="t">Admins</text><text x="72" y="326" class="s">/admin · check-in · finance</text>
+
+  <!-- Railway edge -->
+  <rect x="300" y="110" width="160" height="250" class="box"/>
+  <text x="322" y="140" class="k">RAILWAY EDGE</text>
+  <text x="322" y="176" class="t">HTTPS · TLS</text>
+  <text x="322" y="200" class="t">gzip</text>
+  <text x="322" y="224" class="t">*.up.railway.app</text>
+  <text x="322" y="262" class="s">Old hostname →</text>
+  <text x="322" y="280" class="s">301 to APP_URL</text>
+  <text x="322" y="298" class="s">(except /health,</text>
+  <text x="322" y="316" class="s">/api/webhooks/*)</text>
+
+  <path d="M260 235 H296" class="line" marker-end="url(#arrow)"/>
+
+  <!-- Web service -->
+  <rect x="500" y="110" width="660" height="430" class="box"/>
+  <text x="522" y="140" class="k">RAILWAY SERVICE · web · NODE 22 · EXPRESS · numReplicas 1</text>
+  <path d="M460 235 H496" class="line" marker-end="url(#arrow)"/>
+
+  <!-- SPA -->
+  <rect x="520" y="158" width="300" height="196" class="inner"/>
+  <text x="538" y="184" class="h">REACT SPA</text>
+  <text x="538" y="204" class="s">frontend/dist · Vite 5 · React 18 · Tailwind v4</text>
+  <text x="538" y="232" class="t">/  landing (static content)</text>
+  <text x="538" y="254" class="t">/events · /shop · /announcements</text>
+  <text x="538" y="276" class="t">/login · /register · /me · /tickets/:id</text>
+  <text x="538" y="298" class="t">/admin?tab=… (lazy chunk)</text>
+  <text x="538" y="326" class="s">/assets/* cached 1 year (immutable)</text>
+  <text x="538" y="344" class="s">index.html no-cache · SPA fallback</text>
+
+  <!-- API -->
+  <rect x="840" y="158" width="300" height="196" class="inner"/>
+  <text x="858" y="184" class="h">/api · REST</text>
+  <text x="858" y="204" class="s">JWT auth · zod validation · rate limits</text>
+  <text x="858" y="232" class="t">auth · memberships · events · tickets</text>
+  <text x="858" y="254" class="t">products · orders · announcements</text>
+  <text x="858" y="276" class="t">payments · webhooks · ai</text>
+  <rect x="852" y="288" width="276" height="56" class="accent"/>
+  <text x="866" y="310" class="t">/api/admin/* · requireRole('admin')</text>
+  <text x="866" y="330" class="s">events · members · orders · finance · check-in</text>
+
+  <path d="M820 256 H836" class="line" marker-end="url(#arrow)"/>
+
+  <!-- Runtime row -->
+  <rect x="520" y="372" width="196" height="148" class="inner"/>
+  <text x="538" y="398" class="h">LIVE ORDERS</text>
+  <text x="538" y="422" class="t">SSE stream</text>
+  <text x="538" y="442" class="s">/api/admin/orders/stream</text>
+  <text x="538" y="462" class="s">in-process EventEmitter</text>
+  <text x="538" y="482" class="s">10 s polling fallback</text>
+
+  <rect x="732" y="372" width="196" height="148" class="inner"/>
+  <text x="750" y="398" class="h">PAYMENTS</text>
+  <text x="750" y="422" class="t">settlePayment()</text>
+  <text x="750" y="442" class="s">webhook · demo-confirm</text>
+  <text x="750" y="462" class="s">· admin cash: one path</text>
+  <text x="750" y="482" class="s">15-min seat / stock holds</text>
+
+  <rect x="944" y="372" width="196" height="148" class="inner"/>
+  <text x="962" y="398" class="h">JOBS · node-cron</text>
+  <text x="962" y="422" class="t">expire holds</text>
+  <text x="962" y="442" class="s">renewal reminders</text>
+  <text x="962" y="462" class="s">expire memberships</text>
+  <text x="962" y="482" class="s">low-stock alerts</text>
+
+  <!-- MySQL -->
+  <rect x="500" y="590" width="300" height="130" class="box"/>
+  <text x="522" y="620" class="k">RAILWAY · MySQL</text>
+  <text x="522" y="648" class="t">Knex migrations on every start</text>
+  <text x="522" y="670" class="s">users · members · memberships · events · tickets</text>
+  <text x="522" y="688" class="s">products · orders · payments · append-only ledger</text>
+  <text x="522" y="706" class="s">SQLite locally and in tests</text>
+  <path d="M650 540 V586" class="line" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+
+  <!-- External -->
+  <rect x="840" y="590" width="320" height="130" class="box"/>
+  <text x="862" y="620" class="k">EXTERNAL SERVICES</text>
+  <text x="862" y="648" class="t">Razorpay</text><text x="962" y="648" class="s">checkout + signed webhook</text>
+  <text x="862" y="670" class="t">Resend</text><text x="962" y="670" class="s">email (links from APP_URL)</text>
+  <text x="862" y="692" class="t">Cloudinary</text><text x="962" y="692" class="s">expense receipts</text>
+  <text x="862" y="714" class="t">Anthropic</text><text x="962" y="714" class="s">AI Secretary (admins)</text>
+  <path d="M1000 540 V586" class="dash" marker-end="url(#arrowRed)" marker-start="url(#arrowRed)"/>
+
+  <!-- Legend / quality -->
+  <rect x="40" y="400" width="420" height="320" class="box"/>
+  <text x="62" y="430" class="k">ROLES &amp; RULES</text>
+  <text x="62" y="458" class="t">admin · user (membership is a status)</text>
+  <text x="62" y="480" class="s">Event registration needs an active membership</text>
+  <text x="62" y="498" class="s">→ 403 MEMBERSHIP_REQUIRED opens the membership card</text>
+  <text x="62" y="520" class="s">Finance (summary, ledger, expenses) is admin-only</text>
+  <text x="62" y="538" class="s">Ticket QR = signed token, checked in once at the door</text>
+  <text x="62" y="574" class="k">QUALITY GATES</text>
+  <text x="62" y="602" class="t">vitest + supertest</text><text x="230" y="602" class="s">API flows, roles, money</text>
+  <text x="62" y="624" class="t">Playwright</text><text x="230" y="624" class="s">360 · 390 · 768 · 1280 px</text>
+  <text x="62" y="646" class="t">Mobile-first</text><text x="230" y="646" class="s">no sideways scroll at 320 px</text>
+  <text x="62" y="668" class="t">Accessibility</text><text x="230" y="668" class="s">44 px targets, AA contrast</text>
+  <text x="62" y="690" class="t">Deploy</text><text x="230" y="690" class="s">railway up · health /health</text>
+
+  <!-- Legend for line styles -->
+  <path d="M500 742 H540" class="line"/><text x="548" y="746" class="s">internal</text>
+  <path d="M620 742 H660" class="dash"/><text x="668" y="746" class="s">third-party over HTTPS</text>
+</svg>

@@ -1,150 +1,289 @@
-# Skyline Student Association — Website
+<div align="center">
 
-The website and club app for the Skyline Student Association (SSA), a student club. Live at **https://web-production-2ba70.up.railway.app** (moving to `https://skyline-student-association.up.railway.app`; see [Domain](#domain)).
+<img src="frontend/public/brand/logo-192.png" alt="Skyline Student Association logo" width="112" height="112" />
 
-- **Landing page:** upcoming events, past events, merch, the club story, a photo gallery and a join form.
-- **Behind it:** a Node/Express + MySQL API for memberships, event registration, merch orders, announcements and the club's finances (admin-only).
+# Skyline Student Association
 
-> **Status: all four phases are done.**
-> - **Phase 1:** the API, with two roles, members-only registration, and orders with a live admin feed. See [`docs/api.md`](docs/api.md).
-> - **Phase 2:** the frontend runs on that API, with standalone auth, role-based landing, the membership gate and the tabbed admin dashboard.
-> - **Phase 3:** one UI. Every page uses the landing page's palette, type, glass surfaces, motion and cursor. See [`docs/design.md`](docs/design.md); before/after screenshots are in [`docs/screenshots/`](docs/screenshots/).
-> - **Phase 4:** mobile. Every page works from 320px phones to desktop: a hamburger sheet, a sticky admin tab strip, card-mode tables, bottom sheets, sticky action bars and touch-first landing sections. Checked by Playwright at four viewports (below); see the Responsive section of [`docs/design.md`](docs/design.md). The same release added `APP_URL` (one public origin for email links, with a 301 from old hostnames), Open Graph tags and year-long caching of built assets.
-> - **Since then:** finance is admin-only. Members and visitors no longer see a Finance link, `/finance` redirects (admins to Admin → Finance), and the finance summary API and the AI Secretary's finance tool need an admin.
+**Many students, one horizon.** The club's website and operations platform: events and members-only ticketing, memberships, merch, announcements, door check-in and the club's books, in one mobile-first app.
 
-## Roles
+<br />
 
-| Role | Can do |
+[![Live demo](https://img.shields.io/badge/LIVE_DEMO-web--production--2ba70.up.railway.app-C1121F?style=for-the-badge&logo=railway&logoColor=F6E9CE&labelColor=0B0B0D)](https://web-production-2ba70.up.railway.app)
+[![Deployed on Railway](https://img.shields.io/badge/DEPLOYED_ON-RAILWAY-0B0B0D?style=for-the-badge&logo=railway&logoColor=white)](https://railway.com)
+[![Status](https://img.shields.io/badge/STATUS-ALL_4_PHASES_SHIPPED-8FD0A4?style=for-the-badge&labelColor=0B0B0D)](#roadmap)
+
+[![React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Vite](https://img.shields.io/badge/Vite_5-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Framer Motion](https://img.shields.io/badge/Framer_Motion-0055FF?style=for-the-badge&logo=framer&logoColor=white)](https://www.framer.com/motion/)
+
+[![Node.js](https://img.shields.io/badge/Node_22-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com)
+[![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com)
+[![Razorpay](https://img.shields.io/badge/Razorpay-0C2451?style=for-the-badge&logo=razorpay&logoColor=white)](https://razorpay.com)
+
+[![API tests](https://img.shields.io/badge/API_TESTS-91_PASSING-8FD0A4?style=for-the-badge&logo=vitest&logoColor=white&labelColor=0B0B0D)](#testing)
+[![Playwright](https://img.shields.io/badge/PLAYWRIGHT-44%2F44_VIEWPORT_CHECKS-2EAD33?style=for-the-badge&logo=playwright&logoColor=white&labelColor=0B0B0D)](#testing)
+[![Mobile first](https://img.shields.io/badge/MOBILE_FIRST-320px_→_DESKTOP-F6E9CE?style=for-the-badge&labelColor=0B0B0D)](docs/design.md#responsive-phase-4)
+[![Accessibility](https://img.shields.io/badge/LIGHTHOUSE_A11Y-100-F6E9CE?style=for-the-badge&logo=lighthouse&logoColor=white&labelColor=0B0B0D)](#quality)
+
+<br />
+
+[**Live site**](https://web-production-2ba70.up.railway.app) · [Architecture](#architecture) · [Getting started](#getting-started) · [Deployment](#deployment) · [API reference](docs/api.md) · [Design system](docs/design.md)
+
+</div>
+
+---
+
+## Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Tech stack](#tech-stack)
+- [Getting started](#getting-started)
+- [Testing](#testing)
+- [Project structure](#project-structure)
+- [Configuration](#configuration)
+- [Deployment](#deployment)
+- [Design system](#design-system)
+- [Quality](#quality)
+- [Roadmap](#roadmap)
+- [Documentation](#documentation)
+
+## Overview
+
+SSA runs on a single deployable unit: an **Express** service that serves both the **React** single-page app and a REST **API** from one origin (no CORS, one domain, one deploy), backed by **MySQL**. There are two roles, `admin` and `user`; **membership is a status, not a role**, and it gates event registration. Payments settle through one server-side path whether they come from Razorpay's webhook, the demo checkout or an admin recording cash.
+
+## Features
+
+| For students and members | For admins |
 |---|---|
-| **Admin** | Runs everything: events, registrations and check-in, members and cash dues, merch and stock, orders, announcements, the club's finances (summary, ledger, expenses), fundraisers and the AI Secretary |
-| **User** | Any registered student: browse events, the shop and news, buy a membership, register for events **while a member**, order merch, see their own membership, tickets and orders. No access to finances |
+| Landing page: upcoming and past events, merch, the club story, gallery, join form | Tabbed dashboard at `/admin`: overview, events, check-in, members, orders, products, announcements, finance |
+| Standalone login and register, with role-based landing (`/me` or `/admin`) | **Live orders** over Server-Sent Events, with a polling fallback |
+| Buy a membership in one bottom sheet (Razorpay or demo pay) | Door **check-in scanner**: rear camera, ✓/✗ banner with vibration, live attendance count |
+| Members-only **event registration** with QR tickets (wake lock on the ticket screen) | Members directory with **cash dues** that add or extend a membership |
+| **Merch shop** with live stock, size chips, member pricing and a cart sheet | Products and stock per size; events with capacity, pricing and reports |
+| Account page: membership QR, tickets and order status | **Finance (admin-only):** summary, append-only ledger with CSV export and reversals, expense review |
+| Fully usable on phones from 320 px | AI Secretary that answers from live data; actions need explicit confirmation |
 
-Membership is a status, not a role. A non-member who tries to register for an event gets `403 MEMBERSHIP_REQUIRED`, with the price and benefits for the membership card; once they pay, they can register.
+## Architecture
 
-## Demo logins
+<p align="center">
+  <img src="docs/architecture.svg" alt="Architecture: browsers reach one Railway web service (Express serving the React SPA and the /api) backed by Railway MySQL, with Razorpay, Resend, Cloudinary and Anthropic as external services" width="100%" />
+</p>
 
-Created by the demo seed (`database/seeds/001_demo.ts`).
+**Key decisions**
+
+- **One origin.** Express serves `frontend/dist` and `/api/*`; the SPA calls `/api` relative, so no CORS and no API URL to configure.
+- **Two roles, membership as a status.** Admin routes live under `/api/admin/*` behind a single `requireRole('admin')`. A non-member who tries to register gets `403 MEMBERSHIP_REQUIRED` with the offer, and the UI resumes the registration after they pay.
+- **One payment path.** `settlePayment()` is shared by the Razorpay webhook, `POST /payments/demo-confirm/:id` and admin cash, so tickets, orders and memberships confirm the same way. Seats and stock are held for 15 minutes.
+- **Append-only money.** Every rupee is a ledger row; mistakes are fixed with reversing entries, never edits.
+- **In-process realtime and jobs.** The orders SSE feed and `node-cron` jobs run in the web process, so the service stays at `numReplicas: 1`. Scaling out would need Redis pub/sub and a job lock.
+- **One public hostname.** `APP_URL` builds every absolute link the API writes, and production 301s any other hostname to it (health checks and webhooks excepted).
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, TypeScript, Vite 5, Tailwind CSS v4, TanStack Query, React Router 6, framer-motion, Lenis, vite-imagetools (AVIF/WebP/JPEG) |
+| Backend | Node 22, Express, TypeScript, Knex, zod, JWT + bcrypt, helmet, express-rate-limit, pino, node-cron |
+| Data | MySQL on Railway; SQLite for local development and tests |
+| Integrations | Razorpay (payments), Resend (email), Cloudinary (receipts), Anthropic (AI Secretary) |
+| Testing | vitest + supertest (API), Playwright (responsive viewport checks) |
+| Hosting | Railway: one `web` service and one MySQL service |
+
+## Getting started
+
+**Prerequisites:** Node 22 and npm. Google Chrome for the Playwright checks.
+
+```bash
+# 1. Install
+npm --prefix backend install && npm --prefix frontend install
+
+# 2. Configure (leave DATABASE_URL empty to use SQLite at backend/dev.sqlite)
+cp backend/.env.example backend/.env
+
+# 3. Create the schema and the demo data
+npm --prefix backend run migrate && npm --prefix backend run seed
+
+# 4. Run (two terminals)
+npm run dev:backend    # API  → http://localhost:3000/api
+npm run dev:frontend   # Site → http://localhost:5173 (proxies /api)
+```
+
+Set `DEMO_PAYMENTS=true` in `backend/.env` to complete checkouts without Razorpay.
+
+### Demo accounts
+
+Created by the demo seed (`database/seeds/001_demo.ts`):
 
 | Role | Email | Password | State |
 |---|---|---|---|
 | Admin | `admin@skyline.edu` | `Admin@123` | Full control |
-| User (member) | `member@skyline.edu` | `Member@123` | Active membership until the end of the academic year (30 June); registered for CodeStorm 2026 and the Spring Gala; three orders (fulfilled, paid, pending) |
-| User (non-member) | `student@skyline.edu` | `Student@123` | No membership; has a student ID, so they can buy one |
+| User (member) | `member@skyline.edu` | `Member@123` | Active until 30 June; registered for CodeStorm 2026 and the Spring Gala; three orders (fulfilled, paid, pending) |
+| User (non-member) | `student@skyline.edu` | `Student@123` | No membership yet; has a student ID, so can buy one |
 
-The seed also adds:
-- four upcoming events (CodeStorm 2026, Tech Trivia, Rhythm Unplugged, Spring Gala), with 1 of 2 Spring Gala seats left (on the live site an admin has since raised the Gala to 200 seats; a reseed puts it back to 2);
-- one past event;
-- the four merch products, with sizes, prices, member prices and stock.
+The seed also adds four upcoming events (CodeStorm 2026, Tech Trivia, Rhythm Unplugged and the Spring Gala with 1 of 2 seats left; the live site's Gala has since been raised to 200 seats), one past event and four merch products with sizes and stock.
 
-**These passwords are public. Change them, or delete the accounts, before real use.** The seed wipes the database, and in production it refuses to run unless `ALLOW_DEMO_SEED=true`.
+> [!WARNING]
+> These passwords are public. Change them or delete the accounts before real use. The seed **wipes the database**; in production it refuses to run unless `ALLOW_DEMO_SEED=true`, and skips a non-empty database unless `SEED_FORCE=true`.
 
-## What's on the landing page
+## Testing
 
-| Section | Content | Where it comes from |
+```bash
+npm test                                   # API: 91 tests on an in-memory database
+```
+
+**Responsive checks** load every key page at **360, 390, 768 and 1280 px**. Each check fails on any horizontal scroll or a key control under 44 px, and writes a full-page screenshot to `frontend/tests/screenshots/` (git-ignored). They use your installed Chrome, so nothing is downloaded:
+
+```bash
+npm run build && DEMO_PAYMENTS=true ALLOW_DEMO_SEED=true PORT=8099 npm start   # terminal 1
+npm --prefix frontend run test:responsive                                      # terminal 2
+```
+
+## Project structure
+
+```text
+.
+├── backend/
+│   ├── src/
+│   │   ├── app.ts               # Express app: security headers, /api router, SPA + asset caching
+│   │   ├── config/              # env (zod-validated), db, knexfile
+│   │   ├── middleware/          # auth (JWT, roles), canonicalHost (301), validation, errors
+│   │   ├── modules/             # admin · ai · announcements · auth · events · finance
+│   │   │                        # fundraisers · memberships · merchandise · payments
+│   │   ├── jobs/                # node-cron: holds, reminders, expiry, low stock
+│   │   └── lib/                 # email, QR signing, storage, dates, logging
+│   └── test/                    # vitest + supertest suites
+├── database/
+│   ├── migrations/              # Knex migrations (run on every start)
+│   └── seeds/001_demo.ts        # demo data
+├── frontend/
+│   ├── src/
+│   │   ├── pages/               # public · member · admin
+│   │   ├── components/          # shared UI (DataTable, Modal, Button…) and landing/
+│   │   ├── data/                # landing copy, background config
+│   │   └── index.css            # design tokens and component styles
+│   ├── public/                  # brand, fonts, media, og-image
+│   └── tests/                   # Playwright responsive checks
+├── docs/                        # api.md · design.md · architecture.md · architecture.svg
+├── package.json                 # root build/start used by Railway
+└── railway.json                 # build, start, health check
+```
+
+## Configuration
+
+Backend settings come from `backend/.env` locally and from Railway variables in production (see `backend/.env.example`).
+
+| Variable | Required | Purpose |
 |---|---|---|
-| Hero | *skyline* STUDENT ASSOCIATION, tagline, two calls to action | `frontend/src/data/landing.ts` |
-| Upcoming events | CodeStorm 2026, Tech Trivia, Rhythm Unplugged, Lenscape, InnovateX: date, category, description, venue, duration, team size | `landing.ts` (typographic cards, no photos until the events happen) |
-| Past events | Six events with photo, date, hall and description (1 column on phones, a bento grid from 1024px) | `landing.ts` + `frontend/public/media/past/` |
-| Merch | T-shirt ₹499, Bag ₹299, Water bottle ₹399, Stickers ₹99: a cursor-follow preview with a mouse, cards with inline video on touch | `landing.ts` + `frontend/public/media/merch/` |
-| About | What the club does, three feature tiles, stat counters | `landing.ts` |
-| Gallery | Twelve event photos in a two-row marquee with a lightbox | `landing.ts` + `frontend/public/media/gallery/` |
-| Join | Name, email and student ID, handed to `/register` | `JoinCTA.tsx` |
+| `DATABASE_URL` | prod | MySQL connection; `${{MySQL.MYSQL_URL}}` on Railway. Empty locally to use SQLite |
+| `NODE_ENV` | prod | `production` on Railway |
+| `APP_URL` | **prod** | Public origin, no trailing slash, e.g. `https://web-production-2ba70.up.railway.app`. Email links are built from it and other hostnames get a 301 to it. **The app won't start without it** |
+| `VITE_APP_URL` | build | Same value. Fills the canonical and Open Graph URLs in `index.html` at build time |
+| `JWT_SECRET` / `QR_SECRET` | **prod** | Random, 32+ and 16+ characters, different from each other |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `PAYMENT_WEBHOOK_SECRET` | for payments | From the Razorpay dashboard |
+| `DEMO_PAYMENTS` | no | `true` allows demo checkout while no Razorpay keys are set. Never on a site taking real money |
+| `ALLOW_DEMO_SEED` / `SEED_FORCE` | no | Seed on boot / wipe and reseed a non-empty database for one boot |
+| `RESEND_API_KEY`, `EMAIL_FROM` | no | Outgoing email; without a key, emails are logged instead |
+| `CLOUDINARY_URL` | no | Receipt storage; without it receipts are stored inline |
+| `LLM_API_KEY` | no | AI Secretary model access |
+| `APP_TIMEZONE` | no | Club calendar for expiry and jobs; default `Asia/Kolkata` |
 
-The landing page is static. The event and merch data behind the app pages come from the API.
+Railway injects `PORT`; don't set it.
 
-All copy, prices, dates and photo paths live in `frontend/src/data/landing.ts`. To replace a photo, overwrite the file with the same name; sources and sizes are listed in `frontend/public/media/README.md`.
+## Deployment
 
-## Design
-
-- **One UI everywhere:** the landing page, login, `/me`, the shop and the admin dashboard share one set of tokens (`frontend/src/index.css`, mirrored in `lib/palette.ts`).
-- **Colours:**
-  - midnight `#0B0B0D` base;
-  - cream `#F6E9CE` for all text;
-  - crimson `#C1121F` for fills, focus rings and active states, never text;
-  - flame `#FF6B5E` for red text and the script accents;
-  - toned green, amber and red for status only.
-- **Type:** Open Sauce Sans, self-hosted, for everything: uppercase for headings and UI, sentence case for reading text. Every page header pairs a lowercase script word with an uppercase title (*your* ACCOUNT). Pinyon Script stands in for Rumble Brave; see `frontend/src/styles/fonts.css` to switch.
-- **Backgrounds:** one photographic background per section, crossfading as you scroll, with a vignette, a heat glow and rising embers. Config is in `frontend/src/data/backgrounds.ts`, sources in `frontend/design/backgrounds-source/`, and they're rebuilt with `npm --prefix frontend run bg:prepare`.
-- **Motion:** framer-motion and Lenis smooth scroll, plus a custom "student" cursor on desktop. Phones get lighter motion and native scrolling. Everything respects `prefers-reduced-motion`.
-- **Mobile:** every page is built mobile-first from 320px: a hamburger menu, bottom sheets, card-mode tables and sticky action bars (see the Responsive section of `docs/design.md`).
-- **Logo:** `frontend/public/brand/` (original in `frontend/design/logo-source.png`).
-
-Details and rationale: [`docs/design.md`](docs/design.md).
-
-## Tech
-
-**Frontend:** React 18 · Vite 5 · TypeScript · Tailwind CSS v4 · TanStack Query · React Router 6 · framer-motion · Lenis · vite-imagetools (responsive AVIF/WebP/JPEG at build time) · Playwright (responsive checks).
-
-**Backend:** Node 22 · Express · TypeScript · Knex · MySQL (SQLite locally and in tests) · JWT + bcrypt · Razorpay, or demo payments · Resend email · vitest + supertest.
-
-In production, Express serves the API and the built frontend from one origin.
-
-## Run locally
-
-```bash
-npm --prefix backend install && npm --prefix frontend install
-cp backend/.env.example backend/.env     # leave DATABASE_URL empty to use SQLite at backend/dev.sqlite
-npm --prefix backend run migrate && npm --prefix backend run seed
-npm run dev:backend                      # API  → http://localhost:3000/api
-npm run dev:frontend                     # Site → http://localhost:5173 (proxies /api)
-```
-
-Set `DEMO_PAYMENTS=true` in `backend/.env` to complete payments without Razorpay.
-
-Tests use an in-memory database:
-
-```bash
-npm test
-```
-
-Responsive checks (Playwright, using your installed Chrome): with the demo app running on port 8099
-(`npm run build`, then `DEMO_PAYMENTS=true ALLOW_DEMO_SEED=true PORT=8099 npm start`), run
-`npm --prefix frontend run test:responsive`. It loads every key page at 360, 390, 768 and 1280px wide, fails on any
-horizontal scroll or a key control under 44px, and writes full-page screenshots to `frontend/tests/screenshots/`
-(git-ignored). `npm --prefix frontend run media:prepare` rebuilds the 480px phone copies of the landing photos.
-
-## Deploy (Railway)
-
-One project with two services: **MySQL** and **web** (this repo).
-- `railway.json` sets the build (`npm run build`) and start (`npm start`), with a health check at `/health`.
-- Start runs the migrations, then the demo seed if enabled, then serves the API and the frontend.
+Railway project with two services, **web** (this repo) and **MySQL**. `railway.json` runs the root `npm run build` and `npm start`: migrations, the demo seed if enabled, then the server. The health check is `/health`.
 
 ```bash
 railway up --service web
 ```
 
-Web service variables:
+Hashed bundles under `/assets/` are cached for a year (`immutable`); `index.html` is `no-cache`, so a deploy is picked up on the next page load. GitHub isn't connected to the Railway project, so pushing doesn't deploy.
 
-| Variable | Value |
+### Moving to the new domain
+
+Target: **`https://skyline-student-association.up.railway.app`**, or `skyline-ssa` if that name is taken. The same steps apply to a custom domain such as `skylinessa.in`. Follow this order so the site stays up:
+
+1. **Rename.** Railway → `web` → Settings → Networking → Public Networking → edit the generated domain to `skyline-student-association`. For a custom domain, choose **+ Custom Domain**, add the CNAME at the registrar and wait for the certificate.
+2. **Point the app at it and redeploy:**
+   ```bash
+   railway variables --service web --set "APP_URL=https://skyline-student-association.up.railway.app" --set "VITE_APP_URL=https://skyline-student-association.up.railway.app" --skip-deploys && railway up --service web
+   ```
+3. **Update external services.** Set the Razorpay webhook to `https://skyline-student-association.up.railway.app/api/webhooks/payment`. Update Resend's sender domain and `EMAIL_FROM` (custom domain only), Cloudinary's allowed referrers (if restricted), and the repo's Website field.
+4. **Verify.**
+   - The site loads over HTTPS.
+   - The old URL returns 301 with the path kept. If Railway dropped the old name on rename, it won't answer at all.
+   - `/api/health` returns 200 on both domains.
+   - Emails link to the new domain.
+   - A Razorpay test webhook arrives.
+   - A link-preview debugger shows the right title and image.
+
+`/health`, `/api/health` and `/api/webhooks/*` answer on any hostname, so health checks and in-flight webhooks survive the switch.
+
+## Design system
+
+One UI across every page: the landing page, auth, `/me`, the shop and the admin dashboard share a single token set (`frontend/src/index.css`, mirrored in `lib/palette.ts`).
+
+| Token | Value | Use |
+|---|---|---|
+| Midnight | `#0B0B0D` | Base background |
+| Cream | `#F6E9CE` | All text (70% / 60% for secondary and tertiary) |
+| Crimson | `#C1121F` | Fills, focus rings, active states. Never used for text |
+| Flame | `#FF6B5E` | Red text and the script accent words |
+
+- **Type:** Open Sauce Sans, self-hosted. Headings and UI are uppercase; every page header pairs a lowercase script word with an uppercase title, e.g. *your* ACCOUNT.
+- **Surfaces:** glass panels over photographic, crossfading section backgrounds with embers and a heat glow.
+- **Motion:** framer-motion and Lenis on desktop. Phones get lighter motion and native scrolling. Everything respects `prefers-reduced-motion`.
+- **Mobile:** a hamburger sheet, a sticky admin tab strip, card-mode tables, bottom-sheet dialogs and sticky action bars.
+
+Full rationale, contrast figures and the responsive rules: [`docs/design.md`](docs/design.md).
+
+## Quality
+
+| Area | How it's held |
 |---|---|
-| `DATABASE_URL` | `${{MySQL.MYSQL_URL}}` |
-| `NODE_ENV` | `production` |
-| `APP_URL` | The public origin, no trailing slash; today `https://web-production-2ba70.up.railway.app`. **Required**: the app won't start without it. Email links are built from it, and any other hostname gets a 301 to it |
-| `VITE_APP_URL` | Same value as `APP_URL`. Read at build time for the canonical and Open Graph URLs in `index.html`, so redeploy after changing it |
-| `JWT_SECRET` / `QR_SECRET` | Random, 32+ and 16+ characters, and different from each other. The app refuses to start without them |
-| `DEMO_PAYMENTS` | `true` to take demo payments while no Razorpay keys are set. Leave it unset once real payments are on |
-| `ALLOW_DEMO_SEED` | `true` to seed the demo data on boot |
-| `SEED_FORCE` | `true` for **one** boot to wipe an existing database and reseed it, then remove it |
-| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `PAYMENT_WEBHOOK_SECRET` | From Razorpay, when ready |
-| `APP_TIMEZONE` | Optional, default `Asia/Kolkata` |
-| `RESEND_API_KEY`, `CLOUDINARY_URL` | Optional |
+| Correctness | 91 API tests: roles, membership gate, payments, holds, ledger, domain redirect |
+| Responsive | Playwright at 4 viewports; no horizontal scroll down to 320 px (WCAG reflow) |
+| Accessibility | 44 px touch targets, AA contrast on every background, focus traps in sheets, announced form errors. Lighthouse accessibility 100 |
+| Performance | Admin, scanner and charts are split into separate chunks; public pages load about 160 KB of gzipped JS. Phone image sizes, lazy media, immutable asset caching. CLS 0 |
+| Security | helmet, rate limits on auth and purchases, zod validation, signed QR tokens and webhooks, admin-only finance |
 
-Railway injects `PORT`; don't set it. Keep `numReplicas` at 1: the cron jobs and the live orders feed run in-process.
+## Roadmap
 
-Express caches the hashed bundles under `/assets/` for a year (`immutable`) and serves `index.html` with `no-cache`, so a deploy shows up on the next page load.
+<details>
+<summary><b>Phase 1–4: shipped</b></summary>
 
-### Domain
+| Phase | Delivered |
+|---|---|
+| **1 · API** | Two roles, members-only registration, orders API with a live admin feed, demo seed, test suite. See [`docs/api.md`](docs/api.md) |
+| **2 · Frontend** | Standalone auth, role-based landing, the membership gate, the tabbed admin dashboard with live orders |
+| **3 · One UI** | The landing page's palette, type, glass, motion and cursor on every page. Before/after shots in [`docs/screenshots/`](docs/screenshots/) |
+| **4 · Mobile** | Every page from 320 px to desktop, Playwright viewport checks, `APP_URL` and the domain redirect, Open Graph tags, asset caching |
+| **Since** | Finance is admin-only: hidden from members and visitors, `/finance` redirects, and the summary API and AI tool require an admin |
 
-The site is moving to **https://skyline-student-association.up.railway.app** (or `https://skyline-ssa.up.railway.app` if that name is taken). Do it in this order so the site stays up:
+</details>
 
-1. Railway → `web` → Settings → Networking → Public Networking: edit the generated domain to `skyline-student-association`. For a custom domain (e.g. `skylinessa.in`) choose **+ Custom Domain**, add the CNAME it shows at your registrar and wait for the certificate.
-2. Point both variables at the new origin, then redeploy:
-   `railway variables --service web --set "APP_URL=https://skyline-student-association.up.railway.app" --set "VITE_APP_URL=https://skyline-student-association.up.railway.app" --skip-deploys && railway up --service web`
-3. Update the outside services: the Razorpay webhook (`https://skyline-student-association.up.railway.app/api/webhooks/payment`), Resend's sender domain and `EMAIL_FROM` (custom domain only), Cloudinary allowed referrers (if restricted), and the GitHub repo's Website field.
-4. Check: the new URL loads over HTTPS; the old URL answers 301 with the path kept (if Railway dropped the old name on rename, it won't answer at all); `/api/health` is 200 on both; a test announcement and a ticket email link to the new domain; a Razorpay test webhook arrives; a link-preview debugger shows the right title and image.
+**Next up**
+- [ ] Move to `skyline-student-association.up.railway.app` ([steps](#moving-to-the-new-domain))
+- [ ] Turn on Razorpay live keys and switch off `DEMO_PAYMENTS`
+- [ ] Rotate or remove the public demo accounts
+- [ ] Prerender the landing and login shells to bring cold-load LCP under 3 s
 
-`/health`, `/api/health` and `/api/webhooks/*` answer on any hostname, so health checks and in-flight payment webhooks keep working during the switch.
+## Documentation
 
-## API
+| Document | What's in it |
+|---|---|
+| [`docs/api.md`](docs/api.md) | Every route with its role and purpose, error codes, the checkout flow, environment, migrations and later changes |
+| [`docs/design.md`](docs/design.md) | Design tokens, type, surfaces, motion and the responsive system |
+| [`docs/architecture.md`](docs/architecture.md) | The original product specification (data model and money rules still apply; its four roles are superseded) |
+| [`docs/architecture.svg`](docs/architecture.svg) | The system diagram above |
+| [`frontend/public/media/README.md`](frontend/public/media/README.md) | Landing photos and videos: sizes, sources and how to replace them |
 
-[`docs/api.md`](docs/api.md) lists every route, with its role, purpose and how it changed in Phase 1, plus the later changes (domain handling, admin-only finance). It also covers the error codes, the checkout flow and the database migration. [`docs/architecture.md`](docs/architecture.md) is the original product specification; its four-role model is superseded by the two roles above.
+<div align="center">
+<br />
+<sub>Built for the Skyline Student Association · Beyond the Bell.</sub>
+</div>
