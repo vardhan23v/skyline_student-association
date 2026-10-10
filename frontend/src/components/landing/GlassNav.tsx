@@ -13,7 +13,6 @@ const appLinks = [
   { to: '/events', label: 'Events' },
   { to: '/shop', label: 'Shop' },
   { to: '/announcements', label: 'News' },
-  { to: '/finance', label: 'Finance' },
 ];
 
 /** Signed in: avatar button with Dashboard (admin) or My account (user), and Log out. */

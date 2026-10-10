@@ -14,8 +14,6 @@ import { TicketPage } from './pages/member/TicketPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { HomePage } from './pages/HomePage';
 
-// Charts are heavy; load the public finance summary on demand (see vite.config manualChunks).
-const FinancePublicPage = lazy(() => import('./pages/public/FinancePublicPage').then((m) => ({ default: m.FinancePublicPage })));
 // The admin dashboard (and the scanner and charts inside it) is its own chunk: public pages on a phone never fetch it.
 const AdminHome = lazy(() => import('./pages/admin/AdminHome').then((m) => ({ default: m.AdminHome })));
 const Fallback = () => <div className="card"><Skeleton rows={6} /></div>;
@@ -25,6 +23,13 @@ function DashboardRedirect() {
   const { me, loading } = useAuth();
   if (loading) return <Fallback />;
   return <Navigate to={!me ? '/login?next=%2Fdashboard' : me.user.role === 'admin' ? '/admin' : '/me'} replace />;
+}
+
+/** Finance is admin-only: /finance opens the admin Finance tab for admins; everyone else goes to their own page. */
+function FinanceRedirect() {
+  const { me, loading } = useAuth();
+  if (loading) return <Fallback />;
+  return <Navigate to={me?.user.role === 'admin' ? '/admin?tab=finance' : me ? '/me' : '/'} replace />;
 }
 
 /** Old admin URLs (/admin/events, /admin/members, …) open the matching tab. */
@@ -47,7 +52,7 @@ export function App() {
         <Route path="/events/:id" element={<EventDetailPage />} />
         <Route path="/announcements" element={<AnnouncementsPage />} />
         <Route path="/shop" element={<ShopPage />} />
-        <Route path="/finance" element={<Suspense fallback={<Fallback />}><FinancePublicPage /></Suspense>} />
+        <Route path="/finance" element={<FinanceRedirect />} />
 
         <Route element={<RequireRole roles={['user']} />}>
           <Route path="/me" element={<MemberDashboard />} />

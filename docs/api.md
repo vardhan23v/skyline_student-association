@@ -97,7 +97,7 @@ Unpaid holds (a ticket seat, reserved stock) expire after `PENDING_HOLD_MINUTES`
 | GET | `/api/orders/:id` | owner or admin | One order with items | changed (item shape, `payment_status`) |
 | GET | `/api/orders` | n/a | Old list | **removed** (use `/orders/mine` or `/admin/orders`) |
 | PATCH | `/api/orders/:id/fulfil` | n/a | Old fulfil | **removed** (use `PATCH /admin/orders/:id`) |
-| GET | `/api/finance/summary` | user | Balance and totals for transparency | unchanged |
+| GET | `/api/finance/summary` | admin | Balance and totals (admin Finance tab) | admin-only (was any signed-in user) |
 | GET | `/api/fundraisers`, `/api/fundraisers/:id` | user | Progress from the ledger | unchanged |
 | GET | `/api/expenses/:id/receipt` | signed link | Receipt file behind the HMAC link in admin expense rows | unchanged |
 | POST | `/api/webhooks/payment` | Razorpay (HMAC) | Settles payments, idempotent | changed (shared settle path; contract unchanged) |

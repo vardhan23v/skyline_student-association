@@ -83,9 +83,9 @@ describe('ledger & summary', () => {
   });
 
   it('period filters and month grouping work on SQLite; totals are rounded to paise', async () => {
-    const all = (await request(app).get('/api/finance/summary').set(auth('member'))).body;
+    const all = (await request(app).get('/api/finance/summary').set(auth('admin'))).body;
     expect(all.total_in).toBe(0.3);
-    const jan = (await request(app).get('/api/finance/summary?from=2026-01-01&to=2026-01-31').set(auth('member'))).body;
+    const jan = (await request(app).get('/api/finance/summary?from=2026-01-01&to=2026-01-31').set(auth('admin'))).body;
     expect(jan.total_in).toBe(0.1);
     expect(all.by_month.map((m: any) => m.month)).toEqual(expect.arrayContaining(['2026-01', '2026-02']));
     expect((await request(app).get('/api/admin/finance/ledger?from=2026-02-01&to=2026-02-28').set(auth('admin'))).body).toHaveLength(1);

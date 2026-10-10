@@ -36,8 +36,10 @@ describe('auth & roles', () => {
     expect((await request(app).get('/api/admin/finance/ledger').set(auth('member'))).status).toBe(403);
     expect((await request(app).get('/api/admin/finance/ledger').set(auth('admin'))).status).toBe(200);
   });
-  it('member can read finance summary (transparency)', async () => {
-    const r = await request(app).get('/api/finance/summary').set(auth('member'));
+  it('finance summary is admin-only', async () => {
+    expect((await request(app).get('/api/finance/summary')).status).toBe(401);
+    expect((await request(app).get('/api/finance/summary').set(auth('member'))).status).toBe(403);
+    const r = await request(app).get('/api/finance/summary').set(auth('admin'));
     expect(r.status).toBe(200); expect(r.body.balance).toBe(0);
   });
 });
@@ -108,7 +110,7 @@ describe('finance', () => {
     expect((await request(app).patch(`/api/admin/expenses/${expenseId}/review`).set(auth('admin2')).send({ decision: 'approved' })).status).toBe(403); // own expense
     expect((await request(app).patch(`/api/admin/expenses/${expenseId}/review`).set(auth('admin')).send({ decision: 'approved' })).body.status).toBe('approved');
     expect((await request(app).patch(`/api/admin/expenses/${expenseId}/pay`).set(auth('admin'))).body.status).toBe('paid');
-    const s = await request(app).get('/api/finance/summary').set(auth('member'));
+    const s = await request(app).get('/api/finance/summary').set(auth('admin'));
     // dues 500 + guest dues 2×500 + gala ticket 300
     expect(s.body.total_in).toBe(1800); expect(s.body.total_out).toBe(450); expect(s.body.balance).toBe(1350);
   });
@@ -123,7 +125,7 @@ describe('finance', () => {
     expect(csv.headers['content-type']).toMatch(/csv/); expect(csv.text.split('\n').length).toBeGreaterThan(2);
     const [entry] = await getDb()('ledger_entries').where({ direction: 'out' });
     expect((await request(app).post(`/api/admin/finance/ledger/${entry.id}/reverse`).set(auth('admin')).send({ memo: 'entered twice' })).status).toBe(201);
-    expect((await request(app).get('/api/finance/summary').set(auth('member'))).body.balance).toBe(1800);
+    expect((await request(app).get('/api/finance/summary').set(auth('admin'))).body.balance).toBe(1800);
   });
 });
 

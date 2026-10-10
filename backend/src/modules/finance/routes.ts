@@ -1,6 +1,6 @@
 import { Router, raw } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../../middleware/auth';
+import { requireAuth, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../middleware/errorHandler';
 import { badRequest } from '../../lib/errors';
@@ -67,7 +67,8 @@ adminExpensesRouter.patch('/:id/pay', validate({ params: idParam }), asyncHandle
 }));
 
 const periodQuery = z.object({ from: z.string().date().optional(), to: z.string().date().optional() });
-financeRouter.get('/summary', requireAuth, validate({ query: periodQuery }), asyncHandler(async (req, res) => {
+// Admins only: club finances are managed and viewed from the admin dashboard, not shown to members.
+financeRouter.get('/summary', requireAuth, requireRole('admin'), validate({ query: periodQuery }), asyncHandler(async (req, res) => {
   res.json(await svc.summary(req.query as any));
 }));
 adminFinanceRouter.get('/ledger', validate({ query: periodQuery.extend({ category: z.string().optional(), format: z.enum(['json', 'csv']).optional(), limit: z.coerce.number().int().min(1).max(5000).optional(), offset: z.coerce.number().int().min(0).optional() }) }), asyncHandler(async (req, res) => {
