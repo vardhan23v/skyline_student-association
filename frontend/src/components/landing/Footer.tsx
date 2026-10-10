@@ -10,7 +10,7 @@ export function Footer() {
     <footer data-theme="dark" className="border-t border-cream/20 bg-midnight px-4 py-14 text-cream/70 sm:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-10 md:flex-row md:items-center md:justify-between">
         <a href="#top" onClick={(e) => { e.preventDefault(); scrollToSection('top'); }} className="flex items-center gap-3 text-cream">
-          <SkylineMark className="h-8 w-8 text-cream" />
+          <SkylineMark className="h-12 w-12" />
           <span className="t-nav font-extrabold">Skyline Student Association</span>
         </a>
         <nav aria-label="Footer">

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useMotionValue, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { backgrounds, type SectionBackground } from '../../data/backgrounds';
+import { Embers } from './Embers';
 
 /** Crossfade window: this fraction of the viewport height either side of a section boundary. */
 const FADE = 0.3;
@@ -94,6 +95,10 @@ export function BackgroundStage() {
         <Layer key={bg.id} bg={bg} index={i} mid={mid} bounds={bounds} vh={vh} mode={mode} active={active} load={load.has(bg.id)} />
       ))}
       <div className="bg-scrim absolute inset-0" />
+      {/* Depth: a low heat glow, a cinematic vignette, then the embers drifting in front of it all. */}
+      <div className="bg-heat absolute inset-0" />
+      <div className="bg-vignette absolute inset-0" />
+      <Embers />
     </div>
   );
 }
@@ -163,7 +168,8 @@ function Layer({ bg, index, mid, bounds, vh, mode, active, load }: LayerProps) {
             height={bg.picture.img.h}
             alt=""
             decoding="async"
-            fetchPriority={index === 0 ? 'high' : 'auto'}
+            // React 18 doesn't know the camelCase prop; the lowercase HTML attribute passes through as-is.
+            {...({ fetchpriority: index === 0 ? 'high' : 'auto' } as Record<string, string>)}
             onLoad={() => setReady(true)}
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${ready ? 'opacity-100' : 'opacity-0'}`}
             style={{ objectPosition: bg.focal }}

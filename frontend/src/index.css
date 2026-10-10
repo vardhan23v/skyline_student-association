@@ -246,7 +246,7 @@
   .lockup > .lockup-sans { position: relative; }
 
   /* Buttons: primary solid cream + midnight text; secondary cream outline that fills cream on hover. */
-  .btn-l-primary, .btn-l-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.75rem; border-radius: 9999px; padding: 0.85rem 1.75rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.18em; text-transform: var(--case-heading); transition: background-color 200ms, color 200ms, border-color 200ms, filter 200ms, transform 120ms; }
+  .btn-l-primary, .btn-l-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.75rem; border-radius: 9999px; white-space: nowrap; padding: 0.85rem 1.75rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.18em; text-transform: var(--case-heading); transition: background-color 200ms, color 200ms, border-color 200ms, filter 200ms, transform 120ms; }
   .btn-l-primary { background: var(--cream); color: var(--midnight); }
   .btn-l-primary:hover { background: color-mix(in srgb, var(--cream) 82%, transparent); }
   .btn-l-secondary { border: 1px solid var(--cream); color: var(--cream); background: transparent; }
@@ -267,6 +267,10 @@
 
   /* Legibility scrim over every background (per-section darkening is in backgrounds.ts). */
   .bg-scrim { background: linear-gradient(180deg, rgba(11, 11, 13, 0.55) 0%, rgba(11, 11, 13, 0.35) 40%, rgba(11, 11, 13, 0.75) 100%); }
+  /* Depth layers over the photography. The heat glow sits where the scrim is darkest (75% at the
+     bottom), so it warms the frame without eating into text contrast. */
+  .bg-heat { background: radial-gradient(90% 50% at 50% 118%, color-mix(in srgb, var(--flame) 28%, transparent) 0%, color-mix(in srgb, var(--flame) 8%, transparent) 45%, transparent 75%); }
+  .bg-vignette { background: radial-gradient(125% 95% at 50% 42%, transparent 52%, color-mix(in srgb, var(--midnight) 70%, transparent) 100%); }
 
   .marquee-track { display: flex; width: max-content; gap: 1rem; animation: marquee 60s linear infinite; }
   .marquee-track[data-reverse] { animation-direction: reverse; }

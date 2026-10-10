@@ -52,10 +52,10 @@ export function GlassNav() {
           className={`flex w-full max-w-5xl items-center justify-between gap-4 rounded-full border border-cream/10 shadow-lg backdrop-blur-xl transition-all duration-300 ${scrolled ? 'bg-midnight/55 px-4 py-2' : 'bg-midnight/35 px-5 py-3'}`}
         >
           <a href="#top" onClick={go('top')} className="flex items-center gap-2 rounded-full text-cream">
-            <SkylineMark className={`text-cream transition-all ${scrolled ? 'h-6 w-6' : 'h-7 w-7'}`} />
+            <SkylineMark className={`transition-all ${scrolled ? 'h-8 w-8' : 'h-10 w-10'}`} />
             <span className="t-nav font-extrabold">SSA</span>
           </a>
-          <ul className="hidden items-center gap-1 md:flex">
+          <ul className="hidden items-center gap-1 lg:flex">
             {navLinks.map((l) => (
               <li key={l.id}>
                 <a
@@ -80,7 +80,7 @@ export function GlassNav() {
               aria-expanded={open}
               aria-controls="mobile-menu"
               aria-label="Open menu"
-              className="grid h-11 w-11 place-items-center rounded-full text-cream md:hidden"
+              className="grid h-11 w-11 place-items-center rounded-full text-cream lg:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -99,10 +99,10 @@ export function GlassNav() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: dur.fast }}
-            className="fixed inset-0 z-[70] flex flex-col bg-midnight/85 px-6 pb-10 pt-6 backdrop-blur-2xl md:hidden"
+            className="fixed inset-0 z-[70] flex flex-col bg-midnight/85 px-6 pb-10 pt-6 backdrop-blur-2xl lg:hidden"
           >
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2"><SkylineMark className="h-7 w-7 text-cream" /><span className="t-nav font-extrabold">SSA</span></span>
+              <span className="flex items-center gap-2"><SkylineMark className="h-10 w-10" /><span className="t-nav font-extrabold">SSA</span></span>
               <button type="button" onClick={() => setOpen(false)} aria-label="Close menu" className="grid h-11 w-11 place-items-center rounded-full border border-cream/15 text-cream">
                 <X className="h-5 w-5" />
               </button>

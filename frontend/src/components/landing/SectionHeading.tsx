@@ -20,14 +20,17 @@ export function SectionHeading({ script, title, id, align = 'left', className = 
   );
 }
 
-/** Small skyline mark in currentColor, used by the nav and footer. */
+/** Club logo (skyline + student). Decorative next to the "SSA" / club-name text, so alt is empty. */
 export function SkylineMark({ className = 'h-7 w-7' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" className={className} fill="currentColor">
-      <rect x="3" y="16" width="5" height="12" rx="1" />
-      <rect x="10" y="9" width="5" height="19" rx="1" />
-      <rect x="17" y="4" width="5" height="24" rx="1" />
-      <rect x="24" y="12" width="5" height="16" rx="1" />
-    </svg>
+    <img
+      src="/brand/logo-96.png"
+      srcSet="/brand/logo-96.png 1x, /brand/logo-192.png 2x"
+      width={96}
+      height={96}
+      alt=""
+      decoding="async"
+      className={`shrink-0 object-contain ${className}`}
+    />
   );
 }

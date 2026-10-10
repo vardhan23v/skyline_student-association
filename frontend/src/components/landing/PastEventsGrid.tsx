@@ -20,7 +20,7 @@ function Tile({ ev, span, speed }: { ev: PastEvent; span: string; speed: number 
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
   const y = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [-speed, speed]);
   return (
-    <figure ref={ref} className={`group relative overflow-hidden rounded-2xl border border-cream/20 ${span}`}>
+    <figure ref={ref} tabIndex={0} className={`group relative overflow-hidden rounded-2xl border border-cream/20 outline-none focus-visible:ring-2 focus-visible:ring-cream ${span}`}>
       <motion.img
         src={ev.image}
         alt={ev.alt}
@@ -29,13 +29,15 @@ function Tile({ ev, span, speed }: { ev: PastEvent; span: string; speed: number 
         loading="lazy"
         decoding="async"
         style={{ y }}
-        className="absolute inset-x-0 -top-[15%] h-[130%] w-full object-cover grayscale transition-[filter] duration-500 group-hover:grayscale-0 [@media(hover:none)]:grayscale-0"
+        className="absolute inset-x-0 -top-[15%] h-[130%] w-full object-cover grayscale transition-[filter] duration-500 group-hover:grayscale-0 group-focus-visible:grayscale-0 [@media(hover:none)]:grayscale-0"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-midnight/90 via-midnight/10 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-midnight/95 via-midnight/45 to-transparent" />
       <figcaption className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
         <span className="mb-3 block h-px w-full origin-left scale-x-0 bg-cream transition-transform duration-500 group-hover:scale-x-100" />
         <span className="t-h3 block !text-base text-cream sm:!text-lg">{ev.title}</span>
-        <span className="t-label mt-1 block text-cream/70">{fullDate(ev.date)}</span>
+        <span className="t-label mt-1 block text-cream/75">{fullDate(ev.date)} · {ev.venue}</span>
+        {/* Description: revealed on hover or keyboard focus; always shown on touch screens. */}
+        <span className="t-body mt-2 block max-h-0 overflow-hidden !text-sm !leading-snug text-cream/85 opacity-0 transition-[max-height,opacity] duration-500 group-hover:max-h-24 group-hover:opacity-100 group-focus-visible:max-h-24 group-focus-visible:opacity-100 [@media(hover:none)]:line-clamp-2 [@media(hover:none)]:max-h-12 [@media(hover:none)]:opacity-100">{ev.description}</span>
       </figcaption>
     </figure>
   );
