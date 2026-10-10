@@ -1,7 +1,11 @@
-import { env } from '../config/env';
+import { appUrl, env } from '../config/env';
 import { logger } from './logger';
 
 export type Mail = { to: string | string[]; subject: string; html: string };
+
+/** A link button back to the site, for the end of an email. `path` is a site path ("/me"); APP_URL makes it absolute. */
+export const siteLink = (path: string, label: string) =>
+  `<p style="margin-top:24px"><a href="${appUrl(path)}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#F6E9CE;color:#0B0B0D;text-decoration:none;font-weight:700">${label}</a></p>`;
 
 const BATCH = 100; // Resend batch API limit
 

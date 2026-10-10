@@ -8,7 +8,8 @@ import { parseAuth, queryTokenAuth, requireAuth } from './middleware/auth';
 import { errorHandler, asyncHandler } from './middleware/errorHandler';
 import { logger } from './lib/logger';
 import { unauthorized } from './lib/errors';
-import { isTest } from './config/env';
+import { env, isProd, isTest } from './config/env';
+import { canonicalHost } from './middleware/canonicalHost';
 import { getDb } from './config/db';
 import { authRouter } from './modules/auth/routes';
 import { membershipInfoRouter, membershipsRouter } from './modules/memberships/routes';
@@ -32,6 +33,8 @@ export function createApp() {
   app.use(helmet({ contentSecurityPolicy: false, crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' } }));
   // The SSE stream carries its JWT as ?token= (EventSource can't set headers): never write query strings to the log.
   if (!isTest) app.use(pinoHttp({ logger, serializers: { req: (r) => ({ id: r.id, method: r.method, url: String(r.url).split('?')[0] }) } }));
+  // Production: one public hostname (APP_URL). Old ones get a 301 to the same path; health and webhooks still answer.
+  if (isProd) app.use(canonicalHost(env.APP_URL));
   app.get('/health', (_req, res) => res.type('text').send('ok'));
 
   const api = express.Router();
@@ -75,7 +78,10 @@ export function createApp() {
   // Serve the built SPA from the same origin (§15) — no CORS needed.
   const dist = path.resolve(__dirname, '../../frontend/dist');
   if (fs.existsSync(dist)) {
-    app.use(express.static(dist));
+    // Vite's hashed bundles never change under the same name: cache them for a year. index.html (and the other
+    // un-hashed files) revalidate, so a deploy shows up on the next load.
+    app.use('/assets', express.static(path.join(dist, 'assets'), { immutable: true, maxAge: '1y', fallthrough: false }));
+    app.use(express.static(dist, { setHeaders: (res, file) => { if (file.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache'); } }));
     // SPA fallback for page routes only: a missing file (/media/x.mp4) is a 404, not index.html served as a video.
     app.get('*', (req, res) => (path.extname(req.path) ? res.status(404).type('text').send('Not found') : res.sendFile(path.join(dist, 'index.html'))));
   }

@@ -1,12 +1,14 @@
 import cron from 'node-cron';
 import { getDb } from '../config/db';
 import { logger } from '../lib/logger';
-import { sendMail } from '../lib/email';
+import { sendMail, siteLink } from '../lib/email';
 import { expirePendingTickets } from '../modules/events/service';
 import { expirePendingOrders } from '../modules/merchandise/service';
 import { rescanSubmitted } from '../modules/finance/anomaly';
 import { env } from '../config/env';
 import { addDaysYmd, todayYmd } from '../lib/dates';
+
+const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 /** §6.4 — renewal reminders at T-14d and on expiry day. */
 export async function sendRenewalReminders() {
@@ -17,14 +19,14 @@ export async function sendRenewalReminders() {
     .where('ms.status', 'active').whereBetween('ms.expiry_date', [today, addDaysYmd(today, 14)]).whereNull('ms.reminder_sent_at')
     .select('ms.id', 'u.email', 'u.name', 'ms.expiry_date');
   for (const r of rows) {
-    await sendMail({ to: r.email, subject: 'Your SSA membership expires soon', html: `<p>Hi ${r.name}, your membership expires on ${r.expiry_date}. Renew from your member portal.</p>` });
+    await sendMail({ to: r.email, subject: 'Your SSA membership expires soon', html: `<p>Hi ${esc(r.name)}, your membership expires on ${r.expiry_date}. Renew from your account.</p>${siteLink('/me', 'Renew membership')}` });
     await db('memberships').where({ id: r.id }).update({ reminder_sent_at: new Date() });
   }
   const dueToday = await db('memberships as ms').join('members as m', 'm.id', 'ms.member_id').join('users as u', 'u.id', 'm.user_id')
     .where('ms.status', 'active').where('ms.expiry_date', today)
     .whereNotIn('ms.id', rows.map((r) => r.id)) // just got the "expires soon" email above: don't send two in one run
     .select('u.email', 'u.name');
-  for (const r of dueToday) await sendMail({ to: r.email, subject: 'Your SSA membership expires today', html: `<p>Hi ${r.name}, today is the last day of your membership.</p>` });
+  for (const r of dueToday) await sendMail({ to: r.email, subject: 'Your SSA membership expires today', html: `<p>Hi ${esc(r.name)}, today is the last day of your membership.</p>${siteLink('/me', 'Renew membership')}` });
   return rows.length;
 }
 
@@ -39,7 +41,7 @@ export async function lowStockAlert() {
   const low = await db('product_variants as v').join('products as p', 'p.id', 'v.product_id').whereRaw('v.stock < v.reserved + 5').select('p.name', 'v.size', 'v.stock', 'v.reserved');
   if (!low.length) return 0;
   const admins = await db('users').where({ role: 'admin', is_active: true }).pluck('email');
-  await sendMail({ to: admins, subject: 'Low stock alert', html: '<ul>' + low.map((l) => `<li>${l.name} ${l.size}: ${l.stock - l.reserved} left</li>`).join('') + '</ul>' });
+  await sendMail({ to: admins, subject: 'Low stock alert', html: '<ul>' + low.map((l) => `<li>${l.name} ${l.size}: ${l.stock - l.reserved} left</li>`).join('') + '</ul>' + siteLink('/admin?tab=products', 'Open products & stock') });
   return low.length;
 }
 

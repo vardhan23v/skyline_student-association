@@ -24,14 +24,18 @@ const schema = z.object({
   APP_TIMEZONE: z.string().refine(validTimeZone, 'Unknown IANA time zone').default('Asia/Kolkata'),
   // Demo checkout: POST /api/payments/demo-confirm/:id marks a payment paid. Ignored while Razorpay keys are set.
   DEMO_PAYMENTS: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // The site's public origin, e.g. https://skyline-student-association.up.railway.app. Every absolute link the API
+  // writes (emails) is built from it, and production 301s any other hostname to it. Required in production.
+  APP_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().refine((u) => !u.endsWith('/'), 'APP_URL must not end with a slash')
+    .refine((u) => /^https?:\/\/[^/]+$/.test(u), 'APP_URL is an origin only (no path)').optional()),
 });
 
 const parsed = schema.parse(process.env);
 const prod = parsed.NODE_ENV === 'production';
 
 if (prod) {
-  const missing = (['JWT_SECRET', 'QR_SECRET'] as const).filter((k) => !parsed[k]);
-  if (missing.length) throw new Error(`Missing required secret(s) in production: ${missing.join(', ')}`);
+  const missing = (['JWT_SECRET', 'QR_SECRET', 'APP_URL'] as const).filter((k) => !parsed[k]);
+  if (missing.length) throw new Error(`Missing required setting(s) in production: ${missing.join(', ')}`);
   if (parsed.JWT_SECRET === parsed.QR_SECRET) throw new Error('QR_SECRET must differ from JWT_SECRET');
 }
 
@@ -41,7 +45,10 @@ export const env = {
   QR_SECRET: parsed.QR_SECRET ?? 'dev-only-qr-secret',
   // Empty in production until Razorpay is configured: every webhook is then rejected instead of trusting a public default.
   PAYMENT_WEBHOOK_SECRET: parsed.PAYMENT_WEBHOOK_SECRET ?? (prod ? '' : 'whsec_test'),
+  APP_URL: parsed.APP_URL ?? `http://localhost:${parsed.PORT}`,
 };
+/** Absolute URL on the site for `path` (which starts with "/"), e.g. appUrl('/tickets/12'). */
+export const appUrl = (path = '/') => `${env.APP_URL}${path}`;
 export const isProd = prod;
 /** Demo payments only stand in for a missing gateway: with Razorpay keys configured, money must go through Razorpay. */
 export const demoPaymentsEnabled = () => env.DEMO_PAYMENTS && !(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET);

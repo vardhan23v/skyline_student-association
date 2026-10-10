@@ -4,7 +4,7 @@ import { getDb } from '../../config/db';
 import { hasRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../middleware/errorHandler';
-import { sendMail } from '../../lib/email';
+import { sendMail, siteLink } from '../../lib/email';
 import { logger } from '../../lib/logger';
 import { todayYmd } from '../../lib/dates';
 
@@ -35,7 +35,7 @@ adminAnnouncementsRouter.post('/', validate({ body }), asyncHandler(async (req, 
         .where('u.is_active', true) // deactivated accounts must not keep receiving member mail
         .where('ms.status', 'active').where('ms.expiry_date', '>=', todayYmd()).distinct('u.email').pluck('u.email');
   // The post is already published; a mail outage must not 500 (the admin would retry and publish a duplicate).
-  const count = await sendMail({ to: recipients, subject: `[SSA] ${req.body.title}`, html: `<h2>${escapeHtml(req.body.title)}</h2><div>${escapeHtml(req.body.body).replace(/\n/g, '<br/>')}</div>` })
+  const count = await sendMail({ to: recipients, subject: `[SSA] ${req.body.title}`, html: `<h2>${escapeHtml(req.body.title)}</h2><div>${escapeHtml(req.body.body).replace(/\n/g, '<br/>')}</div>${siteLink('/announcements', 'Read on the SSA site')}` })
     .catch((err) => { logger.error({ err, announcement_id: id }, 'announcement email failed'); return null; });
   if (count !== null) await db('announcements').where({ id }).update({ email_sent_at: new Date(), email_recipient_count: count });
   res.status(201).json(await db('announcements').where({ id }).first());

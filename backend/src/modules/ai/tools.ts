@@ -5,7 +5,7 @@ import { summary } from '../finance/service';
 import { eventReport } from '../events/service';
 import { listMembers } from '../memberships/service';
 import { z } from 'zod';
-import { sendMail } from '../../lib/email';
+import { sendMail, siteLink } from '../../lib/email';
 import { todayYmd } from '../../lib/dates';
 
 const escapeHtml = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -49,7 +49,7 @@ export function buildTools(db: Knex, user: AuthUser): Tool[] {
         if (!title || !body) throw badRequest('Invalid announcement proposal');
         const [id] = await db('announcements').insert({ title, body, audience: 'all', author_id: user.id, published_at: new Date() });
         const to = await db('users').where({ is_active: true }).pluck('email');
-        const count = await sendMail({ to, subject: `[SSA] ${title}`, html: escapeHtml(body).replace(/\n/g, '<br/>') });
+        const count = await sendMail({ to, subject: `[SSA] ${title}`, html: escapeHtml(body).replace(/\n/g, '<br/>') + siteLink('/announcements', 'Read on the SSA site') });
         await db('announcements').where({ id }).update({ email_sent_at: new Date(), email_recipient_count: count });
         return { announcement_id: id };
       } },

@@ -179,8 +179,16 @@ describe('production config', () => {
       await expect(import('../src/config/env')).rejects.toThrow(/JWT_SECRET, QR_SECRET/);
       vi.resetModules();
       Object.assign(process.env, { JWT_SECRET: 'a'.repeat(32), QR_SECRET: 'b'.repeat(16) });
+      delete process.env.APP_URL;
+      await expect(import('../src/config/env')).rejects.toThrow(/APP_URL/); // emails and the domain redirect need it
+      vi.resetModules();
+      process.env.APP_URL = 'https://skyline-student-association.up.railway.app/';
+      await expect(import('../src/config/env')).rejects.toThrow(/slash/);
+      vi.resetModules();
+      process.env.APP_URL = 'https://skyline-student-association.up.railway.app';
       const prod = await import('../src/config/env');
       expect(prod.env.PAYMENT_WEBHOOK_SECRET).toBe('');
+      expect(prod.appUrl('/me')).toBe('https://skyline-student-association.up.railway.app/me');
     } finally {
       process.env = saved;
       vi.resetModules();

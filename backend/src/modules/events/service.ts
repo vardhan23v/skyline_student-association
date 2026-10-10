@@ -3,7 +3,7 @@ import { getDb, lockRow } from '../../config/db';
 import { env } from '../../config/env';
 import { HttpError, conflict, forbidden, notFound } from '../../lib/errors';
 import { qrDataUrl, signTicketQr, verifyQr } from '../../lib/qr';
-import { sendMail } from '../../lib/email';
+import { sendMail, siteLink } from '../../lib/email';
 import { logger } from '../../lib/logger';
 import { recordEntry, reversePaymentIncome } from '../finance/service';
 import { checkoutFor, createCashPayment, createPendingPayment } from '../payments/service';
@@ -185,7 +185,7 @@ export async function confirmTicket(trx: Knex.Transaction, ticket_id: number, pa
   const confirmed = await trx('tickets').where({ id: ticket_id }).first();
   const qr = await qrDataUrl(qr_token);
   // Fire-and-forget, but never as an unhandled rejection (a network error would crash the process).
-  sendMail({ to: t.holder_email, subject: `Your ticket: ${e.title}`, html: `<p>Hi ${escapeHtml(t.holder_name)}, show this QR at the door.</p><img src="${qr}" alt="QR"/>` })
+  sendMail({ to: t.holder_email, subject: `Your ticket: ${e.title}`, html: `<p>Hi ${escapeHtml(t.holder_name)}, you're in for ${escapeHtml(e.title)}. Show this QR at the door.</p><img src="${qr}" alt="QR"/>${siteLink(`/tickets/${ticket_id}`, 'Open your ticket')}` })
     .catch((err) => logger.error({ err, ticket_id }, 'ticket email failed'));
   return confirmed;
 }

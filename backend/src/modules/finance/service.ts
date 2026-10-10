@@ -2,7 +2,7 @@ import type { Knex } from 'knex';
 import { getDb, lockRow } from '../../config/db';
 import { badRequest, conflict, forbidden, notFound } from '../../lib/errors';
 import { storeFile } from '../../lib/storage';
-import { sendMail } from '../../lib/email';
+import { sendMail, siteLink } from '../../lib/email';
 import { logger } from '../../lib/logger';
 import { hmacSha256 } from '../../lib/hash';
 import { env } from '../../config/env';
@@ -185,7 +185,7 @@ export async function reviewExpense(reviewer_id: number, id: number, decision: '
   // Conditional update: two admins reviewing at once can't both win (last write used to overwrite the first).
   const n = await db('expenses').where({ id, status: 'submitted' }).update({ status: decision, reviewed_by: reviewer_id, reviewed_at: new Date(), review_note: note ?? null });
   if (!n) throw conflict('Expense was reviewed by someone else');
-  await sendMail({ to: x.submitted_by_email, subject: `Reimbursement ${decision}: ₹${x.amount}`, html: `<p>Your expense "${escapeHtml(x.description ?? x.category)}" was <b>${decision}</b>.</p>${note ? `<p>Note: ${escapeHtml(note)}</p>` : ''}` })
+  await sendMail({ to: x.submitted_by_email, subject: `Reimbursement ${decision}: ₹${x.amount}`, html: `<p>Your expense "${escapeHtml(x.description ?? x.category)}" was <b>${decision}</b>.</p>${note ? `<p>Note: ${escapeHtml(note)}</p>` : ''}${siteLink('/admin?tab=finance&view=submit', 'See your expenses')}` })
     .catch((err) => logger.error({ err, expense_id: id }, 'review email failed')); // review is committed; don't 500 on a mail outage
   return getExpense(id);
 }
