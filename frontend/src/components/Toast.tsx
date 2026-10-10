@@ -22,12 +22,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={value}>
       {children}
-      <div aria-live="polite" aria-atomic="false" className="pointer-events-none fixed inset-x-0 bottom-20 z-[var(--z-toast)] flex flex-col items-center gap-2 px-4 sm:bottom-6 sm:items-end sm:px-6">
+      {/* Phones: top, just under the navbar (safe-area aware), so toasts never cover a sticky bottom bar or sheet
+          actions. From sm: bottom right. */}
+      <div aria-live="polite" aria-atomic="false" className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+5rem)] z-[var(--z-toast)] flex flex-col items-center gap-2 px-4 sm:bottom-6 sm:top-auto sm:items-end sm:px-6">
         {items.map((t) => { const Icon = icons[t.tone]; return (
-          <div key={t.id} role="status" className="glass pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-[var(--radius-lg)] px-4 py-3 slide-up">
+          <div key={t.id} role="status" className="glass !bg-midnight/90 pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-[var(--radius-lg)] px-4 py-3 fade-in">
             <Icon className={`size-4 shrink-0 mt-0.5 ${tones[t.tone]}`} aria-hidden />
             <div className="min-w-0 flex-1 text-sm"><div className="font-medium">{t.title}</div>{t.body && <div className="t-caption mt-0.5">{t.body}</div>}</div>
-            <button aria-label="Dismiss" onClick={() => dismiss(t.id)} className="-mr-1 inline-flex size-8 items-center justify-center rounded-full text-text-tertiary hover:text-text-primary"><X className="size-3.5" aria-hidden /></button>
+            <button aria-label="Dismiss" onClick={() => dismiss(t.id)} className="-my-2 -mr-2.5 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-text-tertiary hover:text-text-primary"><X className="size-3.5" aria-hidden /></button>
           </div>
         ); })}
       </div>
