@@ -41,6 +41,7 @@ Tokens minted before the two-role migration carry a retired role (`member`, `tre
 | `INVALID_TRANSITION` | 409 | Order status change not allowed (`from`, `to` and `allowed` included) |
 | `INSUFFICIENT_STOCK` | 409 | The stock behind the order is gone |
 | `PAYMENT_FAILED` | 409 | Payment failed; start a new checkout |
+| `INVALID_TOKEN` | 400 | Password link unknown, already used or expired |
 | `BAD_REQUEST` | 400 | Validation failed (`details` has the field errors) |
 | `NOT_FOUND` | 404 | Not found |
 | `CONFLICT` | 409 | Generic conflict |
@@ -79,6 +80,8 @@ Unpaid holds (a ticket seat, reserved stock) expire after `PENDING_HOLD_MINUTES`
 | GET | `/api/stats` | public | Landing-page counts from the database: `{ events_hosted, upcoming_events, members, students, tickets_issued, as_of }`. No money. Cached 60 s | added |
 | POST | `/api/auth/register` | public | Create an account. Always role `user`; optional `student_id` creates the member profile | changed (role `user`) |
 | POST | `/api/auth/login` | public | Returns `{ user, token }` | unchanged |
+| POST | `/api/auth/forgot-password` | public | `{ email }`. Always 200 with the same message. For an active account, emails a one-time `APP_URL/reset-password?token=…` link (60 min); logged instead while Resend is off. 5 requests / 15 min per IP | added |
+| POST | `/api/auth/reset-password` | public (token) | `{ token, password }` (8+ chars, a letter and a number). Sets the password, uses up the token and every other open token of that user, audit `password_reset`. Bad, used or expired token → 400 `INVALID_TOKEN` | added |
 | GET | `/api/me` | user | Account, membership (`is_member`, `membership_expires`, member QR) and tickets | changed (+`is_member`, `membership_expires`) |
 | GET | `/api/membership/info` | public | `{ price, currency, benefits[], valid_until }` for the membership card | added |
 | POST | `/api/memberships` | user | Start a membership purchase. Body `{ student_id?, phone? }`. Returns `{ membership_id, payment_id, amount, expiry_date, checkout }` | changed (any user; takes `student_id`; `ALREADY_MEMBER` is 409) |

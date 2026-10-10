@@ -1,11 +1,11 @@
 import { getDb } from '../../config/db';
-import { nanoid } from 'nanoid';
+import { randomUUID } from 'node:crypto';
 import { CreateAuditLogParams, AuditLogEntry } from './types';
 
 export async function logAuditEvent(params: CreateAuditLogParams): Promise<void> {
   try {
     const db = getDb();
-    const id = nanoid();
+    const id = randomUUID(); // was nanoid, which isn't a dependency of this package
     const metadataStr = params.metadata ? JSON.stringify(params.metadata) : null;
 
     await db('audit_logs').insert({

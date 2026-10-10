@@ -218,6 +218,7 @@ Base path `/api`. JSON in and out; auth is `Authorization: Bearer <JWT>`. Errors
 | Method | Path | Role | Notes |
 |---|---|---|---|
 | POST | `/auth/register` · `/auth/login` | public | Always role `user`; optional `student_id` creates the member profile |
+| POST | `/auth/forgot-password` · `/auth/reset-password` | public | One-time links (SHA-256 stored, 60 min reset / 72 h setup); same answer whether or not the email exists |
 | GET | `/me` | user | Account, membership (`is_member`, `days_left`, `can_renew`, `dues`), member QR, tickets |
 | GET | `/membership/info` | public | Price, benefits, valid until |
 | GET | `/stats` | public | Landing-page counts from the database (events hosted, members, students, tickets); no money; cached 60 s |
@@ -263,7 +264,7 @@ Base path `/api`. JSON in and out; auth is `Authorization: Bearer <JWT>`. Errors
 Also admin-only, outside `/api/admin`: `GET /api/finance/summary`, and the AI Secretary at `POST /api/ai/ask` and `POST /api/ai/confirm/:proposalId`.
 </details>
 
-**Error codes:** `BAD_REQUEST` 400 · `UNAUTHORIZED` 401 · `FORBIDDEN` 403 · `MEMBERSHIP_REQUIRED` 403 (with the offer) · `NOT_FOUND` 404 · `ALREADY_REGISTERED` · `SOLD_OUT` · `ALREADY_MEMBER` · `INSUFFICIENT_STOCK` · `INVALID_TRANSITION` 409 · `REGISTRATION_NOT_OPEN` · `REGISTRATION_CLOSED` · `PROFILE_REQUIRED` · `INVALID_ASSIGNEE` 400.
+**Error codes:** `BAD_REQUEST` 400 · `UNAUTHORIZED` 401 · `FORBIDDEN` 403 · `MEMBERSHIP_REQUIRED` 403 (with the offer) · `NOT_FOUND` 404 · `ALREADY_REGISTERED` · `SOLD_OUT` · `ALREADY_MEMBER` · `INSUFFICIENT_STOCK` · `INVALID_TRANSITION` 409 · `REGISTRATION_NOT_OPEN` · `REGISTRATION_CLOSED` · `PROFILE_REQUIRED` · `INVALID_ASSIGNEE` · `INVALID_TOKEN` 400.
 **Rate limits:** auth 30 / 15 min, registration, orders and memberships 30 / 15 min per IP, check-in 120 / min.
 
 ---

@@ -8,7 +8,7 @@ import { EventsPage } from './pages/public/EventsPage';
 import { EventDetailPage } from './pages/public/EventDetailPage';
 import { AnnouncementsPage } from './pages/public/AnnouncementsPage';
 import { ShopPage } from './pages/public/ShopPage';
-import { LoginPage, RegisterPage } from './pages/public/AuthPages';
+import { LoginPage, RegisterPage, ResetPasswordPage } from './pages/public/AuthPages';
 import { MemberDashboard } from './pages/member/MemberDashboard';
 import { TicketPage } from './pages/member/TicketPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -45,6 +45,7 @@ export function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/dashboard" element={<DashboardRedirect />} />
 
       <Route element={<AppLayout />}>
