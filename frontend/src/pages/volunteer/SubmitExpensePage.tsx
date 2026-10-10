@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Receipt, Upload } from 'lucide-react';
 import { get, post } from '@/api/client';
 import type { Event, Expense, Fundraiser } from '@/api/types';
@@ -13,8 +13,10 @@ import { useToast } from '@/components/Toast';
 import { money } from '@/components/format';
 
 /** Receipt (≤5 MB jpeg/png/pdf) is base64-encoded into the JSON body; the server hashes it for duplicate detection. */
+const RECEIPT_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+
 export function SubmitExpensePage() {
-  const toast = useToast();
+  const toast = useToast(); const qc = useQueryClient();
   const events = useQuery({ queryKey: ['events'], queryFn: () => get<Event[]>('/events') });
   const frs = useQuery({ queryKey: ['fundraisers'], queryFn: () => get<Fundraiser[]>('/fundraisers') });
   const mine = useQuery({ queryKey: ['expenses', 'mine'], queryFn: () => get<Expense[]>('/expenses?mine=true') });
@@ -23,10 +25,10 @@ export function SubmitExpensePage() {
   const submit = useMutation({
     mutationFn: async () => {
       let receipt_base64: string | undefined, receipt_mime: string | undefined;
-      if (file) { if (file.size > 5 * 1024 * 1024) throw new Error('Receipt exceeds 5 MB'); receipt_mime = file.type; receipt_base64 = btoa(new Uint8Array(await file.arrayBuffer()).reduce((s, b) => s + String.fromCharCode(b), '')); }
+      if (file) { if (!RECEIPT_TYPES.includes(file.type)) throw new Error('Receipt must be a JPEG, PNG or PDF file.'); if (file.size > 5 * 1024 * 1024) throw new Error('Receipt exceeds 5 MB'); receipt_mime = file.type; receipt_base64 = btoa(new Uint8Array(await file.arrayBuffer()).reduce((s, b) => s + String.fromCharCode(b), '')); }
       return post<Expense>('/expenses', { amount: Number(f.amount), category: f.category, description: f.description || undefined, event_id: f.event_id ? Number(f.event_id) : undefined, fundraiser_id: f.fundraiser_id ? Number(f.fundraiser_id) : undefined, receipt_base64, receipt_mime });
     },
-    onSuccess: (x) => { setF({ amount: '', category: 'supplies', description: '', event_id: '', fundraiser_id: '' }); setFile(null); mine.refetch(); toast.success(`Submitted #${x.id}`, x.flags.length ? `Flagged for review: ${x.flags.map((y) => y.code).join(', ')}` : 'The treasurer will review it.'); },
+    onSuccess: (x) => { setF({ amount: '', category: 'supplies', description: '', event_id: '', fundraiser_id: '' }); setFile(null); qc.invalidateQueries({ queryKey: ['expenses'] }); toast.success(`Submitted #${x.id}`, x.flags.length ? `Flagged for review: ${x.flags.map((y) => y.code).join(', ')}` : 'The treasurer will review it.'); },
   });
   return (
     <>
@@ -41,7 +43,7 @@ export function SubmitExpensePage() {
           <Field label="Receipt" hint="jpeg, png or pdf · up to 5 MB. Amounts over ₹200 without a receipt are flagged." htmlFor="receipt">
             <label htmlFor="receipt" className={`card-sunken flex cursor-pointer items-center gap-3 border-dashed p-3 text-sm ${file ? 'border-success/50' : ''}`}>
               <Upload className="size-4 shrink-0 text-text-tertiary" aria-hidden /><span className="truncate">{file ? file.name : 'Choose a file…'}</span>
-              <input id="receipt" type="file" className="sr-only" accept="image/jpeg,image/png,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              <input id="receipt" type="file" className="sr-only" accept="image/jpeg,image/png,application/pdf" onChange={(e) => { setFile(e.target.files?.[0] ?? null); e.target.value = ''; /* lets the same file be picked again after a submit */ }} />
             </label>
           </Field>
           <ErrorState error={submit.error} />

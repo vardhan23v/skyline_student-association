@@ -4,8 +4,12 @@ export type Flag = { code: 'HIGH_AMOUNT' | 'DUPLICATE_RECEIPT' | 'POSSIBLE_RESUB
 export const ABSOLUTE_CAP = 20_000;
 export const NO_RECEIPT_THRESHOLD = 200;
 
-type Candidate = { id: number | null; submitted_by: number; amount: number; category: string; receipt_hash: string | null; event_id?: number | null; fundraiser_id?: number | null };
+type Candidate = { id: number | null; submitted_by: number; amount: number; category: string; receipt_hash: string | null; event_id?: number | null; fundraiser_id?: number | null; created_at?: Date | string | number | null };
+/** DB `created_at` → Date (MySQL gives a Date; SQLite gives UTC 'YYYY-MM-DD HH:MM:SS' text). */
+const toDate = (v: Date | string | number) => v instanceof Date ? v : typeof v === 'number' ? new Date(v) : new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(v) ? v : `${v.replace(' ', 'T')}Z`);
 
+/** `created_at` comes from the DB default: DATETIME on MySQL, 'YYYY-MM-DD HH:MM:SS' (UTC) text on SQLite — a JS Date binds as epoch ms there. */
+const createdAtBound = (db: Knex, d: Date) => (db.client.config.client === 'mysql2' ? d : d.toISOString().replace('T', ' ').slice(0, 19));
 const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 
 /** Rule-based flags (§9). They prompt review; they never auto-reject. Pure given a db handle — unit-testable. */
@@ -25,8 +29,12 @@ export async function evaluateFlags(db: Knex, x: Candidate): Promise<Flag[]> {
     flags.push({ code: 'NO_RECEIPT', rule: `Amount > ₹${NO_RECEIPT_THRESHOLD} without a receipt` });
   }
 
-  const since = new Date(); since.setDate(since.getDate() - 7);
-  const resubmit = await db('expenses').where({ submitted_by: x.submitted_by }).where('created_at', '>=', since)
+  // ±7 days around the candidate's own submission time — not "the last 7 days from now", which made the nightly
+  // rescan silently drop the flag from anything still in the queue after a week.
+  let at = x.created_at ? toDate(x.created_at) : new Date();
+  if (Number.isNaN(at.getTime())) at = new Date();
+  const lo = new Date(at.getTime() - 7 * 864e5), hi = new Date(at.getTime() + 7 * 864e5);
+  const resubmit = await db('expenses').where({ submitted_by: x.submitted_by }).where('created_at', '>=', createdAtBound(db, lo)).where('created_at', '<=', createdAtBound(db, hi))
     .whereBetween('amount', [x.amount * 0.99, x.amount * 1.01]).modify(notSelf).first();
   if (resubmit) flags.push({ code: 'POSSIBLE_RESUBMIT', rule: `Same submitter, same amount ±1% within 7 days (expense #${resubmit.id})` });
 

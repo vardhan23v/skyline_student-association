@@ -32,7 +32,7 @@ export function RecordCashPage() {
         <form className="card space-y-4" onSubmit={(e) => { e.preventDefault(); mDues.mutate(); }}>
           <Head icon={UserRound} t="Membership dues" d="At the sign-up table." />
           <LabeledSelect label="Member (without active membership)" required value={dues.member_id} onChange={(e) => setDues({ ...dues, member_id: e.target.value })}><option value="">Select…</option>{inactive.map((m) => <option key={m.id} value={m.id}>{m.name} · {m.student_id}</option>)}</LabeledSelect>
-          <LabeledInput label="Amount ₹" type="number" inputMode="decimal" min="1" value={dues.amount} onChange={(e) => setDues({ ...dues, amount: e.target.value })} />
+          <LabeledInput label="Amount ₹" type="number" inputMode="decimal" required min="1" step="0.01" value={dues.amount} onChange={(e) => setDues({ ...dues, amount: e.target.value })} />
           <ErrorState error={mDues.error} />
           <Button type="submit" className="w-full" loading={mDues.isPending}>Record {money(dues.amount)}</Button>
         </form>
@@ -48,7 +48,7 @@ export function RecordCashPage() {
         <form className="card space-y-4" onSubmit={(e) => { e.preventDefault(); mCash.mutate(); }}>
           <Head icon={Banknote} t="Fundraiser cash income" d="Bake sales, donations, stalls." />
           <LabeledSelect label="Fundraiser" required value={cash.fundraiser_id} onChange={(e) => setCash({ ...cash, fundraiser_id: e.target.value })}><option value="">Select…</option>{frs.data?.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</LabeledSelect>
-          <LabeledInput label="Amount ₹" type="number" inputMode="decimal" required min="1" value={cash.amount} onChange={(e) => setCash({ ...cash, amount: e.target.value })} />
+          <LabeledInput label="Amount ₹" type="number" inputMode="decimal" required min="1" step="0.01" value={cash.amount} onChange={(e) => setCash({ ...cash, amount: e.target.value })} />
           <LabeledInput label="Memo" value={cash.memo} onChange={(e) => setCash({ ...cash, memo: e.target.value })} />
           <ErrorState error={mCash.error} />
           <Button type="submit" className="w-full" loading={mCash.isPending}>Record income</Button>

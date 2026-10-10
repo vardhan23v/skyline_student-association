@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { IconButton } from './Button';
@@ -14,6 +14,11 @@ const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:n
 export function Modal({ open, onClose, title, children, footer, variant = 'modal', size = 'md', description }: Props) {
   const panel = useRef<HTMLDivElement>(null);
   const restore = useRef<Element | null>(null);
+  const ids = useId();
+  // Callers pass inline onClose arrows; keep the latest in a ref so a parent re-render (e.g. a background
+  // refetch) doesn't re-run the open effect, which would yank focus back to the first control mid-typing.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -24,7 +29,7 @@ export function Modal({ open, onClose, title, children, footer, variant = 'modal
     // Land on the first real control, not the Close button, so forms are ready to type into.
     (all.find((el) => el.getAttribute('aria-label') !== 'Close') ?? all[0] ?? panel.current)?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
+      if (e.key === 'Escape') { e.stopPropagation(); closeRef.current(); return; }
       if (e.key !== 'Tab' || !panel.current) return;
       const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
       if (!items.length) return;
@@ -34,7 +39,7 @@ export function Modal({ open, onClose, title, children, footer, variant = 'modal
     };
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; (restore.current as HTMLElement | null)?.focus?.(); };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   const width = size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : 'max-w-md';
@@ -43,9 +48,9 @@ export function Modal({ open, onClose, title, children, footer, variant = 'modal
     : `relative w-full ${width} max-h-[90dvh] rounded-[var(--radius-xl)] fade-in`;
   return createPortal(
     <div className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4 fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby={description ? 'dlg-desc' : undefined} tabIndex={-1} className={`glass flex flex-col overflow-hidden outline-none ${shape}`}>
+      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={`${ids}-title`} aria-describedby={description ? `${ids}-desc` : undefined} tabIndex={-1} className={`glass flex flex-col overflow-hidden outline-none ${shape}`}>
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
-          <div className="min-w-0"><h2 id="dlg-title" className="t-section">{title}</h2>{description && <p id="dlg-desc" className="t-caption mt-0.5">{description}</p>}</div>
+          <div className="min-w-0"><h2 id={`${ids}-title`} className="t-section">{title}</h2>{description && <p id={`${ids}-desc`} className="t-caption mt-0.5">{description}</p>}</div>
           <IconButton label="Close" onClick={onClose} className="-mr-2 -mt-1"><X className="size-4" aria-hidden /></IconButton>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4 scrollbar-thin">{children}</div>

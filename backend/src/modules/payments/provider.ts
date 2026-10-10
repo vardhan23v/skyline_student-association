@@ -20,6 +20,8 @@ export const paymentProvider = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ amount: Math.round(amount * 100), currency, receipt }),
+        // Called inside the purchase transaction (event / variant row locked): never wait on Razorpay indefinitely.
+        signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) throw new Error(`Razorpay order failed: ${res.status}`);
       const o = (await res.json()) as { id: string };
@@ -29,14 +31,16 @@ export const paymentProvider = {
   },
 
   verifySignature(rawBody: Buffer, signature: string | undefined): boolean {
-    if (!signature) return false;
+    // No secret configured (production before Razorpay is set up) → nothing can be verified, so nothing is trusted.
+    if (!signature || !env.PAYMENT_WEBHOOK_SECRET) return false;
     return safeEqual(hmacSha256(env.PAYMENT_WEBHOOK_SECRET, rawBody), signature);
   },
 
   /** Normalise the provider payload. Razorpay `payment.captured` / `payment.failed`; sandbox uses the same shape. */
   parseWebhook(body: any): WebhookResult | null {
     const p = body?.payload?.payment?.entity;
-    if (!p) return null;
+    // Payments not created through our Orders API have no order_id; knex would throw on an undefined binding (→ 500 → endless retries).
+    if (!p || typeof p.order_id !== 'string' || typeof p.id !== 'string') return null;
     const status = body.event === 'payment.captured' ? 'paid' : body.event === 'payment.failed' ? 'failed' : null;
     if (!status) return null;
     return { provider_order_id: p.order_id, provider_payment_id: p.id, status, amount: Number(p.amount) / 100 };

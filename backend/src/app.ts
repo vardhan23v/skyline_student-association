@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { parseAuth, requireAuth } from './middleware/auth';
 import { errorHandler, asyncHandler } from './middleware/errorHandler';
 import { logger } from './lib/logger';
+import { unauthorized } from './lib/errors';
 import { isTest } from './config/env';
 import { getDb } from './config/db';
 import { authRouter } from './modules/auth/routes';
@@ -24,7 +25,9 @@ import { myTickets } from './modules/events/service';
 export function createApp() {
   const app = express();
   app.set('trust proxy', 1);
-  app.use(helmet({ contentSecurityPolicy: false }));
+  // COOP `same-origin` (helmet's default) severs window.opener for Razorpay Checkout's bank/UPI popups, so the payment
+  // window cannot report back to the page; allow-popups keeps the isolation for everything else.
+  app.use(helmet({ contentSecurityPolicy: false, crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' } }));
   if (!isTest) app.use(pinoHttp({ logger }));
 
   const api = express.Router();
@@ -36,11 +39,18 @@ export function createApp() {
   api.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
   api.use('/auth', authRouter);
   api.get('/me', requireAuth, asyncHandler(async (req, res) => {
-    const user = await getDb()('users').where({ id: req.user!.id }).first('id', 'name', 'email', 'role');
+    const user = await getDb()('users').where({ id: req.user!.id }).first('id', 'name', 'email', 'role', 'is_active');
+    // A token outlives a deleted or deactivated account; answering 200 with `user: undefined` crashed the SPA (me.user.role).
+    if (!user || !user.is_active) throw unauthorized('Account not found or deactivated');
+    delete user.is_active;
     res.json({ user, ...(await myMembership(req.user!.id)), tickets: await myTickets(req.user!.id) });
   }));
   api.use('/memberships', membershipsRouter);
   api.use('/members', membersRouter);
+  // Seat/stock holds are public and email the buyer: cap them per IP so a script can't hold every seat or spam inboxes.
+  const purchaseLimit = rateLimit({ windowMs: 15 * 60_000, limit: isTest ? 10_000 : 30, standardHeaders: 'draft-7', legacyHeaders: false });
+  api.post('/events/:id/tickets', purchaseLimit);
+  api.post('/orders', purchaseLimit);
   api.use('/events', eventsRouter);
   api.use('/tickets', ticketsRouter);
   api.use('/checkin', rateLimit({ windowMs: 60_000, limit: isTest ? 10_000 : 120 }), checkinRouter);

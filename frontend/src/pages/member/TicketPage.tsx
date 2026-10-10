@@ -25,7 +25,7 @@ export function TicketPage() {
         </div>
         <div className="relative border-y border-dashed border-border-strong"><span className="absolute -left-3 -top-3 size-6 rounded-full bg-background" aria-hidden /><span className="absolute -right-3 -top-3 size-6 rounded-full bg-background" aria-hidden /></div>
         <div className="flex flex-col items-center p-6 text-center">
-          {t.qr_data_url ? <img src={t.qr_data_url} alt="Ticket QR code. Show at the door." width={224} height={224} className="rounded-[var(--radius-md)] bg-white p-2" /> : <div className="card-sunken flex size-56 items-center justify-center p-6 t-caption">QR available once payment is confirmed.</div>}
+          {t.qr_data_url ? <img src={t.qr_data_url} alt="Ticket QR code. Show at the door." width={224} height={224} className="rounded-[var(--radius-md)] bg-white p-2" /> : <div className="card-sunken flex size-56 items-center justify-center p-6 t-caption">{t.status === 'cancelled' ? 'This ticket was cancelled, so no QR was issued.' : 'QR available once payment is confirmed.'}</div>}
           <p className="mt-4 text-lg font-medium">{t.holder_name}</p>
           <p className="t-caption capitalize">{t.ticket_type.replace('_', ' ')} · {money(t.price)}</p>
           <div className="mt-3"><StatusBadge status={t.status} /></div>

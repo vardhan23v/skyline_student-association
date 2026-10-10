@@ -58,8 +58,10 @@ One Railway project, two services: **MySQL** (Railway template) and this repo as
    | `QR_SECRET` | random, 16+ chars |
    | `SEED_DEMO` | `true` for the first deploy only, then remove it |
    | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `PAYMENT_WEBHOOK_SECRET` | from Razorpay, when ready |
+   | `APP_TIMEZONE` | optional, defaults to `Asia/Kolkata`; used for "today", expiry and the nightly jobs |
+   | `SEED_FORCE` | optional; only with `SEED_DEMO=true`, lets the seed wipe a database that already has data |
    | `RESEND_API_KEY`, `CLOUDINARY_URL` | optional |
 
-   Do not set `PORT`; Railway injects it.
+   Do not set `PORT`; Railway injects it. In production the app refuses to start without `JWT_SECRET` and `QR_SECRET`, or if they are equal. Until `PAYMENT_WEBHOOK_SECRET` is set, every payment webhook is rejected.
 4. **Settings → Networking → Generate Domain**. Open `https://<domain>/api/health`, then `/`.
 5. Demo logins after seeding: `admin@ssa.test`, `treasurer@ssa.test`, `volunteer@ssa.test`, `member1@ssa.test`, password `password123`. Change or delete them before real use.

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ClipboardList, Plus } from 'lucide-react';
 import { get, patch, post } from '@/api/client';
@@ -19,17 +20,19 @@ const cols: Task['status'][] = ['todo', 'doing', 'done'];
 export function TaskBoardPage() {
   const { me, has } = useAuth(); const qc = useQueryClient(); const toast = useToast();
   const fr = useQuery({ queryKey: ['fundraisers'], queryFn: () => get<Fundraiser[]>('/fundraisers') });
-  const [fid, setFid] = useState<number | null>(null);
-  const active = fid ?? fr.data?.[0]?.id ?? null;
+  // Selected fundraiser lives in the URL so the admin "Task board" link on a fundraiser card opens that board.
+  const [params, setParams] = useSearchParams();
+  const fid = Number(params.get('fundraiser')) || null;
+  const active = (fid != null && fr.data?.some((x) => x.id === fid) ? fid : fr.data?.[0]?.id) ?? null;
   const tasks = useQuery({ queryKey: ['tasks', active], queryFn: () => get<Task[]>(`/fundraisers/${active}/tasks`), enabled: !!active });
   const move = useMutation({ mutationFn: ({ id, status }: { id: number; status: Task['status'] }) => patch(`/tasks/${id}`, { status }), onSuccess: (_r, v) => { qc.invalidateQueries({ queryKey: ['tasks'] }); qc.invalidateQueries({ queryKey: ['fundraisers'] }); toast.success(`Moved to ${v.status}`); }, onError: (e: any) => toast.error('Could not move task', e.message) });
   const [draft, setDraft] = useState({ title: '', due_on: '' });
-  const add = useMutation({ mutationFn: () => post(`/fundraisers/${active}/tasks`, { title: draft.title, due_on: draft.due_on || null }), onSuccess: () => { setDraft({ title: '', due_on: '' }); qc.invalidateQueries({ queryKey: ['tasks'] }); toast.success('Task added'); } });
+  const add = useMutation({ mutationFn: () => post(`/fundraisers/${active}/tasks`, { title: draft.title.trim(), due_on: draft.due_on || null }), onSuccess: () => { setDraft({ title: '', due_on: '' }); qc.invalidateQueries({ queryKey: ['tasks'] }); qc.invalidateQueries({ queryKey: ['fundraisers'] }); toast.success('Task added'); } });
   const f = fr.data?.find((x) => x.id === active);
   return (
     <>
       <PageHeader eyebrow="Fundraisers" title="Task board" description="Owners and due dates are visible on every card. Only the assignee or an admin moves it."
-        actions={fr.data && fr.data.length > 0 && <div><label htmlFor="fr" className="label">Fundraiser</label><Select id="fr" className="!w-auto" value={active ?? ''} onChange={(e) => setFid(Number(e.target.value))}>{fr.data.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</Select></div>} />
+        actions={fr.data && fr.data.length > 0 && <div><label htmlFor="fr" className="label">Fundraiser</label><Select id="fr" className="!w-auto" value={active ?? ''} onChange={(e) => setParams({ fundraiser: e.target.value }, { replace: true })}>{fr.data.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</Select></div>} />
       {fr.isLoading ? <div className="card"><Skeleton rows={4} /></div> : fr.error ? <ErrorState error={fr.error} onRetry={() => fr.refetch()} /> : !fr.data?.length ? <EmptyState icon={<ClipboardList className="size-5" aria-hidden />} title="No fundraisers yet" description="Admins create fundraisers; tasks live inside them." /> : f && (<>
         <div className="card mb-4 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
           <div><span className="t-label block">Raised</span><span className="t-num font-medium">{money(f.raised)}</span> <span className="text-text-secondary">of {money(f.target_amount)}</span></div>
@@ -41,7 +44,7 @@ export function TaskBoardPage() {
           <form className="card mb-4 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); add.mutate(); }}>
             <div className="min-w-48 flex-1"><label htmlFor="nt" className="label">New task</label><Input id="nt" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="What needs doing?" /></div>
             <div><label htmlFor="nd" className="label">Due</label><Input id="nd" type="date" value={draft.due_on} onChange={(e) => setDraft({ ...draft, due_on: e.target.value })} /></div>
-            <Button type="submit" disabled={!draft.title} loading={add.isPending} icon={<Plus className="size-4" aria-hidden />}>Add</Button>
+            <Button type="submit" disabled={!draft.title.trim()} loading={add.isPending} icon={<Plus className="size-4" aria-hidden />}>Add</Button>
             <ErrorState error={add.error} className="w-full" />
           </form>
         )}

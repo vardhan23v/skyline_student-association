@@ -19,6 +19,8 @@ export function DashboardPage() {
   const { me, has } = useAuth();
   const admin = has('admin'), treasurer = has('treasurer'), volunteer = has('volunteer');
   const staff = admin || treasurer;
+  // The task board (/volunteer/tasks) is volunteer/treasurer only; plain members must not be linked to it.
+  const taskBoard = volunteer || treasurer;
 
   const members = useQuery({ queryKey: ['members', 'all'], queryFn: () => get<Member[]>('/members'), enabled: staff });
   const expiring = useQuery({ queryKey: ['members', 'expiring'], queryFn: () => get<Member[]>('/members?expiring_within_days=14'), enabled: staff });
@@ -43,7 +45,7 @@ export function DashboardPage() {
   const attention: { icon: typeof Users; text: string; to: string; tone: 'warning' | 'danger' | 'info' }[] = [];
   if (expiring.data?.length) attention.push({ icon: Users, text: `${expiring.data.length} membership${expiring.data.length === 1 ? '' : 's'} expire within 14 days`, to: '/admin/members', tone: 'warning' });
   if (queue.data?.length) attention.push({ icon: Receipt, text: `${queue.data.length} reimbursement${queue.data.length === 1 ? '' : 's'} awaiting review${flagged ? ` · ${flagged} flagged` : ''}`, to: '/treasurer/expenses', tone: flagged ? 'danger' : 'warning' });
-  if (overdue) attention.push({ icon: ClipboardList, text: `${overdue} overdue task${overdue === 1 ? '' : 's'} across fundraisers`, to: '/volunteer/tasks', tone: 'danger' });
+  if (overdue && taskBoard) attention.push({ icon: ClipboardList, text: `${overdue} overdue task${overdue === 1 ? '' : 's'} across fundraisers`, to: '/volunteer/tasks', tone: 'danger' });
   if (!me.active && me.member) attention.push({ icon: UserRound, text: 'Your membership is not active. Pay dues to unlock member pricing.', to: '/me', tone: 'info' });
   const pendingTickets = me.tickets.filter((t) => t.status === 'pending').length;
   if (pendingTickets) attention.push({ icon: Ticket, text: `${pendingTickets} ticket${pendingTickets === 1 ? '' : 's'} awaiting payment confirmation`, to: '/me', tone: 'warning' });
@@ -150,7 +152,7 @@ export function DashboardPage() {
           </div>
           {frs.data && frs.data.length > 0 && (
             <div>
-              <SectionHeader title="Fundraisers" actions={<Link to={admin ? '/admin/fundraisers' : '/volunteer/tasks'} className="t-label hover:text-accent">Open →</Link>} />
+              <SectionHeader title="Fundraisers" actions={taskBoard && <Link to={admin ? '/admin/fundraisers' : '/volunteer/tasks'} className="t-label hover:text-accent">Open →</Link>} />
               <ul className="card !p-4 space-y-3">
                 {frs.data.filter((f) => f.status !== 'closed').slice(0, 3).map((f) => (
                   <li key={f.id}>

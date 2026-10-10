@@ -13,7 +13,7 @@ export const signMemberQr = (p: MemberQr) => jwt.sign({ ...p, kind: 'member' }, 
 
 export function verifyQr<T extends object>(token: string, kind: 'ticket' | 'member'): T | null {
   try {
-    const payload = jwt.verify(token, env.QR_SECRET) as any;
+    const payload = jwt.verify(token, env.QR_SECRET, { algorithms: ['HS256'] }) as any;
     return payload.kind === kind ? (payload as T) : null;
   } catch {
     return null;

@@ -20,7 +20,10 @@ export function parseAuth(req: Request, _res: Response, next: NextFunction) {
   if (h?.startsWith('Bearer ')) {
     try {
       const p = jwt.verify(h.slice(7), env.JWT_SECRET, { algorithms: ['HS256'] }) as jwt.JwtPayload;
-      req.user = { id: Number(p.sub), role: p.role as Role, email: p.email };
+      const id = Number(p.sub);
+      // Only accept tokens we minted for a user: a numeric subject and a known role (otherwise hasRole() would throw → 500).
+      if (!Number.isInteger(id) || id <= 0 || typeof p.role !== 'string' || !Object.prototype.hasOwnProperty.call(grants, p.role)) throw new Error('bad claims');
+      req.user = { id, role: p.role as Role, email: p.email };
     } catch {
       return next(unauthorized('Invalid or expired token'));
     }

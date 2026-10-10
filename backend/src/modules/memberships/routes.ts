@@ -10,7 +10,8 @@ export const membershipsRouter = Router();
 export const membersRouter = Router();
 
 membershipsRouter.post('/', requireRole('member'), validate({ body: startDuesSchema }), asyncHandler(async (req, res) => {
-  res.status(201).json(await svc.startDues(req.user!.id, req.body.amount));
+  // Dues are set by the club; a client-sent `amount` is ignored (it used to let a member pay ₹1 for a membership).
+  res.status(201).json(await svc.startDues(req.user!.id));
 }));
 
 membersRouter.get('/', requireRole('admin', 'treasurer'), validate({ query: listMembersQuery }), asyncHandler(async (req, res) => {

@@ -16,7 +16,8 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   if (res.status === 401 && token) { clearToken(); window.dispatchEvent(new Event('ssa:unauthorized')); }
   const text = await res.text();
   const data = text ? (() => { try { return JSON.parse(text); } catch { return text; } })() : null;
-  if (!res.ok) throw new ApiError(res.status, (data as any)?.error ?? res.statusText, (data as any)?.details);
+  // statusText is empty over HTTP/2 and proxy errors are HTML, so fall back to a readable message.
+  if (!res.ok) throw new ApiError(res.status, (data as any)?.error || res.statusText || `Request failed (${res.status})`, (data as any)?.details);
   return data as T;
 }
 export const get = <T,>(p: string) => api<T>(p);

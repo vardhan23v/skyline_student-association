@@ -24,7 +24,11 @@ export function EventDetailPage() {
   if (q.isLoading) return <div className="card"><Skeleton rows={6} /></div>;
   if (!q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const e = q.data;
-  const onSale = e.status === 'published' && e.seats_left > 0;
+  // Mirror buyTicket's checks (status, sales window, capacity) so the button never offers a sale the API refuses.
+  const now = Date.now();
+  const notYet = !!e.sales_open_at && +new Date(e.sales_open_at) > now;
+  const closed = !!e.sales_close_at && +new Date(e.sales_close_at) < now;
+  const onSale = e.status === 'published' && e.seats_left > 0 && !notYet && !closed;
   const sold = e.capacity - e.seats_left;
   return (
     <>
@@ -50,7 +54,7 @@ export function EventDetailPage() {
             </div>
           )}
           <Button className="w-full" disabled={!onSale} loading={buy.isPending} onClick={() => buy.mutate()} icon={<Ticket className="size-4" aria-hidden />}>
-            {e.seats_left === 0 ? 'Sold out' : onSale ? (e.price_for_you === 0 ? 'Get free ticket' : 'Buy ticket') : 'Not on sale'}
+            {e.seats_left === 0 ? 'Sold out' : onSale ? (e.price_for_you === 0 ? 'Get free ticket' : 'Buy ticket') : e.status === 'published' && notYet ? `Sales open ${datetime(e.sales_open_at)}` : e.status === 'published' && closed ? 'Sales closed' : 'Not on sale'}
           </Button>
           <ErrorState error={buy.error} />
           {result && result.checkout === null && (

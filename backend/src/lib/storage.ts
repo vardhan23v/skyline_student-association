@@ -10,7 +10,7 @@ export type Stored = { url: string; hash: string };
 export async function storeFile(buf: Buffer, mime: string, folder: string): Promise<Stored> {
   const hash = sha256(buf);
   if (!env.CLOUDINARY_URL) return { url: `data:${mime};base64,${buf.toString('base64')}`, hash };
-  const m = /^cloudinary:\/\/(\w+):([^@]+)@(\w+)$/.exec(env.CLOUDINARY_URL);
+  const m = /^cloudinary:\/\/(\w+):([^@]+)@([\w-]+)$/.exec(env.CLOUDINARY_URL); // cloud names may contain '-'
   if (!m) throw new Error('Invalid CLOUDINARY_URL');
   const [, apiKey, apiSecret, cloud] = m;
   const timestamp = Math.floor(Date.now() / 1000);

@@ -53,16 +53,22 @@ export function App() {
           <Route path="/me" element={<MemberDashboard />} />
           <Route path="/tickets/:id" element={<TicketPage />} />
         </Route>
+        {/* POST /checkin is volunteer-only (admins inherit it, treasurers do not), so the scanner is guarded the same way. */}
+        <Route element={<RequireRole roles={['volunteer']} />}>
+          <Route path="/volunteer/scan" element={<Suspense fallback={<Fallback />}><ScannerPage /></Suspense>} />
+        </Route>
+        {/* GET /members is admin or treasurer; the directory page has a treasurer "Record dues" action. */}
+        <Route element={<RequireRole roles={['admin', 'treasurer']} />}>
+          <Route path="/admin/members" element={<AdminMembersPage />} />
+        </Route>
         <Route element={<RequireRole roles={['volunteer', 'treasurer']} />}>
           <Route path="/volunteer" element={<VolunteerHome />} />
-          <Route path="/volunteer/scan" element={<Suspense fallback={<Fallback />}><ScannerPage /></Suspense>} />
           <Route path="/volunteer/verify" element={<VerifyMemberPage />} />
           <Route path="/volunteer/tasks" element={<TaskBoardPage />} />
           <Route path="/volunteer/expenses/new" element={<SubmitExpensePage />} />
         </Route>
         <Route element={<RequireRole roles={['admin']} />}>
           <Route path="/admin" element={<AdminHome />} />
-          <Route path="/admin/members" element={<AdminMembersPage />} />
           <Route path="/admin/events" element={<AdminEventsPage />} />
           <Route path="/admin/events/:id/report" element={<EventReportPage />} />
           <Route path="/admin/announcements" element={<AdminAnnouncementsPage />} />

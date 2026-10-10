@@ -1,7 +1,7 @@
 import { z } from 'zod';
 export const idParam = z.object({ id: z.coerce.number().int().positive() });
 export const cashDuesSchema = z.object({ amount: z.coerce.number().positive(), expiry_date: z.string().date().optional() });
-export const startDuesSchema = z.object({ amount: z.coerce.number().positive().optional() });
+export const startDuesSchema = z.object({}); // no client-chosen amount: dues are DEFAULT_DUES
 export const listMembersQuery = z.object({
   status: z.enum(['active', 'expired', 'pending', 'none']).optional(),
   expiring_within_days: z.coerce.number().int().positive().optional(),

@@ -19,7 +19,8 @@ export function AdminMembersPage() {
   const [f, setF] = useState({ q: '', status: '', expiring: false });
   const [open, setOpen] = useState<Member | null>(null);
   const qs = new URLSearchParams({ ...(f.q ? { q: f.q } : {}), ...(f.status ? { status: f.status } : {}), ...(f.expiring ? { expiring_within_days: '14' } : {}) }).toString();
-  const q = useQuery({ queryKey: ['members', qs], queryFn: () => get<Member[]>(`/members?${qs}`) });
+  // Keep the previous rows while a new search loads, so the table doesn't flash a skeleton on every keystroke.
+  const q = useQuery({ queryKey: ['members', qs], queryFn: () => get<Member[]>(`/members?${qs}`), placeholderData: (prev) => prev });
   const days = (d: string | null) => d ? Math.ceil((+new Date(d) - Date.now()) / 86_400_000) : null;
   return (
     <>
@@ -37,7 +38,7 @@ export function AdminMembersPage() {
           { key: 'email', header: 'Email', render: (m) => <span className="text-text-secondary">{m.email}</span>, hideOnMobile: true },
           { key: 'status', header: 'Membership', render: (m) => <StatusBadge status={m.membership_status} /> },
           { key: 'exp', header: 'Expires', render: (m) => { const d = days(m.expiry_date); return <span className={d != null && d <= 14 && d >= 0 ? 'text-warning' : ''}>{date(m.expiry_date)}{d != null && d >= 0 && d <= 14 && <span className="block t-caption">in {d}d</span>}</span>; } },
-          { key: 'joined', header: 'Joined', render: (m) => date((m as any).joined_at), hideOnMobile: true },
+          { key: 'joined', header: 'Joined', render: (m) => date(m.joined_at), hideOnMobile: true },
         ]} />
       <Modal open={!!open} onClose={() => setOpen(null)} variant="drawer" title={open?.name ?? ''} description={open?.email}
         footer={<>{has('treasurer') && open?.membership_status !== 'active' && <Link to="/treasurer/cash" className="btn-primary"><Wallet className="size-4" aria-hidden />Record dues</Link>}<button className="btn-secondary" onClick={() => setOpen(null)}>Close</button></>}>
@@ -46,7 +47,7 @@ export function AdminMembersPage() {
             <div><dt className="t-label">Student ID</dt><dd className="mt-0.5 font-mono">{open.student_id}</dd></div>
             <div><dt className="t-label">Role</dt><dd className="mt-0.5 capitalize">{open.role}</dd></div>
             <div><dt className="t-label">Phone</dt><dd className="mt-0.5">{open.phone || '—'}</dd></div>
-            <div><dt className="t-label">Joined</dt><dd className="mt-0.5">{date((open as any).joined_at)}</dd></div>
+            <div><dt className="t-label">Joined</dt><dd className="mt-0.5">{date(open.joined_at)}</dd></div>
             <div><dt className="t-label">Membership</dt><dd className="mt-1"><StatusBadge status={open.membership_status} /></dd></div>
             <div><dt className="t-label">Expires</dt><dd className="mt-0.5">{date(open.expiry_date)}</dd></div>
             {!has('treasurer') && open.membership_status !== 'active' && <p className="col-span-2 t-caption">Renewals are recorded by the treasurer (cash) or paid online by the member.</p>}

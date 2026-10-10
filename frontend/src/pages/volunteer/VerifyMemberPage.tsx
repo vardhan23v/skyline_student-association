@@ -10,16 +10,16 @@ import { date } from '@/components/format';
 
 export function VerifyMemberPage() {
   const [sid, setSid] = useState(''); const [qr, setQr] = useState('');
-  const m = useMutation({ mutationFn: () => get<any>(qr ? `/members/x/verify?qr_token=${encodeURIComponent(qr)}` : `/members/${encodeURIComponent(sid)}/verify`) });
+  const m = useMutation({ mutationFn: () => get<any>(qr.trim() ? `/members/x/verify?qr_token=${encodeURIComponent(qr.trim())}` : `/members/${encodeURIComponent(sid.trim())}/verify`) });
   return (
     <>
       <PageHeader eyebrow="Check-in" title="Verify membership" description="Type a student ID or paste a member QR token." />
       <div className="grid gap-4 lg:grid-cols-2">
         <form className="card space-y-4" onSubmit={(e) => { e.preventDefault(); m.mutate(); }}>
-          <LabeledInput label="Student ID" placeholder="e.g. SKY2024001" autoComplete="off" value={sid} onChange={(e) => setSid(e.target.value)} />
+          <LabeledInput label="Student ID" placeholder="e.g. SKY2024001" autoComplete="off" value={sid} onChange={(e) => { setSid(e.target.value); setQr(''); m.reset(); }} />
           <div className="flex items-center gap-3 t-label"><span className="h-px flex-1 bg-border" />or<span className="h-px flex-1 bg-border" /></div>
-          <LabeledInput label="Member QR token" autoComplete="off" value={qr} onChange={(e) => setQr(e.target.value)} />
-          <Button type="submit" className="w-full" loading={m.isPending} disabled={!sid && !qr} icon={<IdCard className="size-4" aria-hidden />}>Verify</Button>
+          <LabeledInput label="Member QR token" autoComplete="off" value={qr} onChange={(e) => { setQr(e.target.value); setSid(''); m.reset(); }} />
+          <Button type="submit" className="w-full" loading={m.isPending} disabled={!sid.trim() && !qr.trim()} icon={<IdCard className="size-4" aria-hidden />}>Verify</Button>
           <ErrorState error={m.error} />
         </form>
         <div role="status" aria-live="polite" className={`flex min-h-48 flex-col items-center justify-center rounded-[var(--radius-xl)] border p-6 text-center ${!m.data ? 'card-sunken text-text-tertiary' : m.data.valid ? 'border-success/50 bg-success-soft text-success' : 'border-danger/50 bg-danger-soft text-danger'}`}>

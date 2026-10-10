@@ -17,6 +17,7 @@ export function AdminAnnouncementsPage() {
   const q = useQuery({ queryKey: ['announcements'], queryFn: () => get<Announcement[]>('/announcements') });
   const [f, setF] = useState({ title: '', body: '', audience: 'all' });
   const [confirm, setConfirm] = useState(false);
+  const closeConfirm = () => setConfirm(false);
   const pub = useMutation({ mutationFn: () => post<Announcement>('/announcements', f), onSuccess: (a) => { setF({ title: '', body: '', audience: 'all' }); setConfirm(false); qc.invalidateQueries({ queryKey: ['announcements'] }); toast.success('Published', `Emailed to ${a.email_recipient_count ?? 0} recipients.`); }, onError: () => setConfirm(false) });
   return (
     <>
@@ -36,8 +37,8 @@ export function AdminAnnouncementsPage() {
           )}
         </section>
       </div>
-      <Modal open={confirm} onClose={() => setConfirm(false)} title="Publish this announcement?" size="sm" description="It will be emailed immediately and cannot be edited afterwards."
-        footer={<><Button variant="secondary" onClick={() => setConfirm(false)}>Keep editing</Button><Button loading={pub.isPending} onClick={() => pub.mutate()} icon={<Send className="size-4" aria-hidden />}>Publish to {f.audience === 'all' ? 'everyone' : 'active members'}</Button></>}>
+      <Modal open={confirm} onClose={closeConfirm} title="Publish this announcement?" size="sm" description="It will be emailed immediately and cannot be edited afterwards."
+        footer={<><Button variant="secondary" disabled={pub.isPending} onClick={closeConfirm}>Keep editing</Button><Button loading={pub.isPending} onClick={() => pub.mutate()} icon={<Send className="size-4" aria-hidden />}>Publish to {f.audience === 'all' ? 'everyone' : 'active members'}</Button></>}>
         <div className="card-sunken p-4"><div className="font-medium">{f.title}</div><p className="mt-1 line-clamp-4 whitespace-pre-wrap text-sm text-text-secondary">{f.body}</p></div>
       </Modal>
     </>

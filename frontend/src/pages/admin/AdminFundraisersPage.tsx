@@ -13,17 +13,21 @@ import { Modal } from '@/components/Modal';
 import { useToast } from '@/components/Toast';
 import { money } from '@/components/format';
 
+const blank = { name: '', description: '', target_amount: '10000', budget: '', starts_on: '', ends_on: '', status: 'planning' };
+
 export function AdminFundraisersPage() {
   const qc = useQueryClient(); const toast = useToast();
   const q = useQuery({ queryKey: ['fundraisers'], queryFn: () => get<Fundraiser[]>('/fundraisers') });
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ name: '', description: '', target_amount: '10000', budget: '', starts_on: '', ends_on: '', status: 'planning' });
-  const create = useMutation({ mutationFn: () => post('/fundraisers', { ...f, budget: f.budget || undefined, starts_on: f.starts_on || undefined, ends_on: f.ends_on || undefined }), onSuccess: () => { setF({ ...f, name: '', description: '' }); setOpen(false); qc.invalidateQueries({ queryKey: ['fundraisers'] }); toast.success('Fundraiser created'); } });
-  const setStatus = useMutation({ mutationFn: ({ id, status }: { id: number; status: string }) => patch(`/fundraisers/${id}`, { status }), onSuccess: (_r, v) => { qc.invalidateQueries({ queryKey: ['fundraisers'] }); toast.success(`Fundraiser ${v.status}`); } });
+  const [f, setF] = useState(blank);
+  const close = () => setOpen(false);
+  const create = useMutation({ mutationFn: () => post('/fundraisers', { ...f, description: f.description || undefined, budget: f.budget || undefined, starts_on: f.starts_on || undefined, ends_on: f.ends_on || undefined }), onSuccess: () => { setF(blank); setOpen(false); qc.invalidateQueries({ queryKey: ['fundraisers'] }); toast.success('Fundraiser created'); } });
+  const openNew = () => { create.reset(); setOpen(true); };
+  const setStatus = useMutation({ mutationFn: ({ id, status }: { id: number; status: string }) => patch(`/fundraisers/${id}`, { status }), onSuccess: (_r, v) => { qc.invalidateQueries({ queryKey: ['fundraisers'] }); toast.success(`Fundraiser ${v.status}`); }, onError: (e: Error) => toast.error('Update failed', e.message) });
   return (
     <>
-      <PageHeader eyebrow="Fundraisers" title="Fundraisers" description="Raised totals come from the ledger; spent totals from paid reimbursements." actions={<Button onClick={() => setOpen(true)} icon={<Plus className="size-4" aria-hidden />}>New fundraiser</Button>} />
-      {q.isLoading ? <div className="grid gap-4 md:grid-cols-2">{[0, 1].map((i) => <div key={i} className="card"><Skeleton rows={4} /></div>)}</div> : q.error ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : !q.data?.length ? <EmptyState icon={<Target className="size-5" aria-hidden />} title="No fundraisers yet" action={<Button onClick={() => setOpen(true)}>Create one</Button>} /> : (
+      <PageHeader eyebrow="Fundraisers" title="Fundraisers" description="Raised totals come from the ledger; spent totals from paid reimbursements." actions={<Button onClick={openNew} icon={<Plus className="size-4" aria-hidden />}>New fundraiser</Button>} />
+      {q.isLoading ? <div className="grid gap-4 md:grid-cols-2">{[0, 1].map((i) => <div key={i} className="card"><Skeleton rows={4} /></div>)}</div> : q.error ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : !q.data?.length ? <EmptyState icon={<Target className="size-5" aria-hidden />} title="No fundraisers yet" action={<Button onClick={openNew}>Create one</Button>} /> : (
         <div className="grid gap-4 md:grid-cols-2">
           {q.data.map((x) => {
             const pct = Math.round((x.progress ?? 0) * 100);
@@ -41,7 +45,7 @@ export function AdminFundraisersPage() {
                   <div><dt className="t-label">Overdue</dt><dd className={`mt-0.5 t-num inline-flex items-center gap-1 ${x.tasks_overdue ? 'text-danger' : ''}`}>{x.tasks_overdue > 0 && <AlertTriangle className="size-3.5" aria-hidden />}{x.tasks_overdue}</dd></div>
                 </dl>
                 <div className="mt-auto flex flex-wrap gap-2">
-                  <Link className="btn-secondary !min-h-10 !text-xs" to="/volunteer/tasks"><ClipboardList className="size-3.5" aria-hidden />Task board</Link>
+                  <Link className="btn-secondary !min-h-10 !text-xs" to={`/volunteer/tasks?fundraiser=${x.id}`}><ClipboardList className="size-3.5" aria-hidden />Task board</Link>
                   {x.status === 'planning' && <Button size="sm" className="!min-h-10" loading={setStatus.isPending && setStatus.variables?.id === x.id} onClick={() => setStatus.mutate({ id: x.id, status: 'active' })}>Activate</Button>}
                   {x.status === 'active' && <Button size="sm" variant="ghost" className="!min-h-10" loading={setStatus.isPending && setStatus.variables?.id === x.id} onClick={() => setStatus.mutate({ id: x.id, status: 'closed' })}>Close</Button>}
                 </div>
@@ -50,12 +54,12 @@ export function AdminFundraisersPage() {
           })}
         </div>
       )}
-      <Modal open={open} onClose={() => setOpen(false)} variant="drawer" title="New fundraiser" footer={<><Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button><Button form="fr-form" type="submit" loading={create.isPending}>Create</Button></>}>
+      <Modal open={open} onClose={close} variant="drawer" title="New fundraiser" footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button form="fr-form" type="submit" loading={create.isPending}>Create</Button></>}>
         <form id="fr-form" className="space-y-4" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
           <LabeledInput label="Name" required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
           <LabeledInput label="Description" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
-          <div className="grid grid-cols-2 gap-2"><LabeledInput label="Target ₹" type="number" inputMode="decimal" value={f.target_amount} onChange={(e) => setF({ ...f, target_amount: e.target.value })} /><LabeledInput label="Budget ₹" type="number" inputMode="decimal" value={f.budget} onChange={(e) => setF({ ...f, budget: e.target.value })} hint="Expenses beyond this get flagged." /></div>
-          <div className="grid grid-cols-2 gap-2"><LabeledInput label="Starts" type="date" value={f.starts_on} onChange={(e) => setF({ ...f, starts_on: e.target.value })} /><LabeledInput label="Ends" type="date" value={f.ends_on} onChange={(e) => setF({ ...f, ends_on: e.target.value })} /></div>
+          <div className="grid grid-cols-2 gap-2"><LabeledInput label="Target ₹" type="number" inputMode="decimal" min="0" step="0.01" required value={f.target_amount} onChange={(e) => setF({ ...f, target_amount: e.target.value })} /><LabeledInput label="Budget ₹" type="number" inputMode="decimal" min="0" step="0.01" value={f.budget} onChange={(e) => setF({ ...f, budget: e.target.value })} hint="Expenses beyond this get flagged." /></div>
+          <div className="grid grid-cols-2 gap-2"><LabeledInput label="Starts" type="date" value={f.starts_on} onChange={(e) => setF({ ...f, starts_on: e.target.value })} /><LabeledInput label="Ends" type="date" min={f.starts_on || undefined} value={f.ends_on} onChange={(e) => setF({ ...f, ends_on: e.target.value })} /></div>
           <ErrorState error={create.error} />
         </form>
       </Modal>

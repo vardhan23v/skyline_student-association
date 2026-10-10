@@ -1,8 +1,15 @@
 import type { Knex } from 'knex';
 import bcrypt from '../../backend/node_modules/bcryptjs';
+import { signTicketQr } from '../../backend/src/lib/qr';
 
 /** Demo data: ~50 members, 5 events, ~40 ledger rows. Password for every demo user: `password123`. */
 export async function seed(k: Knex): Promise<void> {
+  // This seed wipes every table. `npm start` runs it on every boot while SEED_DEMO=true, so a forgotten flag (or a Railway
+  // restart) would erase real members, payments and the ledger. In production only seed an empty database.
+  if (process.env.NODE_ENV === 'production' && process.env.SEED_FORCE !== 'true' && (await k('users').first())) {
+    console.warn('[seed] skipped: database already has users. Remove SEED_DEMO, or set SEED_FORCE=true to wipe and reseed.');
+    return;
+  }
   for (const t of ['webhook_events', 'ai_proposals', 'ai_audit', 'cash_receipts', 'ledger_entries', 'expenses', 'tasks', 'fundraisers', 'order_items', 'orders', 'product_variants', 'products', 'announcements', 'tickets', 'events', 'memberships', 'payments', 'members', 'users']) await k(t).del();
   const hash = await bcrypt.hash('password123', 10);
   const day = 86_400_000; const now = Date.now();
@@ -58,7 +65,9 @@ export async function seed(k: Knex): Promise<void> {
   for (let i = 30; i < 42; i++) {
     const uid = memberUserIds[i];
     const [pid] = await k('payments').insert({ user_id: uid, amount: 300, currency: 'INR', purpose: 'ticket', reference_type: 'ticket', reference_id: 0, provider: 'razorpay', provider_payment_id: `seed_gala_${i}`, status: 'paid', paid_at: new Date(now - 2 * day) });
-    const [tid] = await k('tickets').insert({ event_id: eventIds[0], holder_user_id: uid, holder_name: members[i].name, holder_email: members[i].email, ticket_type: 'member', price: 300, payment_id: pid, qr_token: `seed_gala_qr_${i}`, status: 'confirmed' });
+    const [tid] = await k('tickets').insert({ event_id: eventIds[0], holder_user_id: uid, holder_name: members[i].name, holder_email: members[i].email, ticket_type: 'member', price: 300, payment_id: pid, status: 'confirmed' });
+    // A real signed QR (same as confirmTicket issues) so these upcoming tickets can actually be scanned at the door.
+    await k('tickets').where({ id: tid }).update({ qr_token: signTicketQr({ tid: tid as number, eid: eventIds[0] }, new Date(events[0].starts_at.getTime() + day)) });
     await k('payments').where({ id: pid }).update({ reference_id: tid });
     await k('ledger_entries').insert({ direction: 'in', amount: 300, category: 'ticket', source_type: 'payment', source_id: pid, event_id: eventIds[0], memo: `Ticket #${tid} Spring Gala`, entered_by: uid, occurred_at: new Date(now - 2 * day) });
   }

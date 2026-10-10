@@ -1,9 +1,21 @@
 import type { Knex } from 'knex';
 import { getDb, lockRow } from '../../config/db';
-import { badRequest, forbidden, notFound } from '../../lib/errors';
+import { badRequest, conflict, forbidden, notFound } from '../../lib/errors';
 import { storeFile } from '../../lib/storage';
 import { sendMail } from '../../lib/email';
+import { logger } from '../../lib/logger';
+import { hmacSha256 } from '../../lib/hash';
+import { env } from '../../config/env';
 import { evaluateFlags } from './anomaly';
+
+const escapeHtml = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+const round2 = (n: number) => Math.round(n * 100) / 100;
+/**
+ * Period bounds as UTC Dates — the same instants MySQL used for the old 'YYYY-MM-DD' strings (UTC session/connection
+ * time zone). On SQLite occurred_at is stored as epoch ms, which never compared against the old text bounds.
+ */
+const dayStart = (d: string) => new Date(`${d}T00:00:00.000Z`);
+const dayEnd = (d: string) => new Date(`${d}T23:59:59.999Z`);
 
 export type Category = 'dues' | 'ticket' | 'merch' | 'fundraiser' | 'reimbursement' | 'other';
 export type Entry = {
@@ -16,6 +28,8 @@ export type Entry = {
  * Other modules call this — never INSERT INTO ledger_entries directly.
  */
 export async function recordEntry(trx: Knex, e: Entry) {
+  // Direction carries the sign; a negative/NaN amount would silently invert or corrupt the balance.
+  if (!Number.isFinite(e.amount) || e.amount < 0) throw badRequest(`Invalid ledger amount: ${e.amount}`);
   const exists = await trx('ledger_entries').where({ source_type: e.source_type, source_id: e.source_id }).first();
   if (exists) return exists.id as number;
   const [id] = await trx('ledger_entries').insert({ ...e, occurred_at: e.occurred_at ?? new Date() });
@@ -27,6 +41,8 @@ export async function reverseEntry(treasurer_id: number, entry_id: number, memo:
   const db = getDb();
   const orig = await db('ledger_entries').where({ id: entry_id }).first();
   if (!orig) throw notFound('Ledger entry not found');
+  // recordEntry is idempotent on (source_type, source_id), so a second reversal used to answer 201 without writing anything.
+  if (await db('ledger_entries').where({ source_type: 'reversal', source_id: entry_id }).first()) throw conflict('Entry already reversed');
   return recordEntry(db, {
     direction: orig.direction === 'in' ? 'out' : 'in', amount: Number(orig.amount), category: orig.category,
     source_type: 'reversal', source_id: entry_id, event_id: orig.event_id, fundraiser_id: orig.fundraiser_id,
@@ -40,8 +56,8 @@ const sumBy = async (db: Knex, group: string[], where: (qb: Knex.QueryBuilder) =
 export async function summary(q: { from?: string; to?: string }) {
   const db = getDb();
   const period = (qb: Knex.QueryBuilder) => {
-    if (q.from) qb.where('occurred_at', '>=', q.from);
-    if (q.to) qb.where('occurred_at', '<=', q.to + ' 23:59:59');
+    if (q.from) qb.where('occurred_at', '>=', dayStart(q.from));
+    if (q.to) qb.where('occurred_at', '<=', dayEnd(q.to));
   };
   const [totals, byCategory, byEvent, byFundraiser] = await Promise.all([
     sumBy(db, ['direction'], period),
@@ -54,10 +70,13 @@ export async function summary(q: { from?: string; to?: string }) {
   const n = (v: any) => Number(v ?? 0);
   const tin = n(totals.find((t: any) => t.direction === 'in')?.total);
   const tout = n(totals.find((t: any) => t.direction === 'out')?.total);
-  const monthExpr = db.client.config.client === 'mysql2' ? db.raw("DATE_FORMAT(occurred_at, '%Y-%m')") : db.raw("strftime('%Y-%m', occurred_at)");
+  // SQLite: occurred_at is epoch ms when written from a JS Date (strftime would read it as a Julian day → NULL month).
+  const monthExpr = db.client.config.client === 'mysql2'
+    ? db.raw("DATE_FORMAT(occurred_at, '%Y-%m')")
+    : db.raw("CASE WHEN typeof(occurred_at) IN ('integer', 'real') THEN strftime('%Y-%m', occurred_at / 1000, 'unixepoch') ELSE strftime('%Y-%m', occurred_at) END");
   const byMonth = await db('ledger_entries').modify(period).select({ month: monthExpr }, 'direction').sum({ total: 'amount' }).groupBy('month', 'direction').orderBy('month');
   return {
-    balance: tin - tout, total_in: tin, total_out: tout,
+    balance: round2(tin - tout), total_in: round2(tin), total_out: round2(tout), // e.g. 1850.1 − 450.2 = 1399.8999999999999
     by_category: byCategory.map((r: any) => ({ ...r, total: n(r.total) })),
     by_event: byEvent.map((r: any) => ({ ...r, total: n(r.total) })),
     by_fundraiser: byFundraiser.map((r: any) => ({ ...r, total: n(r.total) })),
@@ -65,32 +84,43 @@ export async function summary(q: { from?: string; to?: string }) {
   };
 }
 
-export async function ledger(q: { from?: string; to?: string; category?: string; limit?: number; offset?: number }) {
+/** `limit: null` = no limit (CSV export). */
+export async function ledger(q: { from?: string; to?: string; category?: string; limit?: number | null; offset?: number }) {
   const db = getDb();
   return db('ledger_entries as l')
     .leftJoin('users as u', 'u.id', 'l.entered_by')
     .leftJoin('events as e', 'e.id', 'l.event_id')
     .leftJoin('fundraisers as f', 'f.id', 'l.fundraiser_id')
     .modify((qb) => {
-      if (q.from) qb.where('l.occurred_at', '>=', q.from);
-      if (q.to) qb.where('l.occurred_at', '<=', q.to + ' 23:59:59');
+      if (q.from) qb.where('l.occurred_at', '>=', dayStart(q.from));
+      if (q.to) qb.where('l.occurred_at', '<=', dayEnd(q.to));
       if (q.category) qb.where('l.category', q.category);
+      if (q.limit !== null) qb.limit(q.limit ?? 500);
+      if (q.offset) qb.offset(q.offset);
     })
     .select('l.*', 'u.name as entered_by_name', 'e.title as event_title', 'f.name as fundraiser_name')
-    .orderBy('l.occurred_at', 'desc').orderBy('l.id', 'desc')
-    .limit(q.limit ?? 500).offset(q.offset ?? 0);
+    .orderBy('l.occurred_at', 'desc').orderBy('l.id', 'desc');
 }
 
 export function toCsv(rows: any[]) {
   const cols = ['id', 'occurred_at', 'direction', 'amount', 'category', 'source_type', 'source_id', 'event_title', 'fundraiser_name', 'memo', 'entered_by_name'];
-  const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  return [cols.join(','), ...rows.map((r) => cols.map((c) => esc(r[c])).join(','))].join('\n');
+  // Memos carry volunteer-written text: neutralise spreadsheet formulas (=,+,-,@,tab,CR) so opening the CSV can't run them.
+  const cell = (v: any, c: string) => {
+    if (v instanceof Date || (c === 'occurred_at' && typeof v === 'number')) return new Date(v).toISOString();
+    const s = String(v ?? '');
+    return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  };
+  const esc = (v: any, c: string) => `"${cell(v, c).replace(/"/g, '""')}"`;
+  return [cols.join(','), ...rows.map((r) => cols.map((c) => esc(r[c], c)).join(','))].join('\n');
 }
 
 // ---------- expenses / reimbursements ----------
 
 export async function submitExpense(user_id: number, input: { amount: number; category: string; description?: string; event_id?: number; fundraiser_id?: number }, file?: { buffer: Buffer; mimetype: string }) {
   const db = getDb();
+  // Unknown ids used to fail on the foreign key → 500 (after the receipt was already uploaded).
+  if (input.event_id && !(await db('events').where({ id: input.event_id }).first())) throw badRequest('Event not found');
+  if (input.fundraiser_id && !(await db('fundraisers').where({ id: input.fundraiser_id }).first())) throw badRequest('Fundraiser not found');
   let receipt_url: string | null = null, receipt_hash: string | null = null;
   if (file) ({ url: receipt_url, hash: receipt_hash } = await storeFile(file.buffer, file.mimetype, 'receipts'));
   const flags = await evaluateFlags(db, { ...input, submitted_by: user_id, receipt_hash, id: null });
@@ -107,27 +137,42 @@ export const getExpense = async (id: number) => {
   return r;
 };
 
+/** HMAC capability for one receipt, so a plain <a href> (no Authorization header) can open it for a few hours. */
+export const receiptSig = (id: number, exp: number) => hmacSha256(env.JWT_SECRET, `receipt:${id}:${exp}`);
+const signedReceiptPath = (id: number) => { const exp = Math.floor(Date.now() / 1000) + 6 * 3600; return `/api/expenses/${id}/receipt?exp=${exp}&sig=${receiptSig(id, exp)}`; };
+
 export async function listExpenses(user: { id: number; role: string }, q: { status?: string; flagged?: boolean; mine?: boolean }) {
   const db = getDb();
   const treasurer = user.role === 'treasurer';
+  // Without CLOUDINARY_URL receipt_url is a data: URL of up to ~7 MB per row; never pull it into the list. Such rows get a
+  // short-lived signed same-origin link instead (a top-level link to a data: URL is blocked by browsers anyway).
   const rows = await db('expenses as x').leftJoin('users as u', 'u.id', 'x.submitted_by')
-    .select('x.*', 'u.name as submitted_by_name')
+    .select('x.id', 'x.created_at', 'x.updated_at', 'x.submitted_by', 'x.event_id', 'x.fundraiser_id', 'x.amount', 'x.category', 'x.description',
+      'x.receipt_hash', 'x.status', 'x.reviewed_by', 'x.reviewed_at', 'x.review_note', 'x.flags', 'u.name as submitted_by_name',
+      db.raw("CASE WHEN x.receipt_url LIKE 'data:%' THEN 'data:' ELSE x.receipt_url END as receipt_url"))
     .modify((qb) => {
       if (!treasurer || q.mine) qb.where('x.submitted_by', user.id);
       if (q.status) qb.where('x.status', q.status);
     }).orderBy('x.id', 'desc');
-  return rows.map((r: any) => ({ ...r, flags: typeof r.flags === 'string' ? JSON.parse(r.flags) : r.flags ?? [] }))
+  return rows.map((r: any) => ({ ...r, receipt_url: r.receipt_url === 'data:' ? signedReceiptPath(r.id) : r.receipt_url, flags: typeof r.flags === 'string' ? JSON.parse(r.flags) : r.flags ?? [] }))
     .filter((r: any) => !q.flagged || (r.flags?.length ?? 0) > 0);
 }
 
 export async function reviewExpense(treasurer_id: number, id: number, decision: 'approved' | 'rejected', note?: string) {
   const db = getDb();
+  // Also reached from AI proposals (payload chosen by the LLM): only approve/reject — never e.g. 'paid', which would
+  // mark an expense paid with no ledger entry.
+  if (decision !== 'approved' && decision !== 'rejected') throw badRequest('Decision must be approved or rejected');
+  if (note != null && (typeof note !== 'string' || note.length > 1000)) throw badRequest('Invalid note');
   const x = await getExpense(id);
   if (!x) throw notFound('Expense not found');
   if (x.status !== 'submitted') throw badRequest(`Expense is already ${x.status}`);
-  if (x.submitted_by === treasurer_id) throw forbidden('Cannot review your own expense');
-  await db('expenses').where({ id }).update({ status: decision, reviewed_by: treasurer_id, reviewed_at: new Date(), review_note: note ?? null });
-  await sendMail({ to: x.submitted_by_email, subject: `Reimbursement ${decision}: ₹${x.amount}`, html: `<p>Your expense "${x.description ?? x.category}" was <b>${decision}</b>.</p>${note ? `<p>Note: ${note}</p>` : ''}` });
+  if (Number(x.submitted_by) === treasurer_id) throw forbidden('Cannot review your own expense');
+  // Conditional update: two treasurers reviewing at once can't both win (last write used to overwrite the first).
+  const n = await db('expenses').where({ id, status: 'submitted' }).update({ status: decision, reviewed_by: treasurer_id, reviewed_at: new Date(), review_note: note ?? null });
+  if (!n) throw conflict('Expense was reviewed by someone else');
+  await sendMail({ to: x.submitted_by_email, subject: `Reimbursement ${decision}: ₹${x.amount}`, html: `<p>Your expense "${escapeHtml(x.description ?? x.category)}" was <b>${decision}</b>.</p>${note ? `<p>Note: ${escapeHtml(note)}</p>` : ''}` })
+    .catch((err) => logger.error({ err, expense_id: id }, 'review email failed')); // review is committed; don't 500 on a mail outage
   return getExpense(id);
 }
 

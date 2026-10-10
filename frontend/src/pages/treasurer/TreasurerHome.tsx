@@ -14,13 +14,9 @@ import { money } from '@/components/format';
 const palette = ['var(--accent)', '#9aa6c2', '#5f6b88', '#3a4461', '#c7d0e6', '#7cc4ff'];
 const tip = { contentStyle: { background: 'var(--surface-elevated)', border: '1px solid var(--border-strong)', borderRadius: 12, fontSize: 12 }, itemStyle: { color: 'var(--text-primary)' } };
 
-export function TreasurerHome() {
-  const s = useQuery({ queryKey: ['finance', 'summary', ''], queryFn: () => get<Summary>('/finance/summary') });
-  const queue = useQuery({ queryKey: ['expenses', 'submitted'], queryFn: () => get<Expense[]>('/expenses?status=submitted') });
-  const recent = useQuery({ queryKey: ['ledger', 'limit=8'], queryFn: () => get<LedgerRow[]>('/finance/ledger?limit=8') });
-  const pie = (d: string) => (s.data?.by_category ?? []).filter((r) => r.direction === d).map((r) => ({ name: r.category, value: r.total }));
-  const flagged = queue.data?.filter((x) => x.flags.length).length ?? 0;
-  const Donut = ({ title, data }: { title: string; data: { name: string; value: number }[] }) => (
+/** Module-level so each TreasurerHome re-render doesn't create a new component type and remount the chart. */
+function Donut({ title, data }: { title: string; data: { name: string; value: number }[] }) {
+  return (
     <section className="card">
       <SectionHeader title={title} as="h3" />
       {data.length === 0 ? <p className="t-caption">No entries.</p> : (
@@ -33,6 +29,14 @@ export function TreasurerHome() {
       )}
     </section>
   );
+}
+
+export function TreasurerHome() {
+  const s = useQuery({ queryKey: ['finance', 'summary', ''], queryFn: () => get<Summary>('/finance/summary') });
+  const queue = useQuery({ queryKey: ['expenses', 'submitted'], queryFn: () => get<Expense[]>('/expenses?status=submitted') });
+  const recent = useQuery({ queryKey: ['ledger', 'limit=8'], queryFn: () => get<LedgerRow[]>('/finance/ledger?limit=8') });
+  const pie = (d: string) => (s.data?.by_category ?? []).filter((r) => r.direction === d).map((r) => ({ name: r.category, value: r.total }));
+  const flagged = queue.data?.filter((x) => x.flags.length).length ?? 0;
   return (
     <>
       <PageHeader eyebrow="Treasurer" title="Treasurer desk" description="Finance writes require the treasurer role. Admins cannot touch the ledger." />

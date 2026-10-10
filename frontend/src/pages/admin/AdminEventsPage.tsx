@@ -16,19 +16,29 @@ import { datetime, money } from '@/components/format';
 
 const blank = { title: '', description: '', starts_at: '', venue: '', capacity: '100', member_price: '0', non_member_price: '0', status: 'draft' };
 
+/** `datetime-local` holds wall-clock time with no zone. Show the stored instant in the admin's local time... */
+const toLocalInput = (v: string | number | null | undefined) => {
+  const d = new Date(v ?? '');
+  if (Number.isNaN(d.getTime())) return '';
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+};
+/** ...and send an ISO instant back, so the server never reinterprets it in its own (UTC) zone. */
+const toIso = (local: string) => (local ? new Date(local).toISOString() : local);
+
 /** Admin list + create/edit drawer. Publish/close are one-tap row actions. */
 export function AdminEventsPage() {
   const qc = useQueryClient(); const toast = useToast();
   const q = useQuery({ queryKey: ['events'], queryFn: () => get<Event[]>('/events') });
   const [f, setF] = useState<any>(blank); const [editing, setEditing] = useState<number | null>(null); const [open, setOpen] = useState(false);
   const close = () => { setOpen(false); setEditing(null); setF(blank); };
-  const save = useMutation({ mutationFn: () => (editing ? patch(`/events/${editing}`, f) : post('/events', f)), onSuccess: () => { toast.success(editing ? 'Event updated' : 'Event created'); close(); qc.invalidateQueries({ queryKey: ['events'] }); } });
+  const save = useMutation({ mutationFn: () => { const body = { ...f, starts_at: toIso(f.starts_at) }; return editing ? patch(`/events/${editing}`, body) : post('/events', body); }, onSuccess: () => { toast.success(editing ? 'Event updated' : 'Event created'); close(); qc.invalidateQueries({ queryKey: ['events'] }); } });
   const setStatus = useMutation({ mutationFn: ({ id, status }: { id: number; status: string }) => patch(`/events/${id}`, { status }), onSuccess: (_r, v) => { toast.success(`Event ${v.status}`); qc.invalidateQueries({ queryKey: ['events'] }); }, onError: (e: any) => toast.error('Update failed', e.message) });
-  const edit = (e: Event) => { setEditing(e.id); setF({ title: e.title, description: e.description ?? '', starts_at: e.starts_at.slice(0, 16), venue: e.venue ?? '', capacity: String(e.capacity), member_price: String(e.member_price), non_member_price: String(e.non_member_price), status: e.status }); setOpen(true); };
+  const openNew = () => { save.reset(); setF(blank); setEditing(null); setOpen(true); };
+  const edit = (e: Event) => { save.reset(); setEditing(e.id); setF({ title: e.title, description: e.description ?? '', starts_at: toLocalInput(e.starts_at), venue: e.venue ?? '', capacity: String(e.capacity), member_price: String(e.member_price), non_member_price: String(e.non_member_price), status: e.status }); setOpen(true); };
   return (
     <>
-      <PageHeader eyebrow="Events" title="Manage events" actions={<Button onClick={() => { setF(blank); setEditing(null); setOpen(true); }} icon={<Plus className="size-4" aria-hidden />}>New event</Button>} />
-      <DataTable rows={q.data} loading={q.isLoading} error={q.error} onRetry={() => q.refetch()} rowKey={(e) => e.id} caption="All events including drafts" empty={<EmptyState title="No events yet" action={<Button onClick={() => setOpen(true)}>Create the first event</Button>} />}
+      <PageHeader eyebrow="Events" title="Manage events" actions={<Button onClick={openNew} icon={<Plus className="size-4" aria-hidden />}>New event</Button>} />
+      <DataTable rows={q.data} loading={q.isLoading} error={q.error} onRetry={() => q.refetch()} rowKey={(e) => e.id} caption="All events including drafts" empty={<EmptyState title="No events yet" action={<Button onClick={openNew}>Create the first event</Button>} />}
         columns={[
           { key: 'event', header: 'Event', render: (e) => <><span className="font-medium">{e.title}</span><span className="block t-caption">{e.venue}</span></> },
           { key: 'when', header: 'When', render: (e) => datetime(e.starts_at) },
@@ -52,9 +62,9 @@ export function AdminEventsPage() {
           <LabeledInput label="Starts" type="datetime-local" required value={f.starts_at} onChange={(e) => setF({ ...f, starts_at: e.target.value })} />
           <LabeledInput label="Venue" value={f.venue} onChange={(e) => setF({ ...f, venue: e.target.value })} />
           <div className="grid grid-cols-3 gap-2">
-            <LabeledInput label="Capacity" type="number" inputMode="numeric" min="1" value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} />
-            <LabeledInput label="Member ₹" type="number" inputMode="decimal" min="0" value={f.member_price} onChange={(e) => setF({ ...f, member_price: e.target.value })} />
-            <LabeledInput label="Non-member ₹" type="number" inputMode="decimal" min="0" value={f.non_member_price} onChange={(e) => setF({ ...f, non_member_price: e.target.value })} />
+            <LabeledInput label="Capacity" type="number" inputMode="numeric" min="1" step="1" required value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} />
+            <LabeledInput label="Member ₹" type="number" inputMode="decimal" min="0" step="0.01" required value={f.member_price} onChange={(e) => setF({ ...f, member_price: e.target.value })} />
+            <LabeledInput label="Non-member ₹" type="number" inputMode="decimal" min="0" step="0.01" required value={f.non_member_price} onChange={(e) => setF({ ...f, non_member_price: e.target.value })} />
           </div>
           <LabeledSelect label="Status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option>draft</option><option>published</option><option>closed</option></LabeledSelect>
           <ErrorState error={save.error} />

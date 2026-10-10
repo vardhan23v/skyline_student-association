@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Bell, CalendarDays, ClipboardList, LayoutDashboard, LogOut, Megaphone, Menu, QrCode, Receipt, ShoppingBag, Sparkles, UserRound, Users, Wallet, X, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
@@ -13,7 +13,7 @@ export function useNavItems(): NavItem[] {
   const items: NavItem[] = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, auth: true },
     { to: '/events', label: 'Events', icon: CalendarDays },
-    { to: '/volunteer/scan', label: 'Check-in', icon: QrCode, roles: ['volunteer', 'treasurer'] },
+    { to: '/volunteer/scan', label: 'Check-in', icon: QrCode, roles: ['volunteer'] },
     { to: '/admin/members', label: 'Members', icon: Users, roles: ['admin', 'treasurer'] },
     { to: '/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/shop', label: 'Merchandise', icon: ShoppingBag },
@@ -112,12 +112,29 @@ export function MenuSheet({ open, onClose, onOpenSecretary }: { open: boolean; o
   const { me, logout } = useAuth();
   const loc = useLocation();
   const [path, setPath] = useState(loc.pathname);
+  const sheet = useRef<HTMLDivElement>(null);
   useEffect(() => { if (loc.pathname !== path) { setPath(loc.pathname); onClose(); } }, [loc.pathname, path, onClose]);
-  useEffect(() => { if (!open) return; const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k); }, [open, onClose]);
+  // aria-modal dialog: move focus in on open, keep Tab inside, hand focus back to the trigger on close.
+  useEffect(() => {
+    if (!open) return;
+    const restore = document.activeElement as HTMLElement | null;
+    const focusables = () => [...(sheet.current?.querySelectorAll<HTMLElement>('a[href],button:not([disabled])') ?? [])];
+    focusables()[0]?.focus();
+    const k = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') return onClose();
+      if (e.key !== 'Tab') return;
+      const items = focusables(); if (!items.length) return;
+      const [a, z] = [items[0], items[items.length - 1]];
+      if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
+      else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+    };
+    document.addEventListener('keydown', k);
+    return () => { document.removeEventListener('keydown', k); restore?.focus?.(); };
+  }, [open, onClose]);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[var(--z-drawer)] bg-black/60 fade-in lg:hidden" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-label="Menu" className="glass absolute inset-y-0 left-0 flex w-[min(20rem,88vw)] flex-col rounded-r-[var(--radius-xl)] p-4 slide-in-right" style={{ animationName: 'fadeIn' }}>
+      <div ref={sheet} role="dialog" aria-modal="true" aria-label="Menu" className="glass absolute inset-y-0 left-0 flex w-[min(20rem,88vw)] flex-col rounded-r-[var(--radius-xl)] p-4 slide-in-right" style={{ animationName: 'fadeIn' }}>
         <div className="mb-4 flex items-center justify-between"><Mark /><button aria-label="Close menu" onClick={onClose} className="inline-flex size-11 items-center justify-center rounded-full text-text-secondary hover:bg-surface-elevated"><X className="size-5" aria-hidden /></button></div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto" aria-label="All sections">
           {items.map((i) => <NavLink key={i.to} to={i.to} end={i.end} className={railLink}>{({ isActive }) => (<><i.icon className={`size-4 ${isActive ? 'text-accent' : 'text-text-tertiary'}`} aria-hidden />{i.label}</>)}</NavLink>)}

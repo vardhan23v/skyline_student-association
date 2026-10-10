@@ -17,10 +17,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const closeMenu = useCallback(() => setMenu(false), []);
 
   // "Needs attention" count feeds the bell + dashboard badge. Only queried for the roles that can act on them.
-  const expiring = useQuery({ queryKey: ['members', 'expiring'], queryFn: () => get<Member[]>('/members?expiring_within_days=14'), enabled: has('admin') });
-  const queue = useQuery({ queryKey: ['expenses', 'submitted'], queryFn: () => get<Expense[]>('/expenses?status=submitted'), enabled: has('treasurer') });
-  const frs = useQuery({ queryKey: ['fundraisers'], queryFn: () => get<Fundraiser[]>('/fundraisers'), enabled: !!me });
-  const attention = (expiring.data?.length ?? 0) + (queue.data?.length ?? 0) + (frs.data?.reduce((s, f) => s + f.tasks_overdue, 0) ?? 0);
+  // These keys are shared with pages that fetch them for other roles, so gate the sum too, not just `enabled`
+  // (a disabled observer still reads whatever another page cached). Mirrors DashboardPage's "Needs attention".
+  const canMembers = has('admin', 'treasurer'), canQueue = has('treasurer'), canTasks = has('volunteer', 'treasurer');
+  const expiring = useQuery({ queryKey: ['members', 'expiring'], queryFn: () => get<Member[]>('/members?expiring_within_days=14'), enabled: canMembers });
+  const queue = useQuery({ queryKey: ['expenses', 'submitted'], queryFn: () => get<Expense[]>('/expenses?status=submitted'), enabled: canQueue });
+  const frs = useQuery({ queryKey: ['fundraisers'], queryFn: () => get<Fundraiser[]>('/fundraisers'), enabled: canTasks });
+  const attention = (canMembers ? expiring.data?.length ?? 0 : 0) + (canQueue ? queue.data?.length ?? 0 : 0) + (canTasks ? frs.data?.reduce((s, f) => s + f.tasks_overdue, 0) ?? 0 : 0);
 
   return (
     <div className="relative min-h-dvh">

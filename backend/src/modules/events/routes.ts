@@ -14,7 +14,8 @@ eventsRouter.post('/', requireRole('admin'), validate({ body: eventBody }), asyn
 eventsRouter.get('/:id', validate({ params: idParam }), asyncHandler(async (req, res) => res.json(await svc.getEvent(Number(req.params.id), req.user, hasRole(req.user, 'admin')))));
 eventsRouter.patch('/:id', requireRole('admin'), validate({ params: idParam, body: eventBody.partial() }), asyncHandler(async (req, res) => res.json(await svc.updateEvent(Number(req.params.id), req.body))));
 eventsRouter.post('/:id/tickets', validate({ params: idParam, body: buyBody }), asyncHandler(async (req, res) => res.status(201).json(await svc.buyTicket(Number(req.params.id), req.user, req.body))));
-eventsRouter.post('/:id/cash-ticket', requireRole('treasurer', 'admin'), validate({ params: idParam, body: cashTicketBody }), asyncHandler(async (req, res) => res.status(201).json(await svc.sellCashTicket(req.user!.id, Number(req.params.id), req.body))));
+// Cash door sale writes a cash payment + ledger row: finance write → treasurer only (§7 separation of duties, §8).
+eventsRouter.post('/:id/cash-ticket', requireRole('treasurer'), validate({ params: idParam, body: cashTicketBody }), asyncHandler(async (req, res) => res.status(201).json(await svc.sellCashTicket(req.user!.id, Number(req.params.id), req.body))));
 eventsRouter.get('/:id/report', requireRole('admin', 'treasurer'), validate({ params: idParam }), asyncHandler(async (req, res) => res.json(await svc.eventReport(Number(req.params.id)))));
 
 ticketsRouter.get('/', requireAuth, asyncHandler(async (req, res) => res.json(await svc.myTickets(req.user!.id))));

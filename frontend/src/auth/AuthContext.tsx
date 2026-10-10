@@ -20,7 +20,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [qc]);
   const q = useQuery({ queryKey: ['me'], queryFn: () => get<Me>('/me'), enabled: !!getToken(), retry: false });
   const me = getToken() && q.data ? q.data : null;
-  const finish = async (r: { token: string }) => { setToken(r.token); await qc.invalidateQueries(); };
+  // The ['me'] query is disabled while signed out, so invalidateQueries() never refetches it and nothing re-renders
+  // this provider: load /me explicitly, then re-render so guards see the user before the caller navigates.
+  // Anything cached while signed out (non-member prices, public-only posts) belongs to the wrong viewer, so drop it.
+  const finish = async (r: { token: string }) => {
+    setToken(r.token);
+    qc.removeQueries();
+    try { await qc.fetchQuery({ queryKey: ['me'], queryFn: () => get<Me>('/me') }); } finally { rerender(); }
+  };
   const value: Ctx = {
     me, loading: !!getToken() && q.isLoading,
     login: async (email, password) => finish(await post('/auth/login', { email, password })),

@@ -35,7 +35,7 @@ export function EventReportPage() {
         <section className="card">
           <SectionHeader title="Breakdown" />
           <table className="table"><thead><tr><th scope="col">Type</th><th scope="col">Status</th><th scope="col" className="text-right">Count</th></tr></thead><tbody>
-            {(r as any).breakdown.map((b: any, i: number) => <tr key={i}><td className="capitalize">{b.ticket_type.replace('_', ' ')}</td><td><StatusBadge status={b.status} /></td><td className="text-right t-num">{b.n}</td></tr>)}
+            {(r.breakdown ?? []).map((b, i) => <tr key={i}><td className="capitalize">{b.ticket_type.replace('_', ' ')}</td><td><StatusBadge status={b.status} /></td><td className="text-right t-num">{b.n}</td></tr>)}
           </tbody></table>
         </section>
       </div>
