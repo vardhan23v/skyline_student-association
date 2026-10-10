@@ -5,7 +5,6 @@ import { loginUrl } from '@/auth/redirect';
 import { registerBlock } from '@/pages/public/EventDetailPage';
 import { StatusBadge } from './StatusBadge';
 import { datetime, eventPrice } from './format';
-import { EventArt } from './Skyline';
 
 /**
  * Discovery card: date block, title, venue, prices (non-member · member), capacity bar and a Register button.
@@ -22,7 +21,6 @@ export function EventCard({ event: e, to = `/events/${e.id}`, preview = false }:
   const registerTo = v.logged_in ? `${to}?action=register` : loginUrl(to, 'register');
   return (
     <article data-cursor-media={preview ? e.title : undefined} className="card card-hover interactive group relative flex min-w-0 flex-col gap-4 overflow-hidden">
-      <EventArt seed={e.id} className="-mx-5 -mt-5 h-24 w-[calc(100%+2.5rem)] border-b border-border" />
       <div className="flex items-start justify-between gap-3">
         <div className="card-sunken flex w-14 shrink-0 flex-col items-center py-2" aria-hidden>
           <span className="t-label">{d.toLocaleDateString('en-IN', { month: 'short' })}</span>

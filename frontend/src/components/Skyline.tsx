@@ -22,17 +22,3 @@ export function Skyline({ className = '', animated = false }: { className?: stri
     </svg>
   );
 }
-
-/** Deterministic cover art for an event (events have no image field). Same id → same composition. */
-export function EventArt({ seed, className = '' }: { seed: number; className?: string }) {
-  const r = (n: number) => ((seed * 9301 + n * 49297) % 233280) / 233280;
-  const cols = 12;
-  const heights = Array.from({ length: cols }, (_, i) => 20 + Math.round(r(i) * 60));
-  return (
-    <svg viewBox="0 0 240 90" className={className} aria-hidden preserveAspectRatio="xMidYMax slice">
-      <rect width="240" height="90" fill="var(--surface-sunken)" />
-      {heights.map((h, i) => <rect key={i} x={i * 20} y={90 - h} width="18" height={h} fill={i % 4 === (seed % 4) ? 'var(--accent)' : 'var(--border)'} opacity={i % 4 === (seed % 4) ? 0.55 : 1} />)}
-      <circle cx={30 + r(99) * 180} cy={18 + r(7) * 20} r="6" fill="var(--text-primary)" opacity="0.8" />
-    </svg>
-  );
-}

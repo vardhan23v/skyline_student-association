@@ -13,7 +13,6 @@ import { CheckoutModal } from '@/components/CheckoutModal';
 import { Modal } from '@/components/Modal';
 import { useToast } from '@/components/Toast';
 import { date, datetime, eventPrice, money } from '@/components/format';
-import { EventArt } from '@/components/Skyline';
 
 /** Why the Register button is disabled, or null when registration is open. Mirrors the API's checks. */
 export function registerBlock(e: Event): string | null {
@@ -91,8 +90,7 @@ export function EventDetailPage() {
   return (
     <>
       <Link to="/events" className="t-label mb-2 inline-flex min-h-11 items-center gap-1 hover:text-accent-text"><ArrowLeft className="size-3" aria-hidden />Events</Link>
-      {/* Phones: art, then title / date / venue, then seats; the CTA lives in the sticky bottom bar. */}
-      <EventArt seed={e.id} className="mb-5 h-36 w-full overflow-hidden rounded-[var(--radius-lg)] border border-border sm:h-44 lg:hidden" />
+      {/* Phones: title / date / venue, then seats; the CTA lives in the sticky bottom bar. */}
       <PageHeader eyebrow={<span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden />{datetime(e.starts_at)}</span>{e.venue && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{e.venue}</span>}</span>} script="event" title={e.title} actions={<StatusBadge status={e.status} />} />
       <div className="grid gap-5 lg:grid-cols-3">
         <aside className="card order-first space-y-4 self-start lg:order-none lg:col-start-3 lg:row-start-1 lg:sticky lg:top-28" aria-label="Registration">

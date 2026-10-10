@@ -51,7 +51,7 @@ export function MembershipCard({ open, onClose, onPaid, reason, renew = false }:
   const profileError = start.error instanceof ApiError && start.error.code === 'PROFILE_REQUIRED' ? null : start.error;
   return (
     <Modal open onClose={close} size="md" title={<span className="inline-flex items-center gap-2"><BadgeCheck className="size-4 text-accent-text" aria-hidden />{renew ? 'Renew membership' : 'Become a member'}</span>}
-      description={reason ?? 'Event registration is for SSA members.'}
+      description={reason ?? 'Member prices on events and merch, and members-only events.'}
       footer={<>
         <Button variant="secondary" onClick={close}>Not now</Button>
         <Button onClick={() => start.mutate()} loading={start.isPending} disabled={!o || (needsId && !studentId.trim())}>{renew ? 'Renew' : 'Become a member'}{o ? ` · ${money(o.price)}` : ''}</Button>
