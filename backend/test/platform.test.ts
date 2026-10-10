@@ -187,3 +187,14 @@ describe('production config', () => {
     }
   });
 });
+
+describe('static frontend', () => {
+  it('serves index.html for page routes but 404s missing files', async () => {
+    const fs = await import('node:fs'); const path = await import('node:path');
+    if (!fs.existsSync(path.resolve(__dirname, '../../frontend/dist/index.html'))) return; // frontend not built
+    const page = await request(app).get('/events/1');
+    expect(page.status).toBe(200); expect(page.headers['content-type']).toMatch(/html/);
+    expect((await request(app).get('/media/merch/missing.mp4')).status).toBe(404);
+    expect((await request(app).get('/health')).text).toBe('ok');
+  });
+});

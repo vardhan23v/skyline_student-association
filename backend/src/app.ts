@@ -76,7 +76,8 @@ export function createApp() {
   const dist = path.resolve(__dirname, '../../frontend/dist');
   if (fs.existsSync(dist)) {
     app.use(express.static(dist));
-    app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+    // SPA fallback for page routes only: a missing file (/media/x.mp4) is a 404, not index.html served as a video.
+    app.get('*', (req, res) => (path.extname(req.path) ? res.status(404).type('text').send('Not found') : res.sendFile(path.join(dist, 'index.html'))));
   }
   app.use(errorHandler);
   return app;
