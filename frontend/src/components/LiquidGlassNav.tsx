@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Bell, CalendarDays, ClipboardList, LayoutDashboard, LogOut, Megaphone, Menu, QrCode, Receipt, ShoppingBag, Sparkles, UserRound, Users, Wallet, X, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
-import type { Role } from '@/api/types';
+import type { AnyRole } from '@/api/types';
 import { Brand } from './Brand';
 
-export type NavItem = { to: string; label: string; icon: LucideIcon; roles?: Role[]; auth?: boolean; badge?: number; end?: boolean };
+export type NavItem = { to: string; label: string; icon: LucideIcon; roles?: AnyRole[]; auth?: boolean; badge?: number; end?: boolean };
 
 /** Single source of truth for navigation; both desktop rail and mobile bar read from it. */
 export function useNavItems(): NavItem[] {

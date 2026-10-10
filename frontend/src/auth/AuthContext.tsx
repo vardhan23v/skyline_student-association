@@ -1,14 +1,16 @@
 import { createContext, useContext, useEffect, useReducer, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { get, post } from '@/api/client';
-import type { Me, Role } from '@/api/types';
+import type { AnyRole, Me, Role } from '@/api/types';
 import { clearToken, getToken, setToken } from './token';
 
-type Ctx = { me: Me | null; loading: boolean; login: (email: string, password: string) => Promise<void>; register: (d: any) => Promise<void>; logout: () => void; has: (...roles: Role[]) => boolean };
+type Ctx = { me: Me | null; loading: boolean; login: (email: string, password: string) => Promise<void>; register: (d: any) => Promise<void>; logout: () => void; has: (...roles: AnyRole[]) => boolean };
 const AuthCtx = createContext<Ctx>(null!);
 
-/** Mirrors the API's role grants (§7) for UX only — every endpoint re-checks. */
-const grants: Record<Role, Role[]> = { member: ['member'], volunteer: ['volunteer', 'member'], admin: ['admin', 'volunteer', 'member'], treasurer: ['treasurer', 'member'] };
+/** Mirrors the API's role grants for UX only — every endpoint re-checks. `admin` ⊇ `user`. */
+const grants: Record<Role, Role[]> = { user: ['user'], admin: ['admin', 'user'] };
+/** Retired roles still named by older guards: `member` meant any signed-in user; volunteer/treasurer duties are admin's now. */
+const asRole = (r: AnyRole): Role => (r === 'member' || r === 'user' ? 'user' : 'admin');
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
@@ -33,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login: async (email, password) => finish(await post('/auth/login', { email, password })),
     register: async (d) => finish(await post('/auth/register', d)),
     logout: () => { clearToken(); qc.clear(); rerender(); },
-    has: (...roles) => !!me && roles.some((r) => grants[me.user.role].includes(r)),
+    has: (...roles) => !!me && roles.some((r) => grants[me.user.role]?.includes(asRole(r))),
   };
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }

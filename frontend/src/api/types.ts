@@ -1,9 +1,13 @@
-export type Role = 'member' | 'volunteer' | 'admin' | 'treasurer';
+export type Role = 'admin' | 'user';
+/** Retired roles some pre-Phase-2 page guards still name; AuthContext maps them onto the two real roles. */
+export type LegacyRole = 'member' | 'volunteer' | 'treasurer';
+export type AnyRole = Role | LegacyRole;
 export type User = { id: number; name: string; email: string; role: Role };
-export type Event = { id: number; title: string; description?: string; starts_at: string; venue?: string; capacity: number; member_price: number; non_member_price: number; status: 'draft' | 'published' | 'closed'; seats_left: number; price_for_you: number; you_are_member: boolean; sales_open_at?: string; sales_close_at?: string };
+export type Event = { id: number; title: string; description?: string; starts_at: string; venue?: string; capacity: number; member_price: number; non_member_price: number; status: 'draft' | 'published' | 'closed'; seats_left: number; price: number; viewer: EventViewer; /** @deprecated use price */ price_for_you: number; /** @deprecated use viewer.is_member */ you_are_member: boolean; sales_open_at?: string; sales_close_at?: string };
+export type EventViewer = { logged_in: boolean; is_member: boolean; registered: boolean; ticket: { id: number; status: string } | null };
 export type Ticket = { id: number; event_id: number; event_title?: string; starts_at?: string; venue?: string; holder_name: string; ticket_type: string; price: number; status: string; qr_token?: string; qr_data_url?: string; checked_in_at?: string };
-export type Checkout = { provider: string; order_id: string; amount: number; currency: string; key_id?: string } | null;
-export type Me = { user: User; member: any; membership: any; active: boolean; qr_token: string | null; tickets: Ticket[] };
+export type Checkout = { provider: string; order_id: string; amount: number; currency: string; key_id?: string; payment_id: number; demo: boolean } | null;
+export type Me = { user: User; member: any; membership: any; active: boolean; is_member: boolean; membership_expires: string | null; qr_token: string | null; tickets: Ticket[] };
 export type Announcement = { id: number; title: string; body: string; audience: string; published_at: string; author_name: string; email_recipient_count?: number };
 export type Product = { id: number; name: string; description?: string; image_url?: string; is_active: boolean; variants: { id: number; size: string; price: number; member_price: number; stock: number; reserved: number; available: number; price_for_you: number }[] };
 export type Fundraiser = { id: number; name: string; description?: string; target_amount: number; budget?: number; starts_on?: string; ends_on?: string; status: string; raised: number; spent: number; progress: number | null; tasks_total: number; tasks_done: number; tasks_overdue: number };
@@ -14,3 +18,12 @@ export type Summary = { balance: number; total_in: number; total_out: number; by
 export type LedgerRow = { id: number; occurred_at: string; direction: 'in' | 'out'; amount: number; category: string; source_type: string; source_id: number; event_title?: string; fundraiser_name?: string; memo?: string; entered_by_name?: string };
 export type Member = { id: number; student_id: string; phone?: string; name: string; email: string; role: Role; membership_status: string | null; expiry_date: string | null; start_date?: string | null; joined_at?: string | null };
 export type EventReport = { event: Event; sold: number; checked_in: number; no_show: number; pending: number; cancelled: number; by_type: { member: number; non_member: number }; revenue: number; spent: number; breakdown?: { ticket_type: string; status: string; n: number | string }[] };
+export type MembershipOffer = { price: number; currency: string; benefits: string[]; valid_until?: string };
+/** 403 body from members-only endpoints (POST /events/:id/register). */
+export type MembershipRequired = { code: 'MEMBERSHIP_REQUIRED'; message: string; membership: MembershipOffer };
+export type OrderItem = { product: string; size: string; qty: number; unit_price: number; variant_id?: number; product_id?: number };
+export type OrderStatus = 'pending' | 'paid' | 'fulfilled' | 'cancelled';
+export type MyOrder = { id: number; created_at: string; total: number; status: OrderStatus; payment_id: number | null; payment_status: string | null; fulfilled_at: string | null; items: OrderItem[] };
+export type AdminOrder = { id: number; created_at: string; customer: { id: number; name: string; email: string; is_member: boolean }; items: OrderItem[]; total: number; payment_status: string | null; status: OrderStatus };
+export type AdminOrdersPage = { rows: AdminOrder[]; total: number; page: number; page_size: number };
+export type AdminOverview = { members: { active: number; total: number }; upcoming_registrations: number; orders_today: { count: number; paid: number; revenue: number }; pending_orders: number; balance: number; as_of: string };

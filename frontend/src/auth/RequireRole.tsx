@@ -1,10 +1,10 @@
 import { Link, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
-import type { Role } from '@/api/types';
+import type { AnyRole } from '@/api/types';
 import { useAuth } from './AuthContext';
 import { Skeleton, EmptyState } from '@/components/EmptyState';
 
-export function RequireRole({ roles }: { roles: Role[] }) {
+export function RequireRole({ roles }: { roles: AnyRole[] }) {
   const { me, loading, has } = useAuth();
   const loc = useLocation();
   if (loading) return <div className="card"><Skeleton rows={5} /></div>;
