@@ -1,13 +1,14 @@
 # Skyline Student Association — Website
 
-The website and club app for the Skyline Student Association (SSA), a student club.
+The website and club app for the Skyline Student Association (SSA), a student club. Live at **https://skyline-student-association.up.railway.app**.
 - **Landing page:** upcoming events, past events, merch, the club story, a photo gallery and a join form.
 - **Behind it:** a Node/Express + MySQL API for memberships, event registration, merch orders, announcements and the club's finances.
 
-> **Status: all three phases are done.**
+> **Status: all four phases are done.**
 > - **Phase 1:** the API, with two roles, members-only registration, and orders with a live admin feed. See [`docs/api.md`](docs/api.md).
 > - **Phase 2:** the frontend runs on that API, with standalone auth, role-based landing, the membership gate and the tabbed admin dashboard.
 > - **Phase 3:** one UI. Every page uses the landing page's palette, type, glass surfaces, motion and cursor. See [`docs/design.md`](docs/design.md); before/after screenshots are in [`docs/screenshots/`](docs/screenshots/).
+> - **Phase 4:** mobile. Every page works from 320px phones to desktop: a hamburger sheet, a sticky admin tab strip, card-mode tables, bottom sheets, sticky action bars and touch-first landing sections. Checked by Playwright at four viewports (below); see the Responsive section of [`docs/design.md`](docs/design.md).
 
 ## Roles
 
@@ -93,6 +94,12 @@ Tests use an in-memory database:
 npm test
 ```
 
+Responsive checks (Playwright, using your installed Chrome): with the demo app running on port 8099
+(`npm run build`, then `DEMO_PAYMENTS=true ALLOW_DEMO_SEED=true PORT=8099 npm start`), run
+`npm --prefix frontend run test:responsive`. It loads every key page at 360, 390, 768 and 1280px wide, fails on any
+horizontal scroll or a key control under 44px, and writes full-page screenshots to `frontend/tests/screenshots/`
+(git-ignored). `npm --prefix frontend run media:prepare` rebuilds the 480px phone copies of the landing photos.
+
 ## Deploy (Railway)
 
 One project with two services: **MySQL** and **web** (this repo).
@@ -109,6 +116,8 @@ Web service variables:
 |---|---|
 | `DATABASE_URL` | `${{MySQL.MYSQL_URL}}` |
 | `NODE_ENV` | `production` |
+| `APP_URL` | `https://skyline-student-association.up.railway.app`: the public origin, no trailing slash. **Required**: the app won't start without it. Email links are built from it, and any other hostname gets a 301 to it |
+| `VITE_APP_URL` | Same value. Read at build time for the canonical and Open Graph URLs in `index.html` |
 | `JWT_SECRET` / `QR_SECRET` | Random, 32+ and 16+ characters, and different from each other. The app refuses to start without them |
 | `DEMO_PAYMENTS` | `true` to take demo payments while no Razorpay keys are set. Leave it unset once real payments are on |
 | `ALLOW_DEMO_SEED` | `true` to seed the demo data on boot |

@@ -40,7 +40,7 @@ Primary buttons are cream (as on the landing page). To make them crimson everywh
 - **Buttons**: the landing classes. `btn-l-primary` (cream solid), `btn-l-secondary` (cream outline, fills on hover),
   plus `btn-danger` (crimson) and `btn-ghost`. `Button.tsx` maps its variants onto them.
 - **Fields**: transparent glass, cream 22% border, crimson focus ring; uppercase small labels.
-- **Tables** (`DataTable`): uppercase cream/60 headers, cream 8% dividers, cream 4% row hover; stacked cards under 768px.
+- **Tables** (`DataTable`): uppercase cream/60 headers, cream 8% dividers, cream 4% row hover; cards under 768px (see Responsive).
 
 ## Motion and cursor
 - Page and admin-tab enter: fade + 12px rise, 0.4s, `ease.out` (`[0.22, 1, 0.36, 1]`); section headings rise as
@@ -48,7 +48,29 @@ Primary buttons are cream (as on the landing page). To make them crimson everywh
 - The student cursor runs on every page. It hides over text fields and over the check-in camera
   (`data-cursor="text"`), where the normal pointer returns.
 
+## Responsive (Phase 4)
+Mobile first: base styles target 360px; `sm` 640 / `md` 768 / `lg` 1024 / `xl` 1280 add layout. Nothing scrolls
+sideways at 320px (WCAG reflow). Checked by `frontend/tests/responsive.spec.ts` at 360, 390, 768 and 1280.
+- **Rhythm**: 16px gutter on phones, 24px from md, 32px from lg (`.l-gutter`); landing sections pad 80 / 104 / 128px
+  (`.l-section`). Display type is fluid (`.t-display` `clamp(2.25rem, 11.5vw, 7.5rem)`, sized so ASSOCIATION fits 360px);
+  script words are 1.4× their uppercase pair. Reading text and every input are ≥16px (no iOS zoom on focus).
+- **Touch**: every control is ≥44×44px with ≥8px between neighbours. Custom `:hover` rules sit in
+  `@media (hover: hover)`; the cursor-follow merch preview, the student cursor and the carousel arrows are for a fine
+  pointer only. Fixed and sticky layers pad with `env(safe-area-inset-*)`; full-height sections use `svh`.
+- **Navigation**: below md the navbar is logo + hamburger; the sheet is full screen, traps focus, locks scroll and
+  closes on a link, ✕, Esc or Back. Below lg the admin sidebar becomes a sticky, snap-scrolling tab strip under the
+  navbar (faded edges, active tab centred).
+- **Tables** (`DataTable`): under md each row is a card. Columns choose a `mobile` slot: `primary` (title), `status`
+  (top right), `secondary` (label/value rows, the default) or `actions` (full-width at the bottom); `hideOnMobile`
+  drops one. From md it's a table that scrolls inside its card with the first column pinned when it can't fit.
+- **Sheets**: under 640px every `Modal` is a bottom sheet (90svh, drag handle, swipe down to close, actions stacked
+  full width with the primary last). Toasts sit at the top on phones so they never cover a bottom bar.
+- **Sticky bars**: event Register, shop cart, check-in "Scan next", announcement Publish.
+- **Motion**: under md backgrounds crossfade on opacity only (no blur, scale or parallax) and only neighbouring
+  backgrounds stay loaded; section reveals are a 300ms fade + 12px rise; Lenis is off on touch screens.
+
 ## Content and media
-- Landing copy, prices and photo paths: `frontend/src/data/landing.ts`; files under `frontend/public/media/`.
+- Landing copy, prices and photo paths: `frontend/src/data/landing.ts`; files under `frontend/public/media/`, each past/gallery
+  photo with a `-480.jpg` phone copy (`npm --prefix frontend run media:prepare`).
 - Backgrounds: masters in `src/assets/backgrounds/`, originals in `design/backgrounds-source/`, rebuilt with
   `npm run bg:prepare`. Each section's `overlay` keeps cream/70 text at AA over the brightest part of its image.

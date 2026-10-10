@@ -410,7 +410,7 @@ Everything runs on Railway: one Node service + one MySQL plugin in a single proj
 | SPA + API | Railway Node service (`backend/`) | Express serves `/api/*` and the built SPA from `frontend/dist` with an `index.html` fallback for client routes. Frontend calls `/api` relative — no `VITE_API_URL`. |
 | DB | Railway MySQL plugin | `DATABASE_URL` injected as a reference variable; migrations run in the start command |
 | Files | Cloudinary | Unsigned upload preset for receipts restricted by folder + size |
-| Payments | Razorpay test mode for demo | Webhook URL = `https://<railway-domain>/api/webhooks/payment` |
+| Payments | Razorpay test mode for demo | Webhook URL = `https://skyline-student-association.up.railway.app/api/webhooks/payment` |
 | Jobs | Same Node process (`node-cron`) | Keep replicas = 1 so jobs don't double-run |
 
 Build & start (root `package.json` or `railway.json`):
