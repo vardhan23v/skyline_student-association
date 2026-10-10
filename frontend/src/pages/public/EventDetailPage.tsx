@@ -12,6 +12,7 @@ import { ErrorState, Skeleton } from '@/components/EmptyState';
 import { CheckoutModal } from '@/components/CheckoutModal';
 import { useToast } from '@/components/Toast';
 import { datetime, money } from '@/components/format';
+import { EventArt } from '@/components/Skyline';
 
 /** Why the Register button is disabled, or null when registration is open. Mirrors the API's checks. */
 export function registerBlock(e: Event): string | null {
@@ -54,29 +55,43 @@ export function EventDetailPage() {
   const blocked = registerBlock(e);
   const pendingTicket = v.ticket?.status === 'pending';
 
+  // One CTA, four states: View ticket / Register (or Complete payment) / Become a member / Sold out (or another block).
+  const joinFirst = v.logged_in && !v.is_member;
+  const price = e.price === 0 ? 'Free' : money(e.price);
   let cta;
-  if (v.registered && v.ticket) cta = <Link to={`/tickets/${v.ticket.id}`} className="btn-primary w-full"><QrCode className="size-4" aria-hidden />View ticket</Link>;
-  else if (pendingTicket) cta = <Button className="w-full" loading={register.isPending} onClick={() => void run().catch(() => {})} icon={<Ticket className="size-4" aria-hidden />}>Complete payment</Button>;
-  else if (blocked) cta = <Button className="w-full" disabled icon={<Ticket className="size-4" aria-hidden />}>{blocked}</Button>;
-  else cta = <Button className="w-full" loading={register.isPending} onClick={() => void run().catch(() => {})} icon={<Ticket className="size-4" aria-hidden />}>{e.price === 0 ? 'Register' : `Register · ${money(e.price)}`}</Button>;
+  if (v.registered && v.ticket) cta = <Link to={`/tickets/${v.ticket.id}`} className="btn-primary w-full !min-h-12"><QrCode className="size-4" aria-hidden />View ticket</Link>;
+  else if (pendingTicket) cta = <Button className="w-full !min-h-12" loading={register.isPending} onClick={() => void run().catch(() => {})} icon={<Ticket className="size-4" aria-hidden />}>Complete payment</Button>;
+  else if (blocked) cta = <Button className="w-full !min-h-12" disabled icon={<Ticket className="size-4" aria-hidden />}>{blocked}</Button>;
+  else if (joinFirst) cta = <Button className="w-full !min-h-12" loading={register.isPending} onClick={() => void run().catch(() => {})} icon={<Ticket className="size-4" aria-hidden />}>Become a member</Button>;
+  else cta = <Button className="w-full !min-h-12" loading={register.isPending} onClick={() => void run().catch(() => {})} icon={<Ticket className="size-4" aria-hidden />}>{e.price === 0 ? 'Register' : `Register · ${price}`}</Button>;
 
   return (
     <>
-      <Link to="/events" className="t-label mb-3 inline-flex items-center gap-1 hover:text-accent-text"><ArrowLeft className="size-3" aria-hidden />Events</Link>
+      <Link to="/events" className="t-label mb-2 inline-flex min-h-11 items-center gap-1 hover:text-accent-text"><ArrowLeft className="size-3" aria-hidden />Events</Link>
+      {/* Phones: art, then title / date / venue, then seats; the CTA lives in the sticky bottom bar. */}
+      <EventArt seed={e.id} className="mb-5 h-36 w-full overflow-hidden rounded-[var(--radius-lg)] border border-border sm:h-44 lg:hidden" />
       <PageHeader eyebrow={<span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden />{datetime(e.starts_at)}</span>{e.venue && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{e.venue}</span>}</span>} script="event" title={e.title} actions={<StatusBadge status={e.status} />} />
       <div className="grid gap-5 lg:grid-cols-3">
-        <article className="card lg:col-span-2 whitespace-pre-wrap text-[15px] leading-relaxed text-text-secondary glow-corner">{e.description || 'No description yet.'}</article>
-        <aside className="card space-y-4 self-start lg:sticky lg:top-28" aria-label="Registration">
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between"><dt className="text-text-secondary">Member price</dt><dd className="t-num font-medium">{e.price === 0 ? 'Free' : money(e.price)}</dd></div>
-            <div className="flex justify-between"><dt className="text-text-secondary">Seats</dt><dd className="t-num font-medium inline-flex items-center gap-1"><Users className="size-3.5 text-text-tertiary" aria-hidden />{e.seats_left} of {e.capacity} left</dd></div>
+        <aside className="card order-first space-y-4 self-start lg:order-none lg:col-start-3 lg:row-start-1 lg:sticky lg:top-28" aria-label="Registration">
+          <dl className="space-y-2 text-base md:text-sm">
+            <div className="flex justify-between"><dt className="text-text-secondary">Member price</dt><dd className="t-num font-medium">{price}</dd></div>
+            <div className="flex justify-between"><dt className="text-text-secondary">Seats</dt><dd className="t-num font-medium inline-flex items-center gap-1"><Users className="size-3.5 text-text-tertiary" aria-hidden />{e.seats_left === 0 ? 'Sold out' : `${e.seats_left} of ${e.capacity} left`}</dd></div>
           </dl>
           <div className="h-1.5 overflow-hidden rounded-full bg-surface-elevated" role="progressbar" aria-valuenow={sold} aria-valuemax={e.capacity} aria-label="Seats taken"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.round((sold / e.capacity) * 100)}%` }} /></div>
           {v.registered && <div role="status" className="flex items-start gap-2 rounded-[var(--radius-md)] border border-success/40 bg-success-soft p-3 text-sm text-success"><CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden /><span>You're registered for this event.</span></div>}
-          {cta}
+          <div className="hidden lg:block">{cta}</div>
           <ErrorState error={register.error} />
-          <p className="t-caption">{v.logged_in && !v.is_member && !v.registered ? 'Registration is for SSA members. You can join in one step.' : 'Members only. Paid seats are held for 15 minutes while you pay.'}</p>
+          <p className="t-caption">{joinFirst && !v.registered ? 'Registration is for SSA members. You can join in one step.' : 'Members only. Paid seats are held for 15 minutes while you pay.'}</p>
         </aside>
+        <article className="card lg:col-span-2 lg:row-start-1 whitespace-pre-wrap text-base leading-relaxed text-text-secondary glow-corner md:text-[15px]">{e.description || 'No description yet.'}</article>
+      </div>
+      {/* Sticky bottom bar under lg, clear of the home indicator. The spacer keeps the last content above it. */}
+      <div className="h-24 lg:hidden" aria-hidden />
+      <div className="glass fixed inset-x-0 bottom-0 z-30 rounded-t-[var(--radius-xl)] border-x-0 border-b-0 px-4 pt-3 pb-safe lg:hidden" role="region" aria-label="Register">
+        <div className="mx-auto flex max-w-xl items-center gap-3">
+          <div className="min-w-0 shrink-0"><div className="t-label">{e.seats_left === 0 ? 'Sold out' : `${e.seats_left} left`}</div><div className="t-num font-medium">{price}</div></div>
+          <div className="min-w-0 flex-1">{cta}</div>
+        </div>
       </div>
       {card}
       {pay && <CheckoutModal checkout={pay.checkout} title={`Ticket: ${e.title}`} onClose={done}

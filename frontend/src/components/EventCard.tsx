@@ -29,9 +29,9 @@ export function EventCard({ event: e, to = `/events/${e.id}`, preview = false }:
           <span className="t-metric !text-2xl">{d.getDate()}</span>
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="t-section group-hover:text-accent-text transition-colors" style={{ transitionDuration: 'var(--dur-fast)' }}>
+          <h2 className="t-section group-hover:text-accent-text transition-colors" style={{ transitionDuration: 'var(--dur-fast)' }}>
             <Link to={to} className="focus-ring rounded after:absolute after:inset-0 after:content-['']">{e.title}</Link>
-          </h3>
+          </h2>
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 t-caption"><span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden />{datetime(e.starts_at)}</span>{e.venue && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{e.venue}</span>}</p>
         </div>
         <StatusBadge status={e.status} />
@@ -46,10 +46,10 @@ export function EventCard({ event: e, to = `/events/${e.id}`, preview = false }:
           <div className={`h-full rounded-full ${soldOut ? 'bg-danger' : 'bg-accent'}`} style={{ width: `${pct}%` }} />
         </div>
         <div className="relative z-10 mt-4">
-          {v.registered && v.ticket ? <Link to={`/tickets/${v.ticket.id}`} className="btn-secondary w-full !min-h-10 !text-xs"><QrCode className="size-3.5" aria-hidden />View ticket</Link>
-            : v.ticket?.status === 'pending' ? <Link to={`${to}?action=register`} className="btn-primary w-full !min-h-10 !text-xs">Complete payment</Link>
-            : blocked ? <span className="btn-secondary w-full !min-h-10 !text-xs pointer-events-none opacity-60" aria-disabled="true">{blocked}</span>
-            : <Link to={registerTo} className="btn-primary w-full !min-h-10 !text-xs"><Ticket className="size-3.5" aria-hidden />Register<span className="sr-only"> for {e.title}</span></Link>}
+          {v.registered && v.ticket ? <Link to={`/tickets/${v.ticket.id}`} className="btn-secondary w-full !text-xs"><QrCode className="size-3.5" aria-hidden />View ticket</Link>
+            : v.ticket?.status === 'pending' ? <Link to={`${to}?action=register`} className="btn-primary w-full !text-xs">Complete payment</Link>
+            : blocked ? <span className="btn-secondary w-full !text-xs pointer-events-none opacity-60" aria-disabled="true">{blocked}</span>
+            : <Link to={registerTo} className="btn-primary w-full !text-xs"><Ticket className="size-3.5" aria-hidden />Register<span className="sr-only"> for {e.title}</span></Link>}
         </div>
       </div>
     </article>
