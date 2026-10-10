@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 import { Button } from '@/components/Button';
 import { LabeledInput } from '@/components/Input';
@@ -36,7 +36,11 @@ export function LoginPage() {
 
 export function RegisterPage() {
   const { register } = useAuth(); const nav = useNavigate();
-  const [f, setF] = useState({ name: '', email: '', password: '', student_id: '', phone: '' }); const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false);
+  // Prefill from the landing page join form (router state), or from ?name=&email=&student_id= links.
+  const { state } = useLocation(); const [params] = useSearchParams();
+  const pre = (state as { prefill?: Record<string, string> } | null)?.prefill ?? {};
+  const pick = (k: string) => (pre[k] ?? params.get(k) ?? '').slice(0, 190);
+  const [f, setF] = useState({ name: pick('name'), email: pick('email'), password: '', student_id: pick('student_id'), phone: '' }); const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false);
   const submit = async (e: React.FormEvent) => { e.preventDefault(); setBusy(true); setErr(null); try { await register({ ...f, phone: f.phone || undefined, student_id: f.student_id || undefined }); nav('/me'); } catch (x) { setErr(x); } finally { setBusy(false); } };
   return (
     <AuthFrame title="Join SSA" sub="Create your account, then pay dues to activate membership.">

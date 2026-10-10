@@ -23,3 +23,13 @@ Inspired by the Sui brand/website case study (Behance, Holographik). We borrow i
 ## Alternatives considered
 1. Light-first "Paper" variant of the same tokens (white canvas, same blue) — easy to switch by inverting the neutral ramp.
 2. Dual mode with a toggle — deferred; doubles verification surface.
+
+## Public landing page ("/") — Crimson Horizon
+
+The landing page has its own strict palette and type, scoped by the `.landing` class; the app shell and dashboards keep the Midnight/Electric-blue tokens above.
+
+- Colours (Tailwind `@theme` in `frontend/src/index.css`, also `:root` vars): `midnight` #0B0B0D, `crimson` #C1121F, `ivory` #F5F1ED, `ash` #777780. Nothing else except alpha versions.
+- Contrast on midnight: ivory 17.6:1; ash 4.3:1, so ash is for hairlines, prices and large text, and small secondary text uses `ivory/65`; crimson 3.2:1, so it is for fills, focus rings and large or script text only. Ivory on crimson is 5.5:1.
+- Type: Pinyon Script for accent words of four or fewer words; Manrope for everything else, with `tracking-[0.2em]` on uppercase labels. Section headings pair a script word with an uppercase sans word.
+- Motion: framer-motion and Lenis; `MotionConfig reducedMotion="user"` plus CSS fallbacks turn off parallax, marquee, grain, glow drift and cursor follow under reduced motion.
+- Content and media: `frontend/src/data/landing.ts`, files under `frontend/public/media/`.

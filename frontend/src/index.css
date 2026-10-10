@@ -193,15 +193,54 @@
   .safe-bottom { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
 }
 
-/* Stacked-section transition + reveal (see components/SectionStack.tsx). */
+/* ------------------------------------------------------------------
+   Landing page palette (public "/" only). Strict: these four plus alpha.
+   @theme emits them as :root variables (--color-midnight …) and as
+   Tailwind utilities (bg-midnight, text-ivory/60, border-ash/20 …).
+   Contrast on midnight: ivory 17.6:1 · ash 4.3:1 (large text, hairlines only)
+   · crimson 3.2:1 (large/script text and UI only) · ivory on crimson 5.5:1.
+   ------------------------------------------------------------------ */
+@theme {
+  --color-midnight: #0B0B0D;
+  --color-crimson: #C1121F;
+  --color-ivory: #F5F1ED;
+  --color-ash: #777780;
+  --font-script: "Pinyon Script", cursive;
+}
+:root {
+  --midnight: var(--color-midnight);
+  --crimson: var(--color-crimson);
+  --ivory: var(--color-ivory);
+  --ash: var(--color-ash);
+}
+
 @layer components {
-  .stack-item { position: sticky; top: 0; transform-origin: 50% 0%; will-change: transform, opacity; }
-  .stack-item > * { min-height: 100svh; background: var(--background); }
-  .reveal { opacity: 0; transform: translateY(18px); transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out); }
-  .reveal.is-in { opacity: 1; transform: none; }
+  .landing { background: var(--midnight); color: var(--ivory); font-family: var(--font-sans); }
+  .landing :focus-visible { outline: 2px solid var(--crimson); outline-offset: 3px; border-radius: 6px; }
+  .landing ::selection { background: color-mix(in srgb, var(--crimson) 70%, transparent); color: var(--ivory); }
+  .label-wide { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
+
+  /* Film grain: fixed SVG noise, ~4% opacity, never intercepts input. */
+  .grain { position: fixed; inset: -50%; z-index: 60; pointer-events: none; opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation: grain-shift 1.2s steps(6) infinite; }
+  @keyframes grain-shift { 0% { transform: translate(0,0); } 25% { transform: translate(-3%,2%); } 50% { transform: translate(2%,-3%); } 75% { transform: translate(-2%,-1%); } 100% { transform: translate(0,0); } }
+
+  .hero-glow { background: radial-gradient(closest-side, color-mix(in srgb, var(--crimson) 42%, transparent), color-mix(in srgb, var(--crimson) 10%, transparent) 55%, transparent 75%);
+    animation: glow-drift 18s ease-in-out infinite alternate; }
+  @keyframes glow-drift { 0% { transform: translate(-12%, 6%) scale(1); } 50% { transform: translate(10%, -8%) scale(1.12); } 100% { transform: translate(-4%, -2%) scale(0.95); } }
+  .join-glow { background: radial-gradient(70% 90% at 50% 100%, color-mix(in srgb, var(--crimson) 55%, transparent), color-mix(in srgb, var(--crimson) 12%, transparent) 55%, transparent 80%); }
+
+  .marquee-track { display: flex; width: max-content; gap: 1rem; animation: marquee 60s linear infinite; }
+  .marquee-track[data-reverse] { animation-direction: reverse; }
+  .marquee-row:hover .marquee-track, .marquee-row:focus-within .marquee-track { animation-play-state: paused; }
+  @keyframes marquee { to { transform: translateX(calc(-50% - 0.5rem)); } }
+
+  .no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
+
   @media (prefers-reduced-motion: reduce) {
-    .stack-item { position: static; will-change: auto; }
-    .stack-item > * { min-height: 0; }
-    .reveal { opacity: 1; transform: none; }
+    .grain, .hero-glow { animation: none; }
+    .marquee-track { animation: none; }
+    .marquee-row { overflow-x: auto; }
   }
 }
