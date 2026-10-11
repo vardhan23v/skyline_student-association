@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -16,5 +17,7 @@ export default defineConfig({
   // Keep the chart, camera and QR libraries out of the main bundle; they are only needed on a few routes (the camera
   // reader only on the admin scanner, so it is split from the QR generator /me uses). React gets its own chunk: left
   // to Rollup, react-dom landed inside `charts` and every page preloaded the chart library.
+  // `npm test`: unit tests for plain modules in src/lib (node environment, no DOM).
+  test: { include: ['src/**/*.test.ts'] },
   build: { rollupOptions: { output: { manualChunks: { react: ['react', 'react-dom', 'react-router-dom'], charts: ['recharts'], scanner: ['html5-qrcode'], qrcode: ['qrcode'], motion: ['framer-motion', 'lenis'] } } } },
 });

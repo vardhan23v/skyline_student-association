@@ -12,7 +12,8 @@ const parse = (s: string) => {
   return new Date(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s) ? `${s.replace(' ', 'T')}Z` : s);
 };
 export const date = (s?: string | null) => (s ? parse(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
-export const datetime = (s?: string | null) => (s ? parse(s).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
+/** `timeZone` pins the output to one zone (e.g. the club's) instead of the viewer's; omitted, the browser's zone is used. */
+export const datetime = (s?: string | null, timeZone?: string) => (s ? parse(s).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone }) : '—');
 /** An event's prices in one line: "₹199 · members ₹99", "₹49 · members free", "Free", or "Members only · ₹99". */
 export const eventPrice = (e: { member_price: number; non_member_price: number; members_only: boolean }) => {
   const m = Number(e.member_price), nm = Number(e.non_member_price);

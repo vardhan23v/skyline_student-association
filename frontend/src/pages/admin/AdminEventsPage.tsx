@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { EventReportPage } from './EventReportPage';
-import { BarChart3, Pencil, Plus } from 'lucide-react';
+import { BarChart3, Copy, MessageCircle, Pencil, Plus, Share2 } from 'lucide-react';
 import { get, patch, post } from '@/api/client';
 import type { Event } from '@/api/types';
 import { PageHeader } from '@/components/PageHeader';
@@ -14,6 +14,7 @@ import { EmptyState, ErrorState } from '@/components/EmptyState';
 import { Modal } from '@/components/Modal';
 import { useToast } from '@/components/Toast';
 import { datetime, eventPrice } from '@/components/format';
+import { copyText, eventText, share } from '@/lib/share';
 
 const blank = { title: '', description: '', starts_at: '', venue: '', capacity: '100', member_price: '0', non_member_price: '0', members_only: false, status: 'draft' };
 
@@ -39,6 +40,8 @@ function EventsList() {
   const refresh = () => { qc.invalidateQueries({ queryKey: ['admin', 'events'] }); qc.invalidateQueries({ queryKey: ['events'] }); };
   const [f, setF] = useState<any>(blank); const [editing, setEditing] = useState<number | null>(null); const [open, setOpen] = useState(false);
   const close = () => { setOpen(false); setEditing(null); setF(blank); };
+  const [sharing, setSharing] = useState<Event | null>(null);
+  const copy = async (e: Event) => { if (await copyText(eventText(e))) toast.success('Copied', 'Paste it into Instagram, Telegram or anywhere else.'); else toast.error('Could not copy', 'Your browser blocked the clipboard.'); };
   const save = useMutation({ mutationFn: () => { const body = { ...f, starts_at: toIso(f.starts_at) }; return editing ? patch(`/admin/events/${editing}`, body) : post('/admin/events', body); }, onSuccess: () => { toast.success(editing ? 'Event updated' : 'Event created'); close(); refresh(); } });
   const setStatus = useMutation({ mutationFn: ({ id, status }: { id: number; status: string }) => patch(`/admin/events/${id}`, { status }), onSuccess: (_r, v) => { toast.success(`Event ${v.status}`); refresh(); }, onError: (e: any) => toast.error('Update failed', e.message) });
   const openNew = () => { save.reset(); setF(blank); setEditing(null); setOpen(true); };
@@ -59,10 +62,18 @@ function EventsList() {
               <button className="btn-secondary !px-3 !text-xs" onClick={() => edit(e)}><Pencil className="size-3.5" aria-hidden />Edit<span className="sr-only"> {e.title}</span></button>
               {e.status === 'draft' && <button className="btn-primary !px-3 !text-xs" disabled={setStatus.isPending} onClick={() => setStatus.mutate({ id: e.id, status: 'published' })}>Publish</button>}
               {e.status === 'published' && <button className="btn-secondary !px-3 !text-xs" disabled={setStatus.isPending} onClick={() => setStatus.mutate({ id: e.id, status: 'closed' })}>Close</button>}
+              {/* Only open events are worth forwarding: drafts are hidden and closed events take no registrations. */}
+              {e.status === 'published' && <button className="btn-secondary !px-3 !text-xs" onClick={() => setSharing(e)}><Share2 className="size-3.5" aria-hidden />Share<span className="sr-only"> {e.title}</span></button>}
               <Link className="btn-secondary !px-3 !text-xs" to={`/admin?tab=events&event=${e.id}`}><BarChart3 className="size-3.5" aria-hidden />Report<span className="sr-only">, registrations for {e.title}</span></Link>
             </span>
           ) },
         ]} />
+      {sharing && (
+        <Modal open onClose={() => setSharing(null)} title={`Share ${sharing.title}`} size="sm" description="Opens WhatsApp with this message; pick as many groups as you like there."
+          footer={<><Button variant="secondary" onClick={() => copy(sharing)} icon={<Copy className="size-4" aria-hidden />}>Copy text</Button><Button onClick={() => void share({ title: sharing.title, text: eventText(sharing) })} icon={<MessageCircle className="size-4" aria-hidden />}>Share to WhatsApp</Button></>}>
+          <pre className="card-sunken whitespace-pre-wrap break-words p-4 font-sans text-sm text-text-secondary">{eventText(sharing)}</pre>
+        </Modal>
+      )}
       <Modal open={open} onClose={close} variant="drawer" size="lg" title={editing ? `Edit event #${editing}` : 'New event'} description="Published events are visible and open for registration immediately."
         footer={<><Button variant="secondary" onClick={close} type="button">Cancel</Button><Button form="event-form" type="submit" loading={save.isPending}>{editing ? 'Save changes' : 'Create event'}</Button></>}>
         {/* One column on phones, two from lg; native date-time picker; Save is in the sheet's pinned footer. */}

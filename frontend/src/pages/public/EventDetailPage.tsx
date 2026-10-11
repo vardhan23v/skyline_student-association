@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, CalendarDays, CheckCircle2, MapPin, QrCode, Ticket, Users } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, CalendarDays, CheckCircle2, MapPin, QrCode, Share2, Ticket, Users } from 'lucide-react';
 import { get, post } from '@/api/client';
 import type { Checkout, Event, MembershipOffer, Registration, Ticket as TicketT } from '@/api/types';
 import { useAuthAction } from '@/hooks/useAuthAction';
 import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Button } from '@/components/Button';
+import { Button, IconButton } from '@/components/Button';
 import { ErrorState, Skeleton } from '@/components/EmptyState';
 import { CheckoutModal } from '@/components/CheckoutModal';
 import { Modal } from '@/components/Modal';
 import { useToast } from '@/components/Toast';
 import { date, datetime, eventPrice, money } from '@/components/format';
+import { eventText, share } from '@/lib/share';
 
 /** Why the Register button is disabled, or null when registration is open. Mirrors the API's checks. */
 export function registerBlock(e: Event): string | null {
@@ -91,7 +92,7 @@ export function EventDetailPage() {
     <>
       <Link to="/events" className="t-label mb-2 inline-flex min-h-11 items-center gap-1 hover:text-accent-text"><ArrowLeft className="size-3" aria-hidden />Events</Link>
       {/* Phones: title / date / venue, then seats; the CTA lives in the sticky bottom bar. */}
-      <PageHeader eyebrow={<span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden />{datetime(e.starts_at)}</span>{e.venue && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{e.venue}</span>}</span>} script="event" title={e.title} actions={<StatusBadge status={e.status} />} />
+      <PageHeader eyebrow={<span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden />{datetime(e.starts_at)}</span>{e.venue && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{e.venue}</span>}</span>} script="event" title={e.title} actions={<><StatusBadge status={e.status} /><IconButton label="Share" className="border border-border" onClick={() => void share({ title: e.title, text: eventText(e) })}><Share2 className="size-4" aria-hidden /></IconButton></>} />
       <div className="grid gap-5 lg:grid-cols-3">
         <aside className="card order-first space-y-4 self-start lg:order-none lg:col-start-3 lg:row-start-1 lg:sticky lg:top-28" aria-label="Registration">
           <dl className="space-y-2 text-base md:text-sm">

@@ -71,6 +71,7 @@ Sign in with a demo account:
 - **Who owes what (admin-only):** memberships due, unpaid orders and tickets, and reimbursements the club owes, with one-click reminders.
 - **Finance (admin-only):** append-only ledger with reversals and CSV export, expense submission with receipts, a two-person review rule, and rule-based anomaly flags.
 - **Announcements:** public or members-only posts, mailed to the list.
+- **Share to WhatsApp:** after publishing, one tap opens WhatsApp with a formatted message (or the phone's share sheet) so the same post goes to every group; events share with date, venue, both prices and the register link. Links land on the exact post (`/announcements#a-<id>`). No WhatsApp API or phone numbers.
 - **AI Secretary (admin-only):** answers from live data through role-filtered tools, with no text-to-SQL; any action it proposes needs explicit confirmation.
 - **Landing page from the database:** upcoming and past events, the stats and merch prices are read live from the API, so the homepage always matches what admins publish.
 - **UI:** one design system on every page (landing, auth, account, shop, admin), mobile-first from 320 px, card-mode tables, bottom sheets, `prefers-reduced-motion` safe.
@@ -102,7 +103,8 @@ Open http://localhost:5173 and sign in with a [demo account](#-live-demo).
 | `npm run dev:backend` / `npm run dev:frontend` | `tsx watch` API on :3000 · Vite on :5173 |
 | `npm run build` (root) | Clean installs, `tsc -b && vite build` for the SPA, `tsc` for the API. What Railway runs |
 | `npm start` (root) | Migrate → seed if `ALLOW_DEMO_SEED=true` → `node backend/dist/server.js` |
-| `npm test` | 116 vitest + supertest API tests on an in-memory SQLite database |
+| `npm test` | 143 vitest + supertest API tests on an in-memory SQLite database |
+| `npm --prefix frontend test` | Unit tests for `src/lib` (share-message formatting) |
 | `npm --prefix backend run typecheck` · `npm --prefix frontend run typecheck` | Strict type checks |
 | `npm --prefix backend run migrate` · `migrate:rollback` · `seed` | Schema and demo data for whatever `DATABASE_URL` points at |
 | `npm --prefix backend run job <name>` | Run one scheduled job now: `eventReminders`, `renewalReminders`, `expireMemberships`, `expireHolds`, `lowStock` |
@@ -376,7 +378,8 @@ Then update the Razorpay webhook (`https://<domain>/api/webhooks/payment`), the 
 ## 🧪 Testing & quality
 
 ```bash
-npm test                                         # 116 API tests, in-memory SQLite
+npm test                                         # 143 API tests, in-memory SQLite
+npm --prefix frontend test                       # share-message unit tests
 npm --prefix backend run typecheck               # strict, API
 npm --prefix frontend run typecheck              # strict, SPA
 npm run build && DEMO_PAYMENTS=true ALLOW_DEMO_SEED=true PORT=8099 npm start   # then:
