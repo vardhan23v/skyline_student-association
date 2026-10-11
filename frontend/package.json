@@ -11,7 +11,8 @@
     "bg:prepare": "node scripts/prepare-backgrounds.mjs",
     "media:prepare": "node scripts/prepare-media.mjs",
     "test:responsive": "playwright test",
-    "test": "vitest run"
+    "test": "vitest run",
+    "photos:prepare": "node scripts/prepare-event-photos.mjs"
   },
   "dependencies": {
     "@fontsource/open-sauce-sans": "^5.3.0",

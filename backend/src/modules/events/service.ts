@@ -18,21 +18,40 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 type Viewer = { logged_in: boolean; is_member: boolean; registered: boolean; ticket: { id: number; status: string } | null };
 
-/** Public list. Drafts only for admins. Each event carries seats_left and, for the caller, a `viewer` block. */
-export async function listEvents(user?: { id: number }, includeDrafts = false) {
+export type When = 'past' | 'upcoming';
+
+/**
+ * Public list. Drafts only for admins. Each event carries seats_left, `attended` (checked-in tickets) and, for the
+ * caller, a `viewer` block. `when=upcoming`: not started yet, soonest first; `when=past`: started, newest first.
+ */
+export async function listEvents(user?: { id: number }, includeDrafts = false, when?: When) {
   const db = getDb();
-  const rows = await db('events').modify((qb) => { if (!includeDrafts) qb.whereNot('status', 'draft'); }).orderBy('starts_at', 'asc');
-  const held = await heldCounts(db, rows.map((e: any) => e.id));
-  const viewer = await viewerFor(db, user?.id, rows.map((e: any) => e.id));
-  return rows.map((e: any) => withAvailability(e, held.get(e.id) ?? 0, viewer(e.id)));
+  const now = new Date();
+  const rows = await db('events')
+    .modify((qb) => {
+      if (!includeDrafts) qb.whereNot('status', 'draft');
+      if (when === 'past') qb.where('starts_at', '<=', now);
+      if (when === 'upcoming') qb.where('starts_at', '>', now);
+    })
+    .orderBy('starts_at', when === 'past' ? 'desc' : 'asc');
+  const ids = rows.map((e: any) => e.id);
+  const [held, attended, viewer] = await Promise.all([heldCounts(db, ids), attendedCounts(db, ids), viewerFor(db, user?.id, ids)]);
+  return rows.map((e: any) => withAvailability(e, held.get(e.id) ?? 0, viewer(e.id), attended.get(e.id) ?? 0));
 }
 
 export async function getEvent(id: number, user?: { id: number }, includeDrafts = false) {
   const db = getDb();
   const e = await db('events').where({ id }).first();
   if (!e || (!includeDrafts && e.status === 'draft')) throw notFound('Event not found');
-  const held = await heldCounts(db, [id]);
-  return withAvailability(e, held.get(id) ?? 0, (await viewerFor(db, user?.id, [id]))(id));
+  const [held, attended, viewer] = await Promise.all([heldCounts(db, [id]), attendedCounts(db, [id]), viewerFor(db, user?.id, [id])]);
+  return withAvailability(e, held.get(id) ?? 0, viewer(id), attended.get(id) ?? 0);
+}
+
+/** Checked-in tickets per event: how many people actually came. */
+async function attendedCounts(db: Knex, ids: number[]) {
+  if (!ids.length) return new Map<number, number>();
+  const rows = await db('tickets').whereIn('event_id', ids).where('status', 'checked_in').select('event_id').count({ n: '*' }).groupBy('event_id');
+  return new Map(rows.map((r: any) => [Number(r.event_id), Number(r.n)]));
 }
 
 async function heldCounts(db: Knex, ids: number[]) {
@@ -56,18 +75,21 @@ async function viewerFor(db: Knex, user_id: number | undefined, ids: number[]): 
 /** The price this caller would pay: members the member price, others the non-member price, or null when only members can register. */
 const priceFor = (e: any, is_member: boolean) => (is_member ? Number(e.member_price) : e.members_only ? null : Number(e.non_member_price));
 /** `price` stays the member price (older clients read it); `price_for_you` is what the caller pays (signed-out callers see the non-member price). */
-const withAvailability = (e: any, held: number, viewer: Viewer) => ({
-  ...e, members_only: !!e.members_only, member_price: Number(e.member_price), non_member_price: Number(e.non_member_price),
+const withAvailability = (e: any, held: number, viewer: Viewer, attended = 0) => ({
+  ...e, attended, ended: new Date(e.starts_at) <= new Date(), members_only: !!e.members_only, member_price: Number(e.member_price), non_member_price: Number(e.non_member_price),
   seats_left: Math.max(0, e.capacity - held), price: Number(e.member_price), price_for_you: priceFor(e, viewer.is_member), viewer,
 });
 
+/** An empty image_url from the form clears the photo. */
+const clean = (input: any) => (input.image_url === '' ? { ...input, image_url: null, image_alt: null } : input);
+
 export async function createEvent(input: any) {
-  const [id] = await getDb()('events').insert(input);
+  const [id] = await getDb()('events').insert(clean(input));
   return getDb()('events').where({ id }).first();
 }
 export async function updateEvent(id: number, input: any) {
   // An empty PATCH body made knex throw "Empty .update() call" → 500.
-  const n = Object.keys(input).length ? await getDb()('events').where({ id }).update(input) : (await getDb()('events').where({ id }).first()) ? 1 : 0;
+  const n = Object.keys(input).length ? await getDb()('events').where({ id }).update(clean(input)) : (await getDb()('events').where({ id }).first()) ? 1 : 0;
   if (!n) throw notFound('Event not found');
   return getDb()('events').where({ id }).first();
 }
@@ -83,9 +105,9 @@ export async function registerForEvent(event_id: number, user_id: number) {
   type Hold = { done: any } | { resume: any; payment: any } | { ticket_id: number; price: number };
   const hold = await db.transaction(async (trx): Promise<Hold> => {
     const e = await lockRow(trx('events').where({ id: event_id })).first();
-    if (!e || e.status !== 'published') throw notFound('Event not open for registration');
     const now = new Date();
-    if (new Date(e.starts_at) <= now) throw new HttpError(400, 'Event has already started', 'REGISTRATION_CLOSED');
+    if (e && e.status !== 'draft' && new Date(e.starts_at) <= now) throw conflict('Event has ended', 'EVENT_ENDED');
+    if (!e || e.status !== 'published') throw notFound('Event not open for registration');
     if (e.sales_open_at && new Date(e.sales_open_at) > now) throw new HttpError(400, 'Registration is not open yet', 'REGISTRATION_NOT_OPEN');
     if (e.sales_close_at && new Date(e.sales_close_at) < now) throw new HttpError(400, 'Registration has closed', 'REGISTRATION_CLOSED');
     const is_member = await isActiveMember(trx, user_id);

@@ -1,7 +1,10 @@
 export type Role = 'admin' | 'user';
 export type User = { id: number; name: string; email: string; role: Role };
 /** `price` is the member price (kept for older code); `price_for_you` is what this caller pays, null when only members can register. */
-export type Event = { id: number; title: string; description?: string; starts_at: string; venue?: string; capacity: number; member_price: number; non_member_price: number; members_only: boolean; status: 'draft' | 'published' | 'closed'; seats_left: number; price: number; price_for_you: number | null; viewer: EventViewer; sales_open_at?: string; sales_close_at?: string };
+export type Event = { id: number; title: string; description?: string; starts_at: string; venue?: string; capacity: number; member_price: number; non_member_price: number; members_only: boolean; status: 'draft' | 'published' | 'closed'; seats_left: number; price: number; price_for_you: number | null; viewer: EventViewer; sales_open_at?: string; sales_close_at?: string;
+  /** Cover photo (a /media path or https URL) and its alt text; null when the event has none. */ image_url?: string | null; image_alt?: string | null;
+  category?: string; duration?: string | null; participation?: string | null;
+  /** Checked-in tickets: how many people came. */ attended?: number; /** The event has started (or finished). */ ended?: boolean };
 export type EventViewer = { logged_in: boolean; is_member: boolean; registered: boolean; ticket: { id: number; status: string } | null };
 export type Ticket = { id: number; event_id: number; event_title?: string; starts_at?: string; venue?: string; holder_name: string; ticket_type: string; price: number; status: string; qr_token?: string; qr_data_url?: string; checked_in_at?: string };
 export type Checkout = { provider: string; order_id: string; amount: number; currency: string; key_id?: string; payment_id: number; demo: boolean } | null;

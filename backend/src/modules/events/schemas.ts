@@ -9,5 +9,12 @@ export const eventBody = z.object({
   members_only: z.boolean().optional(),
   sales_open_at: z.coerce.date().optional(), sales_close_at: z.coerce.date().optional(),
   status: z.enum(['draft', 'published', 'closed']).optional(),
+  // Cover photo: a file the site serves (/media/…) or an https URL. Empty string clears it.
+  image_url: z.union([z.literal(''), z.string().max(500).regex(/^(\/media\/[\w./-]+|https:\/\/\S+)$/, 'Use a /media/… path or an https:// URL')]).nullable().optional(),
+  image_alt: z.string().max(300).nullable().optional(),
+  category: z.string().trim().max(100).optional(),
+  duration: z.string().trim().max(60).nullable().optional(),
+  participation: z.string().trim().max(120).nullable().optional(),
 });
+export const listQuery = z.object({ when: z.enum(['past', 'upcoming']).optional() });
 export const checkinBody = z.object({ qr_token: z.string().min(10), event_id: z.coerce.number().int().positive().optional() });

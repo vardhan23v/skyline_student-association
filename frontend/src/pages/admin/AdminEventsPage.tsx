@@ -15,8 +15,9 @@ import { Modal } from '@/components/Modal';
 import { useToast } from '@/components/Toast';
 import { datetime, eventPrice } from '@/components/format';
 import { copyText, eventText, share } from '@/lib/share';
+import { EventPhoto } from '@/components/EventPhoto';
 
-const blank = { title: '', description: '', starts_at: '', venue: '', capacity: '100', member_price: '0', non_member_price: '0', members_only: false, status: 'draft' };
+const blank = { title: '', description: '', starts_at: '', venue: '', capacity: '100', member_price: '0', non_member_price: '0', members_only: false, status: 'draft', category: '', duration: '', participation: '', image_url: '', image_alt: '' };
 
 /** `datetime-local` holds wall-clock time with no zone. Show the stored instant in the admin's local time... */
 const toLocalInput = (v: string | number | null | undefined) => {
@@ -42,10 +43,10 @@ export function AdminEventsPage() {
   const close = () => { setOpen(false); setEditing(null); setF(blank); };
   const [sharing, setSharing] = useState<Event | null>(null);
   const copy = async (e: Event) => { if (await copyText(eventText(e))) toast.success('Copied', 'Paste it into Instagram, Telegram or anywhere else.'); else toast.error('Could not copy', 'Your browser blocked the clipboard.'); };
-  const save = useMutation({ mutationFn: () => { const body = { ...f, starts_at: toIso(f.starts_at) }; return editing ? patch(`/admin/events/${editing}`, body) : post('/admin/events', body); }, onSuccess: () => { toast.success(editing ? 'Event updated' : 'Event created'); close(); refresh(); } });
+  const save = useMutation({ mutationFn: () => { const body = { ...f, starts_at: toIso(f.starts_at), category: f.category.trim() || 'general', duration: f.duration.trim() || null, participation: f.participation.trim() || null, image_alt: f.image_url ? f.image_alt.trim() || null : null }; return editing ? patch(`/admin/events/${editing}`, body) : post('/admin/events', body); }, onSuccess: () => { toast.success(editing ? 'Event updated' : 'Event created'); close(); refresh(); } });
   const setStatus = useMutation({ mutationFn: ({ id, status }: { id: number; status: string }) => patch(`/admin/events/${id}`, { status }), onSuccess: (_r, v) => { toast.success(`Event ${v.status}`); refresh(); }, onError: (e: any) => toast.error('Update failed', e.message) });
   const openNew = () => { save.reset(); setF(blank); setEditing(null); setOpen(true); };
-  const edit = (e: Event) => { save.reset(); setEditing(e.id); setF({ title: e.title, description: e.description ?? '', starts_at: toLocalInput(e.starts_at), venue: e.venue ?? '', capacity: String(e.capacity), member_price: String(e.member_price), non_member_price: String(e.non_member_price), members_only: e.members_only, status: e.status }); setOpen(true); };
+  const edit = (e: Event) => { save.reset(); setEditing(e.id); setF({ title: e.title, description: e.description ?? '', starts_at: toLocalInput(e.starts_at), venue: e.venue ?? '', capacity: String(e.capacity), member_price: String(e.member_price), non_member_price: String(e.non_member_price), members_only: e.members_only, status: e.status, category: e.category && e.category !== 'general' ? e.category : '', duration: e.duration ?? '', participation: e.participation ?? '', image_url: e.image_url ?? '', image_alt: e.image_alt ?? '' }); setOpen(true); };
   return (
     <>
       <PageHeader script="manage" title="Events" description="Members pay the member price and everyone else the non-member price, unless an event is members only." actions={<Button onClick={openNew} icon={<Plus className="size-4" aria-hidden />}>New event</Button>} />
@@ -91,6 +92,18 @@ export function AdminEventsPage() {
             <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={f.members_only} onChange={(e) => setF({ ...f, members_only: e.target.checked })} />
             Members only<span className="t-caption">non-members are asked to join first</span>
           </label>
+          <LabeledInput label="Category (optional)" placeholder="Technical, Non-Technical…" maxLength={100} value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} />
+          <LabeledInput label="Duration (optional)" placeholder="3 hours" maxLength={60} value={f.duration} onChange={(e) => setF({ ...f, duration: e.target.value })} />
+          <div className="lg:col-span-2"><LabeledInput label="Participation (optional)" placeholder="Teams of 2–4, Individual…" maxLength={120} value={f.participation} onChange={(e) => setF({ ...f, participation: e.target.value })} /></div>
+          <fieldset className="grid gap-4 rounded-[var(--radius-lg)] border border-border p-4 lg:col-span-2 lg:grid-cols-[1fr_12rem]">
+            <legend className="t-label px-1">Cover photo</legend>
+            <div className="space-y-4">
+              <LabeledInput label="Photo URL" placeholder="/media/past/my-event.jpg or https://…" maxLength={500} value={f.image_url} onChange={(e) => setF({ ...f, image_url: e.target.value })}
+                hint="A file in frontend/public/media (run npm run photos:prepare for it) or an https link. Leave empty for no photo." />
+              <LabeledInput label="Alt text" placeholder="What the photo shows" maxLength={300} disabled={!f.image_url} value={f.image_alt} onChange={(e) => setF({ ...f, image_alt: e.target.value })} />
+            </div>
+            {f.image_url ? <EventPhoto event={{ title: f.title, image_url: f.image_url, image_alt: f.image_alt }} className="aspect-[4/3] self-start rounded-[var(--radius-md)] border border-border" sizes="12rem" /> : <div className="card-sunken grid aspect-[4/3] place-items-center self-start t-caption">No photo</div>}
+          </fieldset>
           <ErrorState error={save.error} className="lg:col-span-2" />
         </form>
       </Modal>

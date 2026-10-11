@@ -27,9 +27,8 @@ export const hero = {
 };
 
 /**
- * Photos for the past-events grid. Events have no image field, so these free-licence Unsplash stand-ins
- * (unsplash.com/license) are shown with the club's real past events from the database until its own photos
- * replace public/media/past/past-<n>.jpg. Sources: 1 ZbiLAi2BtiU · 2 LtE6W_JVTGc · 3 tqe1jIgyhhs · 4 mbGBTpCi5qQ ·
+ * Stand-in photos for the past-events grid, used only for a past event without its own photo (events.image_url).
+ * Free-licence Unsplash images (unsplash.com/license) until the club's own photos replace public/media/past/past-<n>.jpg. Sources: 1 ZbiLAi2BtiU · 2 LtE6W_JVTGc · 3 tqe1jIgyhhs · 4 mbGBTpCi5qQ ·
  * 5 2uX_7L_10rM · 6 FQqRVH1EVjg (unsplash.com/photos/<id>).
  */
 export type PastPhoto = { image: string; alt: string };

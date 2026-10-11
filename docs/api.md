@@ -34,7 +34,8 @@ Tokens minted before the two-role migration carry a retired role (`member`, `tre
 | `ALREADY_REGISTERED` | 409 | Holder already has a confirmed or used ticket (`ticket_id` included) |
 | `SOLD_OUT` | 409 | No seats left |
 | `REGISTRATION_NOT_OPEN` | 400 | Registration window not open yet |
-| `REGISTRATION_CLOSED` | 400 | Registration window closed, or the event has started |
+| `REGISTRATION_CLOSED` | 400 | Registration window (`sales_close_at`) has closed |
+| `EVENT_ENDED` | 409 | Registering for an event that has already started or finished |
 | `ALREADY_MEMBER` | 409 | Membership already active |
 | `PROFILE_REQUIRED` | 400 | The user has no student ID on file: send `student_id` with `POST /memberships` |
 | `STUDENT_ID_TAKEN` | 409 | That student ID belongs to another account |
@@ -87,7 +88,7 @@ Unpaid holds (a ticket seat, reserved stock) expire after `PENDING_HOLD_MINUTES`
 | GET | `/api/membership/info` | public | `{ price, currency, benefits[], valid_until }` for the membership card | added |
 | POST | `/api/memberships` | user | Start a membership purchase. Body `{ student_id?, phone? }`. Returns `{ membership_id, payment_id, amount, expiry_date, checkout }` | changed (any user; takes `student_id`; `ALREADY_MEMBER` is 409) |
 | POST | `/api/payments/demo-confirm/:paymentId` | user (payer only) | Confirm a pending payment in demo mode. 404 unless `DEMO_PAYMENTS=true` and no Razorpay keys | added |
-| GET | `/api/events` | public | Published and closed events. Each has `seats_left`, `price` (member price) and `viewer: { logged_in, is_member, registered, ticket }`. The temporary `price_for_you` and `you_are_member` fields were removed in Phase 2 | changed (`viewer`; drafts moved to admin) |
+| GET | `/api/events` | public | Published and closed events. `?when=past` (started, newest first) or `?when=upcoming` (not started, soonest first). Each has `seats_left`, `attended` (checked-in tickets), `ended`, `image_url` / `image_alt`, `category`, `duration`, `participation`, `price` (member price) and `viewer: { logged_in, is_member, registered, ticket }`. The temporary `price_for_you` and `you_are_member` fields were removed in Phase 2 | changed (`viewer`; drafts moved to admin) |
 | GET | `/api/events/:id` | public | One event, same shape | changed |
 | POST | `/api/events/:id/register` | user | Register at the caller's price; members-only events need a membership. Details below | added (any user since member / non-member pricing) |
 | DELETE | `/api/events/:id/register` | user (holder) | Cancel before the event starts. Frees the seat; a paid ticket gets a reversing ledger row and its payment is marked refunded | added |
@@ -130,7 +131,7 @@ The result depends on the price and on what the user already holds:
   If the user has become a member (or lapsed) since, the held seat is re-priced instead: the old payment is marked `failed` and a new checkout is created at the new price (**201**).
 - **Cancelled ticket already exists:** the row is reused.
 
-Errors are **401** (signed out), **403** `MEMBERSHIP_REQUIRED` (members-only events), **409** `ALREADY_REGISTERED` or `SOLD_OUT`, and **400** `REGISTRATION_NOT_OPEN` or `REGISTRATION_CLOSED`.
+Errors are **401** (signed out), **403** `MEMBERSHIP_REQUIRED` (members-only events), **409** `ALREADY_REGISTERED` or `SOLD_OUT`, **409** `EVENT_ENDED` (the event has started or finished), and **400** `REGISTRATION_NOT_OPEN` or `REGISTRATION_CLOSED`.
 
 ### Admin: `/api/admin/*`, all `requireRole('admin')`
 
@@ -140,7 +141,7 @@ Errors are **401** (signed out), **403** `MEMBERSHIP_REQUIRED` (members-only eve
 | GET | `/api/admin/dues` | Who owes what, live: `memberships_due` (latest membership pending, expired or ending within 14 days; amount = dues price), `unpaid_orders` (pending with a pending payment, `minutes_left` on the hold), `unpaid_tickets`, `reimbursements_owed` (approved, not paid, with a receipt link). Each `{ count, total_amount, rows[] }`, plus `totals: { owed_to_club, owed_by_club }` | added |
 | POST | `/api/admin/dues/remind` | `{ group: 'memberships_due' \| 'unpaid_orders', ids }`: emails each person a reminder linking to `/me`, at most once per 24 h per membership / order (`last_reminded_at`). Returns `{ sent, skipped }` | added |
 | GET | `/api/admin/events` | All events including drafts | added |
-| POST | `/api/admin/events` | Create (`title, starts_at, capacity, member_price, non_member_price?, members_only?, status?, venue?, description?, sales_open_at?, sales_close_at?`) | moved from `POST /events` |
+| POST | `/api/admin/events` | Create (`title, starts_at, capacity, member_price, non_member_price?, members_only?, status?, venue?, description?, sales_open_at?, sales_close_at?, category?, duration?, participation?, image_url? (a `/media/…` path or https URL; empty clears it), image_alt?`) | moved from `POST /events` |
 | GET | `/api/admin/events/:id` | One event including drafts | added |
 | PATCH | `/api/admin/events/:id` | Edit, publish or close | moved from `PATCH /events/:id` |
 | GET | `/api/admin/events/:id/report` | Sold, checked in, no-shows, revenue net of reversals | moved from `GET /events/:id/report` |

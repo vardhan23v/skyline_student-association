@@ -103,7 +103,7 @@ Open http://localhost:5173 and sign in with a [demo account](#-live-demo).
 | `npm run dev:backend` / `npm run dev:frontend` | `tsx watch` API on :3000 · Vite on :5173 |
 | `npm run build` (root) | Clean installs, `tsc -b && vite build` for the SPA, `tsc` for the API. What Railway runs |
 | `npm start` (root) | Migrate → seed if `ALLOW_DEMO_SEED=true` → `node backend/dist/server.js` |
-| `npm test` | 143 vitest + supertest API tests on an in-memory SQLite database |
+| `npm test` | 149 vitest + supertest API tests on an in-memory SQLite database |
 | `npm --prefix frontend test` | Frontend unit tests (share messages, old admin link redirects) |
 | `npm --prefix backend run typecheck` · `npm --prefix frontend run typecheck` | Strict type checks |
 | `npm --prefix backend run migrate` · `migrate:rollback` · `seed` | Schema and demo data for whatever `DATABASE_URL` points at |
@@ -273,7 +273,7 @@ Base path `/api`. JSON in and out; auth is `Authorization: Bearer <JWT>`. Errors
 Also admin-only, outside `/api/admin`: `GET /api/finance/summary`, and the AI Secretary at `POST /api/ai/ask` and `POST /api/ai/confirm/:proposalId`.
 </details>
 
-**Error codes:** `BAD_REQUEST` 400 · `UNAUTHORIZED` 401 · `FORBIDDEN` 403 · `MEMBERSHIP_REQUIRED` 403 (with the offer) · `NOT_FOUND` 404 · `ALREADY_REGISTERED` · `SOLD_OUT` · `ALREADY_MEMBER` · `INSUFFICIENT_STOCK` · `INVALID_TRANSITION` 409 · `REGISTRATION_NOT_OPEN` · `REGISTRATION_CLOSED` · `PROFILE_REQUIRED` · `INVALID_ASSIGNEE` · `INVALID_TOKEN` 400.
+**Error codes:** `BAD_REQUEST` 400 · `UNAUTHORIZED` 401 · `FORBIDDEN` 403 · `MEMBERSHIP_REQUIRED` 403 (with the offer) · `NOT_FOUND` 404 · `ALREADY_REGISTERED` · `SOLD_OUT` · `EVENT_ENDED` · `ALREADY_MEMBER` · `INSUFFICIENT_STOCK` · `INVALID_TRANSITION` 409 · `REGISTRATION_NOT_OPEN` · `REGISTRATION_CLOSED` · `PROFILE_REQUIRED` · `INVALID_ASSIGNEE` · `INVALID_TOKEN` 400.
 **Rate limits:** auth 30 / 15 min, registration, orders and memberships 30 / 15 min per IP, check-in 120 / min.
 
 ---
@@ -378,7 +378,7 @@ Then update the Razorpay webhook (`https://<domain>/api/webhooks/payment`), the 
 ## 🧪 Testing & quality
 
 ```bash
-npm test                                         # 143 API tests, in-memory SQLite
+npm test                                         # 149 API tests, in-memory SQLite
 npm --prefix frontend test                       # frontend unit tests
 npm --prefix backend run typecheck               # strict, API
 npm --prefix frontend run typecheck              # strict, SPA

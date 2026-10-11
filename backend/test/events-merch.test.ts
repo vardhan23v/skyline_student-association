@@ -116,7 +116,7 @@ describe('events & tickets', () => {
     const soon = await newEvent(5, { sales_open_at: new Date(Date.now() + 3600e3).toISOString() });
     expect((await register(soon)).body.code).toBe('REGISTRATION_NOT_OPEN');
     const past = await newEvent(5, { starts_at: new Date(Date.now() - 3600e3).toISOString() });
-    expect((await register(past)).body.code).toBe('REGISTRATION_CLOSED');
+    expect((await register(past)).body.code).toBe('EVENT_ENDED');
     const draft = await newEvent(5, { status: 'draft' });
     expect((await register(draft)).status).toBe(404);
   });

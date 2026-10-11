@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, CalendarDays, CheckCircle2, MapPin, QrCode, Share2, Ticket, Users } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, BarChart3, CalendarDays, CheckCircle2, History, MapPin, QrCode, Share2, Ticket, Users } from 'lucide-react';
 import { get, post } from '@/api/client';
 import type { Checkout, Event, MembershipOffer, Registration, Ticket as TicketT } from '@/api/types';
 import { useAuthAction } from '@/hooks/useAuthAction';
@@ -14,6 +14,9 @@ import { Modal } from '@/components/Modal';
 import { useToast } from '@/components/Toast';
 import { date, datetime, eventPrice, money } from '@/components/format';
 import { eventText, share } from '@/lib/share';
+import { useAuth } from '@/auth/AuthContext';
+import { EventPhoto } from '@/components/EventPhoto';
+import { CategoryBadge, eventFormat } from '@/components/EventCard';
 
 /** Why the Register button is disabled, or null when registration is open. Mirrors the API's checks. */
 export function registerBlock(e: Event): string | null {
@@ -31,6 +34,7 @@ export function EventDetailPage() {
   const qc = useQueryClient();
   const toast = useToast();
   const q = useQuery({ queryKey: ['events', id], queryFn: () => get<Event>(`/events/${id}`) });
+  const { has } = useAuth();
   const [pay, setPay] = useState<{ checkout: Checkout; ticket: TicketT } | null>(null);
   const done = () => { setPay(null); qc.invalidateQueries({ queryKey: ['events'] }); qc.invalidateQueries({ queryKey: ['me'] }); };
   const register = useMutation({
@@ -88,11 +92,14 @@ export function EventDetailPage() {
     : e.member_price < e.non_member_price ? `Open to everyone. Members pay ${fmt(e.member_price)}. Paid seats are held for 15 minutes while you pay.`
     : 'Open to everyone. Paid seats are held for 15 minutes while you pay.';
 
+  if (e.ended ?? +new Date(e.starts_at) <= Date.now()) return <PastEventDetail e={e} admin={has('admin')} />;
+
   return (
     <>
       <Link to="/events" className="t-label mb-2 inline-flex min-h-11 items-center gap-1 hover:text-accent-text"><ArrowLeft className="size-3" aria-hidden />Events</Link>
       {/* Phones: title / date / venue, then seats; the CTA lives in the sticky bottom bar. */}
       <PageHeader eyebrow={<span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden />{datetime(e.starts_at)}</span>{e.venue && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{e.venue}</span>}</span>} script="event" title={e.title} actions={<><StatusBadge status={e.status} /><IconButton label="Share" className="border border-border" onClick={() => void share({ title: e.title, text: eventText(e) })}><Share2 className="size-4" aria-hidden /></IconButton></>} />
+      <EventPhoto event={e} eager className="mb-5 aspect-[16/9] rounded-[var(--radius-lg)] border border-border md:aspect-[21/9]" sizes="(min-width: 1280px) 1200px, 100vw" />
       <div className="grid gap-5 lg:grid-cols-3">
         <aside className="card order-first space-y-4 self-start lg:order-none lg:col-start-3 lg:row-start-1 lg:sticky lg:top-28" aria-label="Registration">
           <dl className="space-y-2 text-base md:text-sm">
@@ -135,6 +142,31 @@ export function EventDetailPage() {
       {pay && <CheckoutModal checkout={pay.checkout} title={`Ticket: ${e.title}`} onClose={done}
         onPaid={() => { toast.success("You're registered", 'Your ticket and QR are in My account.'); done(); }}
         confirmed={() => get<TicketT>(`/tickets/${pay.ticket.id}`).then((t) => t.status === 'confirmed')} />}
+    </>
+  );
+}
+
+/** A finished event: what happened (photo, attendance, format) instead of registration; admins get the report. */
+function PastEventDetail({ e, admin }: { e: Event; admin: boolean }) {
+  const format = eventFormat(e);
+  return (
+    <>
+      <Link to="/events" className="t-label mb-2 inline-flex min-h-11 items-center gap-1 hover:text-accent-text"><ArrowLeft className="size-3" aria-hidden />Events</Link>
+      <PageHeader eyebrow={<span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden />{date(e.starts_at)}</span>{e.venue && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{e.venue}</span>}</span>} script="past" title={e.title}
+        actions={<><CategoryBadge category={e.category} /><span className="t-label inline-flex min-h-11 items-center gap-1"><History className="size-3" aria-hidden />Past event</span></>} />
+      <EventPhoto event={e} eager className="mb-5 aspect-[16/9] rounded-[var(--radius-lg)] border border-border md:aspect-[21/9]" sizes="(min-width: 1280px) 1200px, 100vw" />
+      <div className="grid gap-5 lg:grid-cols-3">
+        <aside className="card order-first space-y-4 self-start lg:order-none lg:col-start-3 lg:row-start-1" aria-label="How it went">
+          <dl className="space-y-2 text-base md:text-sm">
+            <div className="flex justify-between gap-3"><dt className="text-text-secondary">Attended</dt><dd className="t-num font-medium inline-flex items-center gap-1"><Users className="size-3.5 text-text-tertiary" aria-hidden />{e.attended ?? 0} of {e.capacity}</dd></div>
+            {e.duration && <div className="flex justify-between gap-3"><dt className="text-text-secondary">Duration</dt><dd className="font-medium text-right">{e.duration}</dd></div>}
+            {e.participation && <div className="flex justify-between gap-3"><dt className="text-text-secondary">Participation</dt><dd className="font-medium text-right">{e.participation}</dd></div>}
+          </dl>
+          <p className="t-caption">{format ? `${format}. ` : ''}This event has ended; registration is closed.</p>
+          {admin && <Link to={`/admin/events/${e.id}`} className="btn-secondary w-full"><BarChart3 className="size-4" aria-hidden />View report</Link>}
+        </aside>
+        <article className="card lg:col-span-2 lg:row-start-1 whitespace-pre-wrap text-base leading-relaxed text-text-secondary md:text-[15px]">{e.description || 'No description.'}</article>
+      </div>
     </>
   );
 }

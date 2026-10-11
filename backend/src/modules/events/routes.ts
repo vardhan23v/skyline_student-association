@@ -3,7 +3,7 @@ import { requireAuth } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../middleware/errorHandler';
 import * as svc from './service';
-import { checkinBody, eventBody, idParam } from './schemas';
+import { checkinBody, eventBody, idParam, listQuery } from './schemas';
 
 export const eventsRouter = Router();
 export const ticketsRouter = Router();
@@ -11,7 +11,8 @@ export const ticketsRouter = Router();
 export const adminEventsRouter = Router();
 export const adminCheckinRouter = Router();
 
-eventsRouter.get('/', asyncHandler(async (req, res) => res.json(await svc.listEvents(req.user))));
+// ?when=past (newest first) or ?when=upcoming (soonest first); no filter lists everything, oldest first.
+eventsRouter.get('/', validate({ query: listQuery }), asyncHandler(async (req, res) => res.json(await svc.listEvents(req.user, false, req.query.when as svc.When | undefined))))
 eventsRouter.get('/:id', validate({ params: idParam }), asyncHandler(async (req, res) => res.json(await svc.getEvent(Number(req.params.id), req.user))));
 // Any signed-in user: members pay member_price, others non_member_price (members_only events still need membership).
 eventsRouter.post('/:id/register', requireAuth, validate({ params: idParam }), asyncHandler(async (req, res) => {

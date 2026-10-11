@@ -5,11 +5,12 @@ All paths are referenced from `frontend/src/data/landing.ts`. Replace a file wit
 | Folder | Files | Used by | Size |
 |---|---|---|---|
 | `past/` | `past-1…6.jpg` + `-480.jpg` phone copies | Past events bento grid | 900×1100 (480 wide) |
+| `past/` | `<event-slug>.jpg` + `.webp`, `-480`, `-blur.webp` | Event cover photos (`events.image_url`): event cards, event page, landing grid. Credits in `past/CREDITS.md` | 1600 wide, ~200 KB |
 | `gallery/` | `moment-1…12.jpg` + `-480.jpg` phone copies | Gallery marquee and lightbox | 720×540 (480 wide) |
 | `merch/` | `tshirt.jpg`, `bag.jpg`, `bottle.jpg`, `stickers.jpg` | Merch posters and mobile cards | 640×800 |
 | `merch/` | `tshirt.mp4`, `bag.mp4`, `bottle.mp4`, `stickers.mp4` | Cursor-follow preview (mouse) and inline card video (touch); not shipped yet | 640×800, muted loop |
 
-Upcoming events intentionally have no photos (the events haven't happened). Add an official poster per event later if wanted.
+Upcoming events have no photos (the events haven't happened). An admin can set any event's photo under Events → Edit → Cover photo. To add one: put the original in a folder, run `npm --prefix frontend run photos:prepare -- <folder>`, then use `/media/past/<name>.jpg` and credit it in `past/CREDITS.md`.
 
 ## Sources
 

@@ -4,6 +4,7 @@ import { ArrowLeft, Ticket, UserCheck, UserX, Wallet } from 'lucide-react';
 import { get } from '@/api/client';
 import type { EventRegistrationRow, EventReport } from '@/api/types';
 import { PageHeader, SectionHeader } from '@/components/PageHeader';
+import { EventPhoto } from '@/components/EventPhoto';
 import { MetricCard } from '@/components/MetricCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DataTable } from '@/components/DataTable';
@@ -23,6 +24,8 @@ export function EventReportPage({ id }: { id: number }) {
     <>
       {back}
       <PageHeader eyebrow={<>{datetime(r.event.starts_at)}{r.event.venue && ` · ${r.event.venue}`}</>} script="report" title={r.event.title} actions={<StatusBadge status={r.event.status} />} />
+      {/* Change it from Events → Edit (photo URL and alt text). */}
+      <EventPhoto event={r.event} className="mb-5 aspect-[21/9] max-h-64 w-full rounded-[var(--radius-lg)] border border-border" sizes="(min-width: 1024px) 900px, 100vw" />
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
         <MetricCard label="Registered" icon={Ticket} value={r.sold} hint={`${r.pending} awaiting payment`} />
         <MetricCard label="Checked in" icon={UserCheck} value={r.checked_in} hint={r.sold ? `${attendance}% attendance` : undefined} tone="accent" />
