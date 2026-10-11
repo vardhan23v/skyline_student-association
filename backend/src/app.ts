@@ -50,10 +50,12 @@ export function createApp() {
   api.use('/auth', authRouter);
   api.get('/me/upcoming', requireAuth, asyncHandler(async (req, res) => res.json(await myUpcoming(req.user!.id))));
   api.get('/me', requireAuth, asyncHandler(async (req, res) => {
-    const user = await getDb()('users').where({ id: req.user!.id }).first('id', 'name', 'email', 'role', 'is_active');
+    const user = await getDb()('users').where({ id: req.user!.id }).first('id', 'name', 'email', 'role', 'is_active', 'password_weak');
     // A token outlives a deleted or deactivated account; answering 200 with `user: undefined` crashed the SPA (me.user.role).
     if (!user || !user.is_active) throw unauthorized('Account not found or deactivated');
     delete user.is_active;
+    // Set at login when the password predates the current rules: the app asks the person to choose a new one.
+    user.password_weak = !!user.password_weak;
     res.json({ user, ...(await myMembership(req.user!.id)), tickets: await myTickets(req.user!.id) });
   }));
   api.use('/membership', membershipInfoRouter);

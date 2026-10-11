@@ -17,9 +17,9 @@ beforeAll(async () => {
   await seed(getDb());
   app = createApp();
   const login = async (e: string, p: string) => ({ Authorization: `Bearer ${(await request(app).post('/api/auth/login').send({ email: e, password: p })).body.token}` });
-  admin = await login('admin@skyline.edu', 'Admin@123');
-  admin2 = await login('core@skyline.edu', 'Core@123');
-  user = await login('student@skyline.edu', 'Student@123');
+  admin = await login('admin@skyline.edu', 'Control#Room26');
+  admin2 = await login('core@skyline.edu', 'Second#Desk26');
+  user = await login('student@skyline.edu', 'Campus#Walk26');
 });
 afterEach(() => vi.restoreAllMocks());
 

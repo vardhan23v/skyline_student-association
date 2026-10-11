@@ -8,7 +8,7 @@ import { recordEntry } from '../finance/service';
 import { sendMail, siteLink } from '../../lib/email';
 import { createCashPayment, createPendingPayment } from '../payments/service';
 import { DEFAULT_DUES } from './schemas';
-import bcrypt from 'bcryptjs';
+import { hashPassword } from '../../lib/password';
 import { appUrl } from '../../config/env';
 import { randomToken } from '../../lib/hash';
 import { logger } from '../../lib/logger';
@@ -253,7 +253,7 @@ export async function sendReminder(member_id: number) {
  */
 export async function walkIn(admin_id: number, input: { name: string; email: string; student_id: string; phone?: string; pay_cash: boolean; amount?: number }, ip?: string) {
   const db = getDb();
-  const password_hash = await bcrypt.hash(randomToken(32), 10);
+  const password_hash = await hashPassword(randomToken(32));
   const duplicate = (field: 'email' | 'student_id') =>
     new HttpError(409, `A member with this ${field === 'email' ? 'email' : 'student ID'} already exists`, 'DUPLICATE_MEMBER', undefined, { field });
   const { user, member_id, membership } = await db.transaction(async (trx) => {

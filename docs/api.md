@@ -44,6 +44,8 @@ Tokens minted before the two-role migration carry a retired role (`member`, `tre
 | `PAYMENT_FAILED` | 409 | Payment failed; start a new checkout |
 | `DUPLICATE_MEMBER` | 409 | Walk-in email or student ID already belongs to someone; `field` says which |
 | `INVALID_TOKEN` | 400 | Password link unknown, already used or expired |
+| `WEAK_PASSWORD` | 400 | A new password breaks the rules; `errors: string[]` lists why in plain words |
+| `WRONG_PASSWORD` | 400 | Change password: the current password is not right |
 | `BAD_REQUEST` | 400 | Validation failed (`details` has the field errors) |
 | `NOT_FOUND` | 404 | Not found |
 | `CONFLICT` | 409 | Generic conflict |
@@ -81,9 +83,10 @@ Unpaid holds (a ticket seat, reserved stock) expire after `PENDING_HOLD_MINUTES`
 | GET | `/api/health` | public | JSON health | unchanged |
 | GET | `/api/stats` | public | Landing-page counts from the database: `{ events_hosted, upcoming_events, members, students, tickets_issued, as_of }`. No money. Cached 60 s | added |
 | POST | `/api/auth/register` | public | Create an account. Always role `user`; optional `student_id` creates the member profile | changed (role `user`) |
-| POST | `/api/auth/login` | public | Returns `{ user, token }` | unchanged |
+| POST | `/api/auth/login` | public | Returns `{ user, token }`; `user.password_weak` is true when the password predates the rules. Any failure is 401 "Invalid email or password". 5 wrong passwords within 15 minutes lock the account for 15 minutes (even the right password is refused; audit `login_locked`). Older bcrypt hashes are upgraded to cost 12 on login | changed |
+| POST | `/api/auth/change-password` | signed in | `{ current_password, password }`. New password must meet the rules; clears `password_weak`; audit `password_changed` | added |
 | POST | `/api/auth/forgot-password` | public | `{ email }`. Always 200 with the same message. For an active account, emails a one-time `APP_URL/reset-password?token=…` link (60 min); logged instead while Resend is off. 5 requests / 15 min per IP | added |
-| POST | `/api/auth/reset-password` | public (token) | `{ token, password }` (8+ chars, a letter and a number). Sets the password, uses up the token and every other open token of that user, audit `password_reset`. Bad, used or expired token → 400 `INVALID_TOKEN` | added |
+| POST | `/api/auth/reset-password` | public (token) | `{ token, password }` (meets the password rules, and doesn't contain the account's email name, first name or student ID; 400 `WEAK_PASSWORD` otherwise, without using up the link). A reset also lifts a login lockout. Sets the password, uses up the token and every other open token of that user, audit `password_reset`. Bad, used or expired token → 400 `INVALID_TOKEN` | added |
 | GET | `/api/me` | user | Account, membership (`is_member`, `membership_expires`, member QR) and tickets | changed (+`is_member`, `membership_expires`) |
 | GET | `/api/membership/info` | public | `{ price, currency, benefits[], valid_until }` for the membership card | added |
 | POST | `/api/memberships` | user | Start a membership purchase. Body `{ student_id?, phone? }`. Returns `{ membership_id, payment_id, amount, expiry_date, checkout }` | changed (any user; takes `student_id`; `ALREADY_MEMBER` is 409) |

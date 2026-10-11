@@ -19,12 +19,12 @@ beforeAll(async () => {
   app = createApp();
   const db = getDb();
   const bcrypt = await import('bcryptjs');
-  const hash = await bcrypt.hash('password123', 4);
+  const hash = await bcrypt.hash('Gala#Night7River', 4);
   for (const [name, role] of [['admin', 'admin'], ['admin2', 'admin']]) {
     await db('users').insert({ name, email: `${name}@t.test`, password_hash: hash, role });
-    tokens[name] = (await request(app).post('/api/auth/login').send({ email: `${name}@t.test`, password: 'password123' })).body.token;
+    tokens[name] = (await request(app).post('/api/auth/login').send({ email: `${name}@t.test`, password: 'Gala#Night7River' })).body.token;
   }
-  const r = await request(app).post('/api/auth/register').send({ name: 'Mia Member', email: 'mia@t.test', password: 'password123', student_id: 'SKY1' });
+  const r = await request(app).post('/api/auth/register').send({ name: 'Mia Member', email: 'mia@t.test', password: 'Gala#Night7River', student_id: 'SKY1' });
   tokens.member = r.body.token;
 });
 
@@ -80,7 +80,7 @@ describe('tickets', () => {
   it('enforces capacity', async () => {
     const db = getDb();
     const join = async (name: string) => {
-      const r = await request(app).post('/api/auth/register').send({ name, email: `${name}@t.test`, password: 'password123', student_id: `SKY-${name}` });
+      const r = await request(app).post('/api/auth/register').send({ name, email: `${name}@t.test`, password: 'Gala#Night7River', student_id: `SKY-${name}` });
       const m = await db('members').where({ user_id: r.body.user.id }).first();
       await request(app).post(`/api/admin/members/${m.id}/cash-payment`).set(auth('admin')).send({ amount: 500 });
       return { Authorization: `Bearer ${r.body.token}` };

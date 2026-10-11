@@ -9,6 +9,7 @@ import { StudentCursor } from '@/components/cursor/StudentCursor';
 import { AdminTabs } from '@/components/AdminTabs';
 import { Modal } from '@/components/Modal';
 import { Skeleton } from '@/components/EmptyState';
+import { PasswordUpdateBanner } from '@/pages/public/AuthPages';
 
 const RAIL_KEY = 'ssa.admin.rail';
 const readRail = () => { try { return localStorage.getItem(RAIL_KEY) === '1'; } catch { return false; } };
@@ -49,6 +50,7 @@ export function AdminLayout() {
           <main id="main" className="min-w-0 flex-1">
             {/* Only the section animates; the bar and sidebar stay put. */}
             <motion.div key={loc.pathname} className="min-h-[70svh]" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
+              <PasswordUpdateBanner />
               <Suspense fallback={<div className="card"><Skeleton rows={6} /></div>}><Outlet /></Suspense>
             </motion.div>
             <footer className="mt-12 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-border pt-4 text-center t-label sm:justify-between sm:text-left">

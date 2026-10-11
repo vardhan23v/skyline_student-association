@@ -97,10 +97,10 @@ describe('walk-in sign-up at the table', () => {
     expect(url.pathname).toBe('/reset-password');
     expect(url.searchParams.get('setup')).toBe('1');
     // Before setting a password, nothing logs in.
-    expect((await request(app).post('/api/auth/login').send({ email: 'newmember@wi.test', password: 'Member1234' })).status).toBe(401);
-    const set = await request(app).post('/api/auth/reset-password').send({ token: url.searchParams.get('token'), password: 'Member1234' });
+    expect((await request(app).post('/api/auth/login').send({ email: 'newmember@wi.test', password: 'Table#Seat2026' })).status).toBe(401);
+    const set = await request(app).post('/api/auth/reset-password').send({ token: url.searchParams.get('token'), password: 'Table#Seat2026' });
     expect(set.body).toMatchObject({ ok: true, purpose: 'setup' });
-    const login = await request(app).post('/api/auth/login').send({ email: 'newmember@wi.test', password: 'Member1234' });
+    const login = await request(app).post('/api/auth/login').send({ email: 'newmember@wi.test', password: 'Table#Seat2026' });
     expect(login.status).toBe(200);
     const me = (await request(app).get('/api/me').set({ Authorization: `Bearer ${login.body.token}` })).body;
     expect(me.is_member).toBe(true);

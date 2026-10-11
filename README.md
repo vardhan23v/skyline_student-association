@@ -48,11 +48,11 @@ Sign in with a demo account:
 
 | Role | Email | Password | State |
 |---|---|---|---|
-| Admin | `admin@skyline.edu` | `Admin@123` | Full control |
-| Admin | `core@skyline.edu` | `Core@123` | Second admin, for splitting fundraiser tasks (fresh seeds only) |
-| User · member | `member@skyline.edu` | `Member@123` | Active until 30 June; tickets for CodeStorm 2026 and the Spring Gala; three orders |
-| User · non-member | `student@skyline.edu` | `Student@123` | No membership; can join or register at non-member prices |
-| User · lapsed | `lapsed@skyline.edu` | `Lapsed@123` | Membership ended 30 days ago; listed under "Who owes what" (fresh seeds only) |
+| Admin | `admin@skyline.edu` | `Control#Room26` | Full control |
+| Admin | `core@skyline.edu` | `Second#Desk26` | Second admin, for splitting fundraiser tasks (fresh seeds only) |
+| User · member | `member@skyline.edu` | `Gala#Night26` | Active until 30 June; tickets for CodeStorm 2026 and the Spring Gala; three orders |
+| User · non-member | `student@skyline.edu` | `Campus#Walk26` | No membership; can join or register at non-member prices |
+| User · lapsed | `lapsed@skyline.edu` | `Renew#Later26` | Membership ended 30 days ago; listed under "Who owes what" (fresh seeds only) |
 
 > [!WARNING]
 > These passwords are public. Rotate them or delete the accounts before real use. Real students already use the live site.
@@ -292,6 +292,17 @@ Also admin-only, outside `/api/admin`: `GET /api/finance/summary`, and the AI Se
 | Finance, ledger, expenses, AI Secretary | — | — | — | ✅ |
 
 Every `/api/admin/*` route sits behind one guard on the router, so a new admin route can't be added without it. Services check ownership for tickets, orders and memberships; the client is never trusted.
+
+### Passwords
+
+One rule set (`backend/src/lib/password-rules.ts`) for every password that is set: register, reset and set-password links, change password. The sign-up and reset forms run the same file for their live checklist; the API decides.
+
+- 10–128 characters, with upper and lower case, a number and a special character; no spaces at the ends.
+- Not only digits, not one repeated character, no runs of 4 like `1234`, `abcd` or `qwer`.
+- Not the person's email name, first name or student ID.
+- Not one of the 10,000 most common passwords ([SecLists](https://github.com/danielmiessler/SecLists), MIT; `backend/data/`), nor `skyline`, `ssa`, `password` or `admin` with only digits or symbols added.
+- bcrypt cost 12; older hashes are upgraded at login. Five wrong passwords in 15 minutes lock the account for 15 minutes, on top of the IP rate limit.
+- Existing passwords keep working; one that breaks the rules is flagged at login and the app asks for a new one.
 
 ### Ticket pricing
 - Members pay `member_price`; everyone else `non_member_price`. Membership is re-checked under the event lock.

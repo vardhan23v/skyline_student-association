@@ -2,7 +2,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { request, type FullConfig } from '@playwright/test';
 
 /** Demo logins from the seed (README "Demo logins"). One login each per run: the API allows 30 per 15 minutes. */
-export const ACCOUNTS = { member: ['member@skyline.edu', 'Member@123'], admin: ['admin@skyline.edu', 'Admin@123'] } as const;
+export const ACCOUNTS = { member: ['member@skyline.edu', 'Gala#Night26'], admin: ['admin@skyline.edu', 'Control#Room26'] } as const;
 export const TOKENS_FILE = 'tests/.tokens.json';
 
 export default async function globalSetup(config: FullConfig) {

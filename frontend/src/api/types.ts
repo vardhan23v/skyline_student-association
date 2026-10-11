@@ -1,5 +1,5 @@
 export type Role = 'admin' | 'user';
-export type User = { id: number; name: string; email: string; role: Role };
+export type User = { id: number; name: string; email: string; role: Role; /** The password predates the current rules: ask for a new one. */ password_weak?: boolean };
 /** `price` is the member price (kept for older code); `price_for_you` is what this caller pays, null when only members can register. */
 export type Event = { id: number; title: string; description?: string; starts_at: string; venue?: string; capacity: number; member_price: number; non_member_price: number; members_only: boolean; status: 'draft' | 'published' | 'closed'; seats_left: number; price: number; price_for_you: number | null; viewer: EventViewer; sales_open_at?: string; sales_close_at?: string;
   /** Cover photo (a /media path or https URL) and its alt text; null when the event has none. */ image_url?: string | null; image_alt?: string | null;

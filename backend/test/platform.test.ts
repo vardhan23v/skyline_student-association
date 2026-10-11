@@ -26,15 +26,15 @@ beforeAll(async () => {
   app = createApp();
   const db = getDb();
   const bcrypt = await import('bcryptjs');
-  const hash = await bcrypt.hash('password123', 4);
+  const hash = await bcrypt.hash('Gala#Night7River', 4);
   for (const [name, role] of [['admin', 'admin'], ['admin2', 'admin']]) {
     const [id] = await db('users').insert({ name, email: `${name}@p.test`, password_hash: hash, role });
     ids[name] = id as number;
-    tokens[name] = (await request(app).post('/api/auth/login').send({ email: `${name}@p.test`, password: 'password123' })).body.token;
+    tokens[name] = (await request(app).post('/api/auth/login').send({ email: `${name}@p.test`, password: 'Gala#Night7River' })).body.token;
   }
   // `alice` gets member row id 1; `bob` has the numeric student ID "1".
   for (const [name, student_id] of [['alice', 'SKY-A'], ['bob', '1'], ['cara', 'SKY-C']]) {
-    const r = await request(app).post('/api/auth/register').send({ name, email: `${name}@p.test`, password: 'password123', student_id });
+    const r = await request(app).post('/api/auth/register').send({ name, email: `${name}@p.test`, password: 'Gala#Night7River', student_id });
     tokens[name] = r.body.token; ids[name] = r.body.user.id;
   }
 });
@@ -210,7 +210,7 @@ describe('static frontend', () => {
 describe('cash dues extension', () => {
   it('extends an active membership from its current expiry; an earlier expiry is refused', async () => {
     const db = getDb();
-    const r = await request(app).post('/api/auth/register').send({ name: 'ext', email: 'ext@p.test', password: 'password123', student_id: 'SKY-EXT' });
+    const r = await request(app).post('/api/auth/register').send({ name: 'ext', email: 'ext@p.test', password: 'Gala#Night7River', student_id: 'SKY-EXT' });
     const member = await db('members').where({ user_id: r.body.user.id }).first();
     const first = await request(app).post(`/api/admin/members/${member.id}/cash-payment`).set(auth('admin')).send({ amount: 500, expiry_date: '2099-06-30' });
     expect(first.status).toBe(201); expect(first.body.extended).toBe(false);

@@ -62,7 +62,7 @@ describe('GET /api/events?when=', () => {
 
   it('registering for a past event is 409 Event has ended', async () => {
     const id = (await getDb()('events').where({ title: 'Rhythm Unplugged 2025' }).first()).id;
-    const r = await request(app).post(`/api/events/${id}/register`).set(await login('student@skyline.edu', 'Student@123'));
+    const r = await request(app).post(`/api/events/${id}/register`).set(await login('student@skyline.edu', 'Campus#Walk26'));
     expect(r.status).toBe(409);
     expect(r.body).toMatchObject({ code: 'EVENT_ENDED', message: 'Event has ended' });
   });
@@ -80,12 +80,12 @@ describe('money', () => {
     expect(Number((await db('ledger_entries').whereIn('event_id', db('events').where({ title: 'Rhythm Unplugged 2025' }).select('id')).sum({ s: 'amount' }))[0].s)).toBeGreaterThan(0);
     const rows = await db('ledger_entries').select('direction', 'amount');
     const sum = Math.round(rows.reduce((s: number, r: any) => s + (r.direction === 'in' ? 1 : -1) * Number(r.amount), 0) * 100) / 100;
-    const summary = (await request(app).get('/api/finance/summary').set(await login('admin@skyline.edu', 'Admin@123'))).body;
+    const summary = (await request(app).get('/api/finance/summary').set(await login('admin@skyline.edu', 'Control#Room26'))).body;
     expect(summary.balance).toBe(sum);
   });
 
   it('admins can change the photo; a bad URL is rejected and an empty one clears it', async () => {
-    const admin = await login('admin@skyline.edu', 'Admin@123');
+    const admin = await login('admin@skyline.edu', 'Control#Room26');
     const id = (await getDb()('events').where({ title: 'Lenscape: Photography Challenge 2025' }).first()).id;
     expect((await request(app).patch(`/api/admin/events/${id}`).set(admin).send({ image_url: 'javascript:alert(1)' })).status).toBe(400);
     expect((await request(app).patch(`/api/admin/events/${id}`).set(admin).send({ image_url: 'https://images.example.com/x.jpg', image_alt: 'x' })).body.image_url).toBe('https://images.example.com/x.jpg');

@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 import bcrypt from '../../backend/node_modules/bcryptjs/index.js';
+import { hashPassword } from '../../backend/src/lib/password';
 import { signTicketQr } from '../../backend/src/lib/qr';
 import { academicYearEnd } from '../../backend/src/modules/memberships/service';
 import { recordFundraiserCash } from '../../backend/src/modules/finance/service';
@@ -7,13 +8,38 @@ import { addDaysYmd, todayYmd } from '../../backend/src/lib/dates';
 
 /**
  * Demo data for the two-role model. Logins (change them before real use):
- *   admin@skyline.edu / Admin@123      admin
- *   core@skyline.edu / Core@123        a second admin, so fundraiser tasks can be split between admins
- *   member@skyline.edu / Member@123    user with an active membership until the academic year ends
- *   student@skyline.edu / Student@123  user without a membership
- *   lapsed@skyline.edu / Lapsed@123    user whose membership ended 30 days ago (shows in "Who owes what")
+ *   admin@skyline.edu / Control#Room26   admin
+ *   core@skyline.edu / Second#Desk26     a second admin, so fundraiser tasks can be split between admins
+ *   member@skyline.edu / Gala#Night26    user with an active membership until the academic year ends
+ *   student@skyline.edu / Campus#Walk26  user without a membership
+ *   lapsed@skyline.edu / Renew#Later26   user whose membership ended 30 days ago (shows in "Who owes what")
+ * Each meets the password rules (lib/password-rules.ts), including not containing the email name.
  * WIPES every table first.
  */
+/** The documented demo logins, and the passwords they had before the password rules (Phase 7). */
+export const DEMO_LOGINS = [
+  { email: 'admin@skyline.edu', password: 'Control#Room26', old: 'Admin@123' },
+  { email: 'core@skyline.edu', password: 'Second#Desk26', old: 'Core@123' },
+  { email: 'member@skyline.edu', password: 'Gala#Night26', old: 'Member@123' },
+  { email: 'student@skyline.edu', password: 'Campus#Walk26', old: 'Student@123' },
+  { email: 'lapsed@skyline.edu', password: 'Renew#Later26', old: 'Lapsed@123' },
+];
+
+/**
+ * A database seeded before the password rules still has the old, public demo passwords. Move each demo account to its
+ * new documented password, but only while it still has the old one: an account whose password someone changed is left
+ * alone. Idempotent; runs on boots that skip the full seed.
+ */
+async function upgradeDemoPasswords(k: Knex) {
+  for (const d of DEMO_LOGINS) {
+    const u = await k('users').where({ email: d.email }).first();
+    if (u && (await bcrypt.compare(d.old, u.password_hash))) {
+      await k('users').where({ id: u.id }).update({ password_hash: await hashPassword(d.password), password_weak: false });
+      console.warn(`[seed] demo password updated for ${d.email}`);
+    }
+  }
+}
+
 export async function seed(k: Knex): Promise<void> {
   const prod = process.env.NODE_ENV === 'production';
   if (prod && process.env.ALLOW_DEMO_SEED !== 'true') {
@@ -22,6 +48,7 @@ export async function seed(k: Knex): Promise<void> {
   // `npm start` runs this on every boot while ALLOW_DEMO_SEED=true: never wipe a database that already has users
   // unless SEED_FORCE=true is set as well (and remove it again after one boot).
   if (prod && process.env.SEED_FORCE !== 'true' && (await k('users').first())) {
+    await upgradeDemoPasswords(k);
     console.warn('[seed] skipped: database already has users. Set SEED_FORCE=true for one boot to wipe and reseed.');
     return;
   }
@@ -35,14 +62,15 @@ export async function seed(k: Knex): Promise<void> {
   const upcoming = (date: string, fallbackDays: number) => { const d = new Date(`${date}T10:00:00+05:30`); return d.getTime() > now + day ? d : new Date(now + fallbackDays * day); };
 
   const user = async (name: string, email: string, password: string, role: 'admin' | 'user') => {
-    const [id] = await k('users').insert({ name, email, password_hash: await bcrypt.hash(password, 10), role, is_active: true });
+    const [id] = await k('users').insert({ name, email, password_hash: await hashPassword(password), role, is_active: true });
     return id as number;
   };
-  const adminId = await user('Asha Rao', 'admin@skyline.edu', 'Admin@123', 'admin');
-  const coreId = await user('Core Admin', 'core@skyline.edu', 'Core@123', 'admin');
-  const memberId = await user('Meera Iyer', 'member@skyline.edu', 'Member@123', 'user');
-  const studentId = await user('Rohan Das', 'student@skyline.edu', 'Student@123', 'user');
-  const lapsedId = await user('Kiran Rao', 'lapsed@skyline.edu', 'Lapsed@123', 'user');
+  const pw = Object.fromEntries(DEMO_LOGINS.map((d) => [d.email, d.password]));
+  const adminId = await user('Asha Rao', 'admin@skyline.edu', pw['admin@skyline.edu'], 'admin');
+  const coreId = await user('Core Admin', 'core@skyline.edu', pw['core@skyline.edu'], 'admin');
+  const memberId = await user('Meera Iyer', 'member@skyline.edu', pw['member@skyline.edu'], 'user');
+  const studentId = await user('Rohan Das', 'student@skyline.edu', pw['student@skyline.edu'], 'user');
+  const lapsedId = await user('Kiran Rao', 'lapsed@skyline.edu', pw['lapsed@skyline.edu'], 'user');
 
   // Member: paid dues online, active until the academic year ends. Student: profile only, no membership.
   const [meeraMember] = await k('members').insert({ user_id: memberId, student_id: 'SKY2026001', phone: '9810000001', joined_at: ymd(now - 40 * day) });

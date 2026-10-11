@@ -62,12 +62,12 @@ describe('reset password', () => {
     await forgot(EMAIL);
     const token = tokenFrom(spy);
     expect(token).toBeTruthy();
-    const ok = await reset(token, 'Newpass456');
+    const ok = await reset(token, 'River#Stone2026');
     expect(ok.status).toBe(200);
     expect(ok.body).toMatchObject({ ok: true, purpose: 'reset' });
     expect((await login('Oldpass123')).status).toBe(401);
-    expect((await login('Newpass456')).status).toBe(200);
-    const again = await reset(token, 'Another789');
+    expect((await login('River#Stone2026')).status).toBe(200);
+    const again = await reset(token, 'Cloud#Lantern77');
     expect([again.status, again.body.code]).toEqual([400, 'INVALID_TOKEN']);
     expect(await getDb()('audit_logs').where({ action: 'password_reset', user_id: String(uid) }).count({ n: '*' })).toEqual([{ n: 1 }]);
   });
@@ -75,21 +75,21 @@ describe('reset password', () => {
   it('using one link invalidates the user\'s other open links', async () => {
     const a = await createPasswordToken(uid, 'reset', 60);
     const b = await createPasswordToken(uid, 'reset', 60);
-    expect((await reset(a, 'Fresh1234')).status).toBe(200);
-    expect((await reset(b, 'Fresh5678')).body.code).toBe('INVALID_TOKEN');
+    expect((await reset(a, 'Fresh#Paint2026')).status).toBe(200);
+    expect((await reset(b, 'Fresh#Paint2027')).body.code).toBe('INVALID_TOKEN');
   });
 
   it('rejects an expired link and an unknown one', async () => {
     const token = await createPasswordToken(uid, 'reset', 60);
     await getDb()('password_tokens').where({ user_id: uid }).whereNull('used_at').update({ expires_at: new Date(Date.now() - 1000) });
-    expect((await reset(token, 'Late12345')).body.code).toBe('INVALID_TOKEN');
-    expect((await reset('x'.repeat(43), 'Late12345')).status).toBe(400);
+    expect((await reset(token, 'Late#Train2026')).body.code).toBe('INVALID_TOKEN');
+    expect((await reset('x'.repeat(43), 'Late#Train2026')).status).toBe(400);
   });
 
-  it('needs at least 8 characters with a letter and a number', async () => {
+  it('refuses passwords that break the rules', async () => {
     const token = await createPasswordToken(uid, 'reset', 60);
     for (const pw of ['short1', 'lettersonly', '12345678']) expect((await reset(token, pw)).status).toBe(400);
-    expect((await reset(token, 'Good1234')).status).toBe(200);
+    expect((await reset(token, 'Good#Harbor2026')).status).toBe(200);
   });
 
   it('setup links (for Section B) last 72 hours and report their purpose', async () => {
@@ -97,6 +97,6 @@ describe('reset password', () => {
     const row = await getDb()('password_tokens').where({ user_id: uid, purpose: 'setup' }).whereNull('used_at').first();
     expect(row).toBeTruthy();
     expect((await getDb()('password_tokens').where({ id: row.id }).where('expires_at', '>', new Date(Date.now() + 71 * 3600_000)).count({ n: '*' }))[0].n).toBe(1);
-    expect((await reset(token, 'Setup1234')).body).toMatchObject({ ok: true, purpose: 'setup' });
+    expect((await reset(token, 'Setup#Garden26')).body).toMatchObject({ ok: true, purpose: 'setup' });
   });
 });
