@@ -104,7 +104,7 @@ Open http://localhost:5173 and sign in with a [demo account](#-live-demo).
 | `npm run build` (root) | Clean installs, `tsc -b && vite build` for the SPA, `tsc` for the API. What Railway runs |
 | `npm start` (root) | Migrate → seed if `ALLOW_DEMO_SEED=true` → `node backend/dist/server.js` |
 | `npm test` | 143 vitest + supertest API tests on an in-memory SQLite database |
-| `npm --prefix frontend test` | Unit tests for `src/lib` (share-message formatting) |
+| `npm --prefix frontend test` | Frontend unit tests (share messages, old admin link redirects) |
 | `npm --prefix backend run typecheck` · `npm --prefix frontend run typecheck` | Strict type checks |
 | `npm --prefix backend run migrate` · `migrate:rollback` · `seed` | Schema and demo data for whatever `DATABASE_URL` points at |
 | `npm --prefix backend run job <name>` | Run one scheduled job now: `eventReminders`, `renewalReminders`, `expireMemberships`, `expireHolds`, `lowStock` |
@@ -379,7 +379,7 @@ Then update the Razorpay webhook (`https://<domain>/api/webhooks/payment`), the 
 
 ```bash
 npm test                                         # 143 API tests, in-memory SQLite
-npm --prefix frontend test                       # share-message unit tests
+npm --prefix frontend test                       # frontend unit tests
 npm --prefix backend run typecheck               # strict, API
 npm --prefix frontend run typecheck              # strict, SPA
 npm run build && DEMO_PAYMENTS=true ALLOW_DEMO_SEED=true PORT=8099 npm start   # then:
@@ -410,7 +410,8 @@ One token set across every page ([`frontend/src/index.css`](frontend/src/index.c
 - **Type:** Open Sauce Sans, self-hosted. Uppercase headings paired with one lowercase script word, e.g. *fund* RAISERS.
 - **Surfaces:** glass panels over crossfading photographic backgrounds with embers and a heat glow.
 - **Motion:** framer-motion and Lenis on desktop, lighter on phones, off under `prefers-reduced-motion`.
-- **Mobile:** hamburger sheet, sticky admin tab strip, card-mode tables, bottom-sheet dialogs, sticky action bars with safe-area insets.
+- **Control Room:** every `/admin/…` URL shares one layout: the top bar (Events · Shop · Orders · News manage instead of browse, plus View site ↗ in a new tab) and a sidebar pinned on the left from `lg` (240px, or a 72px icon rail that is remembered). Sections have real paths (`/admin/events/:id`, `/admin/finance?view=dues`…); old `/admin?tab=` links redirect. An admin on a public page gets a Back to Control Room pill.
+- **Mobile:** hamburger sheet, Control Room drawer from the left, card-mode tables, bottom-sheet dialogs, sticky action bars with safe-area insets.
 
 ---
 

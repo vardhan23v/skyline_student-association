@@ -47,7 +47,7 @@ export async function lowStockAlert() {
   const low = await db('product_variants as v').join('products as p', 'p.id', 'v.product_id').whereRaw('v.stock < v.reserved + 5').select('p.name', 'v.size', 'v.stock', 'v.reserved');
   if (!low.length) return 0;
   const admins = await db('users').where({ role: 'admin', is_active: true }).pluck('email');
-  await sendMail({ to: admins, subject: 'Low stock alert', html: '<ul>' + low.map((l) => `<li>${l.name} ${l.size}: ${l.stock - l.reserved} left</li>`).join('') + '</ul>' + siteLink('/admin?tab=products', 'Open products & stock') });
+  await sendMail({ to: admins, subject: 'Low stock alert', html: '<ul>' + low.map((l) => `<li>${l.name} ${l.size}: ${l.stock - l.reserved} left</li>`).join('') + '</ul>' + siteLink('/admin/products', 'Open products & stock') });
   return low.length;
 }
 

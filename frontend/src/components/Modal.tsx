@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { IconButton } from './Button';
 
-type Props = { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; footer?: ReactNode; variant?: 'modal' | 'drawer'; size?: 'sm' | 'md' | 'lg'; description?: ReactNode };
+type Props = { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; footer?: ReactNode; variant?: 'modal' | 'drawer' | 'nav'; size?: 'sm' | 'md' | 'lg'; description?: ReactNode };
 
 const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 /** Drag the sheet down this far (px), or flick it, to dismiss. */
@@ -16,7 +16,7 @@ const DISMISS_VELOCITY = 0.6; // px/ms
  * scrolling inside, a drag handle, safe-area padding, and the footer actions stacked full width with the primary
  * one last (nearest the thumb). Swipe the handle/header down, tap the backdrop or press Escape to dismiss.
  * From 640px: `modal` is a centred dialog, `drawer` slides from the right (`size="lg"` widens it from lg for
- * two-column forms).
+ * two-column forms). `nav` is a full-height panel on the left at every width (the Control Room menu), with no swipe.
  */
 export function Modal({ open, onClose, title, children, footer, variant = 'modal', size = 'md', description }: Props) {
   const panel = useRef<HTMLDivElement>(null);
@@ -54,7 +54,7 @@ export function Modal({ open, onClose, title, children, footer, variant = 'modal
   // Swipe-to-dismiss, phones only: the panel follows the finger down (transform only) and springs back if released early.
   const sheet = () => window.matchMedia('(max-width: 639px)').matches;
   const onDown = (e: ReactPointerEvent) => {
-    if (e.pointerType === 'mouse' || !sheet() || (e.target as HTMLElement).closest('button')) return;
+    if (variant === 'nav' || e.pointerType === 'mouse' || !sheet() || (e.target as HTMLElement).closest('button')) return;
     drag.current = { y: e.clientY, t: performance.now(), dy: 0 };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -76,15 +76,18 @@ export function Modal({ open, onClose, title, children, footer, variant = 'modal
   if (!open) return null;
   const width = size === 'sm' ? 'sm:max-w-sm' : size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-md';
   // Under sm both variants share the sheet shape; they only differ from sm up.
-  const shape = variant === 'drawer'
+  const shape = variant === 'nav'
+    ? 'inset-y-0 left-0 h-full w-[min(18rem,85vw)] rounded-r-[var(--radius-xl)]'
+    : variant === 'drawer'
     ? `sm:inset-y-0 sm:right-0 sm:left-auto sm:max-h-none sm:h-full sm:w-full sm:max-w-md ${size === 'lg' ? 'lg:max-w-2xl' : ''} sm:rounded-none sm:rounded-l-[var(--radius-xl)]`
     : `sm:relative sm:inset-auto sm:w-full ${width} sm:max-h-[90dvh] sm:rounded-[var(--radius-xl)]`;
+  const base = variant === 'nav' ? '' : 'inset-x-0 bottom-0 max-h-[90svh] rounded-t-[var(--radius-xl)]';
   return createPortal(
     <div className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center bg-midnight/70 p-0 sm:items-center sm:p-4 fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={`${ids}-title`} aria-describedby={description ? `${ids}-desc` : undefined} tabIndex={-1} data-variant={variant}
-        className={`sheet-panel glass fixed inset-x-0 bottom-0 flex max-h-[90svh] flex-col overflow-hidden rounded-t-[var(--radius-xl)] outline-none ${shape}`}>
+        className={`${variant === 'nav' ? 'slide-in-left' : 'sheet-panel'} glass fixed flex flex-col overflow-hidden outline-none ${base} ${shape}`}>
         <div className="touch-none select-none" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
-          <span className="sheet-handle" aria-hidden />
+          {variant !== 'nav' && <span className="sheet-handle" aria-hidden />}
           <div className="flex items-start justify-between gap-3 border-b border-border py-3 pl-5 pr-3 sm:py-4">
             <div className="min-w-0 pt-2.5"><h2 id={`${ids}-title`} className="t-section">{title}</h2>{description && <p id={`${ids}-desc`} className="t-caption mt-0.5">{description}</p>}</div>
             <IconButton label="Close" onClick={onClose} className="shrink-0"><X className="size-4" aria-hidden /></IconButton>

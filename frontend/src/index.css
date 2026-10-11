@@ -211,6 +211,7 @@
   @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
   .slide-in-right { animation: slideInRight var(--dur-slow) var(--ease-out) both; }
   @keyframes slideInRight { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+  @keyframes slideInLeft { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
   .pulse-ring { animation: pulseRing 1.6s var(--ease-out) infinite; }
   @keyframes pulseRing { 0% { box-shadow: 0 0 0 0 var(--accent-soft); } 70% { box-shadow: 0 0 0 10px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
 
@@ -242,6 +243,9 @@
     .sheet-panel[data-variant="modal"] { animation-name: fadeIn; }
     .sheet-panel[data-variant="drawer"] { animation-name: slideInRight; }
   }
+  /* The Control Room menu (Modal variant="nav") slides in from the left. */
+  .slide-in-left { animation: slideInLeft var(--dur-slow) var(--ease-out) both; }
+  .glass.slide-in-left { background: color-mix(in srgb, var(--midnight) 92%, transparent); }
   .safe-bottom { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, LayoutDashboard, LogOut, Menu, UserRound, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ExternalLink, LayoutDashboard, LogOut, Menu, UserRound, X } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { navLinks, type SectionId } from '../../data/landing';
 import { lockScroll, scrollToSection } from '../../hooks/useSmoothScroll';
@@ -14,8 +14,17 @@ const appLinks = [
   { to: '/shop', label: 'Shop' },
   { to: '/announcements', label: 'News' },
 ];
+/** Inside the Control Room the same three words manage those things instead of showing them (plus an Orders shortcut). */
+const adminLinks = [
+  { to: '/admin/events', label: 'Events' },
+  { to: '/admin/products', label: 'Shop' },
+  { to: '/admin/orders', label: 'Orders' },
+  { to: '/admin/announcements', label: 'News' },
+];
+const isAdminPath = (p: string) => p === '/admin' || p.startsWith('/admin/');
+const menuItem = 'flex min-h-11 items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-cream/10';
 
-/** Signed in: avatar button with Dashboard (admin) or My account (user), and Log out. */
+/** Signed in: avatar button. Admins: Control Room, View site ↗ (new tab), Log out. Users: My account, Log out. */
 function AccountMenu() {
   const { me, logout } = useAuth();
   const [open, setOpen] = useState(false);
@@ -31,7 +40,7 @@ function AccountMenu() {
   }, [open]);
   if (!me) return null;
   const admin = me.user.role === 'admin';
-  const home = admin ? { to: '/admin', label: 'Dashboard', Icon: LayoutDashboard } : { to: '/me', label: 'My account', Icon: UserRound };
+  const home = admin ? { to: '/admin', label: 'Control Room', Icon: LayoutDashboard } : { to: '/me', label: 'My account', Icon: UserRound };
   return (
     <div ref={box} className="relative">
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="menu" aria-label={`Account menu for ${me.user.name}`}
@@ -42,8 +51,9 @@ function AccountMenu() {
       {open && (
         <div role="menu" className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border border-cream/15 bg-midnight/95 py-1.5 text-cream shadow-xl backdrop-blur-xl">
           <div className="border-b border-cream/10 px-4 pb-2 pt-1.5"><div className="truncate text-sm font-bold">{me.user.name}</div><div className="truncate text-xs text-cream/60">{me.user.email}</div></div>
-          <Link role="menuitem" to={home.to} className="flex min-h-11 items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-cream/10"><home.Icon className="h-4 w-4" aria-hidden />{home.label}</Link>
-          <button role="menuitem" type="button" onClick={logout} className="flex min-h-11 w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm hover:bg-cream/10"><LogOut className="h-4 w-4" aria-hidden />Log out</button>
+          <Link role="menuitem" to={home.to} className={menuItem}><home.Icon className="h-4 w-4" aria-hidden />{home.label}</Link>
+          {admin && <a role="menuitem" href="/" target="_blank" rel="noopener" className={menuItem}><ExternalLink className="h-4 w-4" aria-hidden />View site ↗<span className="sr-only"> (opens in a new tab)</span></a>}
+          <button role="menuitem" type="button" onClick={logout} className={`${menuItem} w-full text-left`}><LogOut className="h-4 w-4" aria-hidden />Log out</button>
         </div>
       )}
     </div>
@@ -51,14 +61,20 @@ function AccountMenu() {
 }
 
 /**
- * Floating glass pill nav, shared by the landing page and every public page (and /me).
+ * Floating glass pill nav, shared by the landing page, every public page, /me and the Control Room.
  * On `/` it shrinks after 80px of scroll and tracks the section in view; elsewhere it links to routes.
+ * Control Room (an admin on /admin…): the links manage instead of browse, the logo stays on /admin, "View site ↗" opens
+ * the public site in a new tab, and the menu button (below lg) opens the section drawer via `onAdminMenu`. An admin
+ * on a public page gets a "Back to Control Room" pill.
  */
-export function GlassNav() {
+export function GlassNav({ onAdminMenu }: { onAdminMenu?: () => void } = {}) {
   const { me, logout } = useAuth();
   const loc = useLocation();
   const nav = useNavigate();
   const onHome = loc.pathname === '/';
+  const isAdmin = me?.user.role === 'admin';
+  const controlRoom = isAdmin && isAdminPath(loc.pathname) && !!onAdminMenu;
+  const links = controlRoom ? adminLinks : appLinks;
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState<SectionId | null>(null);
   const [open, setOpen] = useState(false);
@@ -137,7 +153,7 @@ export function GlassNav() {
   };
   // "Past events" has no nav link, so it keeps the Events link lit.
   const isActive = (id: SectionId) => active === id || (id === 'events' && active === 'past');
-  const home = me ? (me.user.role === 'admin' ? { to: '/admin', label: 'Dashboard' } : { to: '/me', label: 'My account' }) : null;
+  const home = me ? (isAdmin ? { to: '/admin', label: 'Control Room' } : { to: '/me', label: 'My account' }) : null;
 
   return (
     <>
@@ -152,14 +168,14 @@ export function GlassNav() {
               <span className="t-nav font-extrabold">SSA</span>
             </a>
           ) : (
-            <Link to="/" className="flex min-h-11 items-center gap-2 rounded-full text-cream">
+            <Link to={controlRoom ? '/admin' : '/'} className="flex min-h-11 items-center gap-2 rounded-full text-cream">
               <SkylineMark className={`transition-all ${scrolled ? 'h-8 w-8' : 'h-10 w-10'}`} />
               {/* The accessible name starts with the visible "SSA", for voice control. */}
-              <span className="t-nav font-extrabold">SSA<span className="sr-only"> home, Skyline Student Association</span></span>
+              <span className="t-nav font-extrabold">SSA<span className="sr-only">{controlRoom ? ', Control Room overview' : ' home, Skyline Student Association'}</span></span>
             </Link>
           )}
           <ul className="hidden items-center md:flex lg:gap-1">
-            {!onHome && appLinks.map((l) => (
+            {!onHome && links.map((l) => (
               <li key={l.to}>
                 <NavLink to={l.to} className={({ isActive }) => `t-nav relative flex min-h-11 items-center px-2.5 transition-colors hover:text-cream lg:px-3 ${isActive ? 'text-cream' : 'text-cream/70'}`}>
                   {({ isActive }) => <>{l.label}<span className={`absolute inset-x-3 bottom-1.5 h-px origin-left bg-cream transition-transform duration-300 ${isActive ? 'scale-x-100' : 'scale-x-0'}`} /></>}
@@ -185,18 +201,26 @@ export function GlassNav() {
             {!me && <Link to="/login" className="t-nav hidden min-h-11 items-center rounded-full px-3 text-cream/80 transition-colors hover:text-cream md:flex">Login</Link>}
             {!me && onHome && <a href="#join" onClick={go('join')} data-cursor="button" className="btn-l-primary btn-l-sm !min-h-11 hidden lg:inline-flex">Become a member</a>}
             {!me && !onHome && <Link to="/register" className="btn-l-primary btn-l-sm !min-h-11 hidden md:inline-flex">Join</Link>}
+            {controlRoom && <a href="/" target="_blank" rel="noopener" className="t-nav hidden min-h-11 items-center gap-1.5 rounded-full border border-cream/15 px-3.5 text-cream/80 transition-colors hover:border-cream/40 hover:text-cream sm:inline-flex">View site<ExternalLink className="h-3.5 w-3.5" aria-hidden /><span className="sr-only"> (opens in a new tab)</span></a>}
+            {isAdmin && !controlRoom && <Link to="/admin" className="t-nav inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-3.5 text-accent-foreground shadow-lg transition-[filter] hover:brightness-110"><ArrowLeft className="h-3.5 w-3.5" aria-hidden /><span className="sm:hidden">Control Room</span><span className="hidden sm:inline">Back to Control Room</span></Link>}
             <div className="hidden md:block"><AccountMenu /></div>
-            <button
-              ref={menuBtn}
-              type="button"
-              onClick={openMenu}
-              aria-expanded={open}
-              aria-controls="mobile-menu"
-              aria-label="Open menu"
-              className="grid h-11 w-11 place-items-center rounded-full text-cream md:hidden"
-            >
-              <Menu className="h-5 w-5" aria-hidden />
-            </button>
+            {controlRoom ? (
+              <button type="button" onClick={onAdminMenu} aria-label="Open Control Room menu" aria-haspopup="dialog" className="grid h-11 w-11 place-items-center rounded-full text-cream lg:hidden">
+                <Menu className="h-5 w-5" aria-hidden />
+              </button>
+            ) : (
+              <button
+                ref={menuBtn}
+                type="button"
+                onClick={openMenu}
+                aria-expanded={open}
+                aria-controls="mobile-menu"
+                aria-label="Open menu"
+                className="grid h-11 w-11 place-items-center rounded-full text-cream md:hidden"
+              >
+                <Menu className="h-5 w-5" aria-hidden />
+              </button>
+            )}
           </div>
         </nav>
       </header>

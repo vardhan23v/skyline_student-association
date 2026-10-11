@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { EventReportPage } from './EventReportPage';
 import { BarChart3, Copy, MessageCircle, Pencil, Plus, Share2 } from 'lucide-react';
 import { get, patch, post } from '@/api/client';
@@ -27,14 +27,14 @@ const toLocalInput = (v: string | number | null | undefined) => {
 /** ...and send an ISO instant back, so the server never reinterprets it in its own (UTC) zone. */
 const toIso = (local: string) => (local ? new Date(local).toISOString() : local);
 
-/** Admin › Events: list including drafts, create/edit drawer, publish/close; `?event=<id>` opens the report. */
-export function AdminEventsPage() {
-  const [params] = useSearchParams();
-  const reportId = Number(params.get('event')) || null;
-  return reportId ? <EventReportPage id={reportId} /> : <EventsList />;
+/** /admin/events/:id: one event's report and registrations. */
+export function AdminEventDetail() {
+  const id = Number(useParams().id);
+  return <EventReportPage id={id} />;
 }
 
-function EventsList() {
+/** /admin/events: list including drafts, create/edit drawer, publish/close, share. */
+export function AdminEventsPage() {
   const qc = useQueryClient(); const toast = useToast();
   const q = useQuery({ queryKey: ['admin', 'events'], queryFn: () => get<Event[]>('/admin/events') });
   const refresh = () => { qc.invalidateQueries({ queryKey: ['admin', 'events'] }); qc.invalidateQueries({ queryKey: ['events'] }); };
@@ -64,7 +64,7 @@ function EventsList() {
               {e.status === 'published' && <button className="btn-secondary !px-3 !text-xs" disabled={setStatus.isPending} onClick={() => setStatus.mutate({ id: e.id, status: 'closed' })}>Close</button>}
               {/* Only open events are worth forwarding: drafts are hidden and closed events take no registrations. */}
               {e.status === 'published' && <button className="btn-secondary !px-3 !text-xs" onClick={() => setSharing(e)}><Share2 className="size-3.5" aria-hidden />Share<span className="sr-only"> {e.title}</span></button>}
-              <Link className="btn-secondary !px-3 !text-xs" to={`/admin?tab=events&event=${e.id}`}><BarChart3 className="size-3.5" aria-hidden />Report<span className="sr-only">, registrations for {e.title}</span></Link>
+              <Link className="btn-secondary !px-3 !text-xs" to={`/admin/events/${e.id}`}><BarChart3 className="size-3.5" aria-hidden />Report<span className="sr-only">, registrations for {e.title}</span></Link>
             </span>
           ) },
         ]} />

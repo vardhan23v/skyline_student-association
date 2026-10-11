@@ -9,6 +9,7 @@ import { PageHeader, SectionHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
 import { Input, LabeledSelect } from '@/components/Input';
 import { ErrorState } from '@/components/EmptyState';
+import { VerifyMemberPage } from './VerifyMemberPage';
 
 type Result = { ok: boolean; reason?: string; ticket?: { holder_name: string; ticket_type: string; status: string }; membership_active?: boolean;
   /** Membership mode: who the member QR (or student ID) belongs to and until when they're covered. */
@@ -194,4 +195,9 @@ export function ScannerPage() {
       </>}
     </>
   );
+}
+
+/** /admin/checkin: the door scanner, then manual member verification for when a QR won't scan. */
+export function AdminCheckin() {
+  return <><ScannerPage /><div className="mt-8"><VerifyMemberPage /></div></>;
 }

@@ -70,7 +70,7 @@
   <text x="538" y="232" class="t">/  landing (static content)</text>
   <text x="538" y="254" class="t">/events · /shop · /announcements</text>
   <text x="538" y="276" class="t">/login · /register · /me · /tickets/:id</text>
-  <text x="538" y="298" class="t">/admin?tab=… (lazy chunk)</text>
+  <text x="538" y="298" class="t">/admin/… (lazy chunks)</text>
   <text x="538" y="326" class="s">/assets/* cached 1 year (immutable)</text>
   <text x="538" y="344" class="s">index.html no-cache · SPA fallback</text>
 

@@ -33,7 +33,7 @@ function useRefresh() {
 /**
  * Admin › Fundraisers: each fundraiser split into tasks with an owner and a due date, and whether it's on track.
  * Raised comes from the ledger and health from the server; nothing here is computed from client-side numbers.
- * The list is `?tab=fundraisers`; one fundraiser is `?tab=fundraisers&id=…`.
+ * The list is `/admin/fundraisers`; one fundraiser is `/admin/fundraisers?id=…`.
  */
 export function AdminFundraisersPage() {
   const [params] = useSearchParams();
@@ -90,7 +90,7 @@ function FundraiserList() {
         <ul className="grid gap-4 md:grid-cols-2">
           {q.data?.map((f) => (
             <li key={f.id}>
-              <Link to={`/admin?tab=fundraisers&id=${f.id}`} className="card card-hover interactive flex h-full flex-col gap-4 focus-ring">
+              <Link to={`/admin/fundraisers?id=${f.id}`} className="card card-hover interactive flex h-full flex-col gap-4 focus-ring">
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="min-w-0 text-lg font-semibold">{f.name}</h2>
                   <div className="flex shrink-0 flex-wrap justify-end gap-1.5"><StatusBadge status={f.status} />{f.health !== f.status && <HealthBadge health={f.health} />}</div>
@@ -125,7 +125,7 @@ function FundraiserForm({ open, onClose, fundraiser }: { open: boolean; onClose:
     onSuccess: (f) => {
       refresh(); onClose();
       toast.success(fundraiser ? 'Fundraiser updated' : 'Fundraiser created', fundraiser ? undefined : 'Now split the work into tasks.');
-      if (!fundraiser) setParams({ tab: 'fundraisers', id: String(f.id) });
+      if (!fundraiser) setParams({ id: String(f.id) });
     },
   });
   const submit = (e: FormEvent) => { e.preventDefault(); save.mutate(); };
@@ -240,7 +240,7 @@ function FundraiserDetail({ id }: { id: number }) {
 }
 
 function BackLink() {
-  return <Link to="/admin?tab=fundraisers" className="interactive mb-4 inline-flex min-h-11 items-center gap-2 rounded text-sm text-text-secondary hover:text-cream focus-ring"><ArrowLeft className="size-4" aria-hidden />All fundraisers</Link>;
+  return <Link to="/admin/fundraisers" className="interactive mb-4 inline-flex min-h-11 items-center gap-2 rounded text-sm text-text-secondary hover:text-cream focus-ring"><ArrowLeft className="size-4" aria-hidden />All fundraisers</Link>;
 }
 
 /** Add a task, or edit one's title, assignee and due date (status changes inline in the table). */

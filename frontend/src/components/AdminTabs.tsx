@@ -1,59 +1,66 @@
-import { useEffect, useRef, type KeyboardEvent } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import type { LucideIcon } from 'lucide-react';
+import { useRef, type KeyboardEvent } from 'react';
+import { NavLink } from 'react-router-dom';
+import { CalendarDays, HandCoins, LayoutDashboard, Megaphone, QrCode, Shirt, ShoppingBag, Users, Wallet, type LucideIcon } from 'lucide-react';
 
-export type AdminTab<K extends string> = { key: K; label: string; icon: LucideIcon };
+export type AdminSection = { key: string; to: string; label: string; icon: LucideIcon };
 
-/** The active tab key from `?tab=`, falling back to the first tab for a missing or unknown value. */
-export function useAdminTab<K extends string>(tabs: readonly AdminTab<K>[]): K {
-  const [params] = useSearchParams();
-  const t = params.get('tab');
-  return (tabs.find((x) => x.key === t)?.key ?? tabs[0].key) as K;
+/** Every Control Room section and its URL. Overview is `/admin` itself; the rest are real paths (Back and Forward work). */
+export const ADMIN_SECTIONS = [
+  { key: 'overview', to: '/admin', label: 'Overview', icon: LayoutDashboard },
+  { key: 'events', to: '/admin/events', label: 'Events', icon: CalendarDays },
+  { key: 'fundraisers', to: '/admin/fundraisers', label: 'Fundraisers', icon: HandCoins },
+  { key: 'checkin', to: '/admin/checkin', label: 'Check-in', icon: QrCode },
+  { key: 'members', to: '/admin/members', label: 'Members', icon: Users },
+  { key: 'orders', to: '/admin/orders', label: 'Orders', icon: ShoppingBag },
+  { key: 'products', to: '/admin/products', label: 'Products', icon: Shirt },
+  { key: 'announcements', to: '/admin/announcements', label: 'Announcements', icon: Megaphone },
+  { key: 'finance', to: '/admin/finance', label: 'Finance', icon: Wallet },
+] as const satisfies readonly AdminSection[];
+
+/**
+ * Old links were `/admin?tab=<key>` (plus `event=<id>` for an event report). Returns the path that replaced one, keeping
+ * the section's own params (e.g. `view=dues`), or null when the URL has no `tab`.
+ */
+export function legacyAdminPath(search: string): string | null {
+  const params = new URLSearchParams(search);
+  const tab = params.get('tab');
+  if (tab === null) return null;
+  params.delete('tab');
+  const section = ADMIN_SECTIONS.find((s) => s.key === tab);
+  let path: string = section?.to ?? '/admin';
+  const event = params.get('event');
+  if (tab === 'events' && event && /^\d+$/.test(event)) { path = `/admin/events/${event}`; params.delete('event'); }
+  const rest = section ? params.toString() : '';
+  return rest ? `${path}?${rest}` : path;
 }
 
 /**
- * Admin navigation in the landing glass: a sticky vertical sidebar from lg up; below lg a tab strip pinned under the
- * navbar that scrolls sideways (snap, faded edges) and keeps the active tab centred. Never both at once. Synced to `?tab=`, so each tab has its own URL (shareable, and Back works). Switching tabs drops the
- * other query params, which belong to the tab you were on (e.g. `event=` on Events). Arrow keys move between tabs.
+ * The Control Room's section list, as links. `collapsed` shows the icon rail (labels stay for screen readers and in
+ * the tooltip); `onNavigate` lets the phone drawer close after a pick. Up and Down arrows move between items.
  */
-export function AdminTabs<K extends string>({ tabs, panelId }: { tabs: readonly AdminTab<K>[]; panelId: string }) {
-  const [, setParams] = useSearchParams();
-  const active = useAdminTab(tabs);
-  const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  const strip = useRef<HTMLDivElement>(null);
-  const select = (k: K) => setParams(k === tabs[0].key ? {} : { tab: k });
-  // Below lg the strip scrolls sideways: centre the active tab (e.g. after opening /admin?tab=orders). Scrolls the strip
-  // only; scrollIntoView would also move the page.
-  const first = useRef(true);
-  useEffect(() => {
-    const el = refs.current[tabs.findIndex((t) => t.key === active)], row = strip.current;
-    if (!el || !row || row.scrollWidth <= row.clientWidth) return;
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    row.scrollTo({ left: el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2, behavior: first.current || reduce ? 'auto' : 'smooth' });
-    first.current = false;
-  }, [active, tabs]);
+export function AdminTabs({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
+  const refs = useRef<(HTMLAnchorElement | null)[]>([]);
   const onKey = (e: KeyboardEvent, i: number) => {
-    const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+    const d = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
     if (!d) return;
     e.preventDefault();
-    const n = (i + d + tabs.length) % tabs.length;
-    select(tabs[n].key); refs.current[n]?.focus();
+    refs.current[(i + d + ADMIN_SECTIONS.length) % ADMIN_SECTIONS.length]?.focus();
   };
   return (
-    <div className="glass sticky top-[calc(env(safe-area-inset-top)+5.25rem)] z-30 mb-6 rounded-2xl p-1 lg:top-28 lg:mb-0 lg:p-2">
-    <div ref={strip} role="tablist" aria-label="Admin sections" className="scroll-row fade-x gap-1 lg:flex-col lg:overflow-visible lg:[mask-image:none] lg:[-webkit-mask-image:none]">
-      {tabs.map((t, i) => {
-        const on = t.key === active;
-        return (
-          <button key={t.key} ref={(el) => { refs.current[i] = el; }} role="tab" type="button" id={`tab-${t.key}`} aria-selected={on} aria-controls={panelId} tabIndex={on ? 0 : -1}
-            onClick={() => select(t.key)} onKeyDown={(e) => onKey(e, i)}
-            className={`t-nav interactive relative inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3.5 !text-[0.7rem] lg:gap-2.5 ${on ? 'bg-cream/10 text-cream' : 'text-cream/70 hover:bg-cream/5 hover:text-cream'}`}>
-            <span className={`absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent transition-opacity lg:inset-x-auto lg:inset-y-2.5 lg:left-0 lg:h-auto lg:w-0.5 ${on ? 'opacity-100' : 'opacity-0'}`} aria-hidden />
-            <t.icon className={`size-4 ${on ? 'text-accent-text' : 'text-cream/60'}`} aria-hidden />{t.label}
-          </button>
-        );
-      })}
-    </div>
-    </div>
+    <ul className="flex flex-col gap-1">
+      {ADMIN_SECTIONS.map((s, i) => (
+        <li key={s.key}>
+          <NavLink ref={(el) => { refs.current[i] = el; }} to={s.to} end={s.key === 'overview'} onClick={onNavigate} onKeyDown={(e) => onKey(e, i)}
+            title={collapsed ? s.label : undefined}
+            className={({ isActive }) => `t-nav interactive relative flex min-h-11 items-center gap-2.5 rounded-xl !text-[0.7rem] focus-ring ${collapsed ? 'justify-center px-0' : 'px-3.5'} ${isActive ? 'bg-cream/10 text-cream' : 'text-cream/70 hover:bg-cream/5 hover:text-cream'}`}>
+            {({ isActive }) => <>
+              <span className={`absolute inset-y-2.5 left-0 w-0.5 rounded-full bg-accent transition-opacity ${isActive ? 'opacity-100' : 'opacity-0'}`} aria-hidden />
+              <s.icon className={`size-4 shrink-0 ${isActive ? 'text-accent-text' : 'text-cream/60'}`} aria-hidden />
+              <span className={collapsed ? 'sr-only' : 'truncate'}>{s.label}</span>
+            </>}
+          </NavLink>
+        </li>
+      ))}
+    </ul>
   );
 }

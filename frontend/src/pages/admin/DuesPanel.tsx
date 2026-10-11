@@ -41,7 +41,7 @@ const pick = (selected: Set<number>, toggle: (id: number) => void, label: (id: n
 });
 
 /**
- * Admin › Finance › Who owes what (`?tab=finance&view=dues`): who owes the club (memberships due, unpaid orders and
+ * Admin › Finance › Who owes what (`/admin/finance?view=dues`): who owes the club (memberships due, unpaid orders and
  * tickets) and whom the club owes (approved reimbursements), all live from GET /admin/dues. Members and order holders
  * can be reminded (once per 24 hours each); reimbursements are paid out with the expense "Mark paid" action.
  */

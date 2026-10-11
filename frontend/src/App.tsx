@@ -1,5 +1,5 @@
-import { Suspense, lazy } from 'react';
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Suspense, lazy, type ComponentType } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { Skeleton } from './components/EmptyState';
 import { AppLayout } from './layouts/AppLayout';
 import { RequireRole } from './auth/RequireRole';
@@ -14,8 +14,20 @@ import { TicketPage } from './pages/member/TicketPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { HomePage } from './pages/HomePage';
 
-// The admin dashboard (and the scanner and charts inside it) is its own chunk: public pages on a phone never fetch it.
-const AdminHome = lazy(() => import('./pages/admin/AdminHome').then((m) => ({ default: m.AdminHome })));
+// The Control Room is its own set of chunks: public pages on a phone never fetch it. The layout loads once; each
+// section loads on first visit (the camera and chart libraries only with Check-in and Finance).
+const page = <M,>(load: () => Promise<M>, name: keyof M) => lazy(() => load().then((m) => ({ default: m[name] as ComponentType })));
+const AdminLayout = page(() => import('./layouts/AdminLayout'), 'AdminLayout');
+const AdminHome = page(() => import('./pages/admin/AdminHome'), 'AdminHome');
+const AdminEventsPage = page(() => import('./pages/admin/AdminEventsPage'), 'AdminEventsPage');
+const AdminEventDetail = page(() => import('./pages/admin/AdminEventsPage'), 'AdminEventDetail');
+const AdminFundraisersPage = page(() => import('./pages/admin/AdminFundraisersPage'), 'AdminFundraisersPage');
+const AdminCheckin = page(() => import('./pages/admin/ScannerPage'), 'AdminCheckin');
+const AdminMembersPage = page(() => import('./pages/admin/AdminMembersPage'), 'AdminMembersPage');
+const AdminOrdersPanel = page(() => import('./pages/admin/AdminProductsPage'), 'AdminOrdersPanel');
+const AdminProductsPage = page(() => import('./pages/admin/AdminProductsPage'), 'AdminProductsPage');
+const AdminAnnouncementsPage = page(() => import('./pages/admin/AdminAnnouncementsPage'), 'AdminAnnouncementsPage');
+const FinanceOverview = page(() => import('./pages/admin/FinanceOverview'), 'FinanceOverview');
 const Fallback = () => <div className="card"><Skeleton rows={6} /></div>;
 
 /** /dashboard is only a redirect now: admin → /admin, user → /me, signed out → /login. */
@@ -29,13 +41,7 @@ function DashboardRedirect() {
 function FinanceRedirect() {
   const { me, loading } = useAuth();
   if (loading) return <Fallback />;
-  return <Navigate to={me?.user.role === 'admin' ? '/admin?tab=finance' : me ? '/me' : '/'} replace />;
-}
-
-/** Old admin URLs (/admin/events, /admin/members, …) open the matching tab. */
-function AdminTabRedirect() {
-  const { tab } = useParams();
-  return <Navigate to={`/admin?tab=${encodeURIComponent(tab ?? '')}`} replace />;
+  return <Navigate to={me?.user.role === 'admin' ? '/admin/finance' : me ? '/me' : '/'} replace />;
 }
 
 export function App() {
@@ -59,11 +65,25 @@ export function App() {
           <Route path="/me" element={<MemberDashboard />} />
           <Route path="/tickets/:id" element={<TicketPage />} />
         </Route>
-        <Route element={<RequireRole roles={['admin']} />}>
-          <Route path="/admin" element={<Suspense fallback={<Fallback />}><AdminHome /></Suspense>} />
-          <Route path="/admin/:tab/*" element={<AdminTabRedirect />} />
-        </Route>
         <Route path="*" element={<NotFoundPage />} />
+      </Route>
+
+      {/* The Control Room: one layout (top bar + sidebar) stays mounted across every section. Old `/admin?tab=` links
+          are redirected by AdminHome. */}
+      <Route element={<RequireRole roles={['admin']} />}>
+        <Route path="/admin" element={<Suspense fallback={<div className="p-6"><Fallback /></div>}><AdminLayout /></Suspense>}>
+          <Route index element={<AdminHome />} />
+          <Route path="events" element={<AdminEventsPage />} />
+          <Route path="events/:id" element={<AdminEventDetail />} />
+          <Route path="fundraisers" element={<AdminFundraisersPage />} />
+          <Route path="checkin" element={<AdminCheckin />} />
+          <Route path="members" element={<AdminMembersPage />} />
+          <Route path="orders" element={<AdminOrdersPanel />} />
+          <Route path="products" element={<AdminProductsPage />} />
+          <Route path="announcements" element={<AdminAnnouncementsPage />} />
+          <Route path="finance" element={<FinanceOverview />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
       </Route>
     </Routes>
   );

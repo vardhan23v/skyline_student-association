@@ -48,7 +48,7 @@ type View = (typeof views)[number]['key'];
 export function FinanceOverview() {
   const [params, setParams] = useSearchParams();
   const view = (views.find((v) => v.key === params.get('view'))?.key ?? 'summary') as View;
-  const go = (v: View) => setParams(v === 'summary' ? { tab: 'finance' } : { tab: 'finance', view: v });
+  const go = (v: View) => setParams(v === 'summary' ? {} : { view: v });
   return (
     <>
       <div role="group" aria-label="Finance views" className="scroll-row fade-x -mx-4 mb-5 gap-2 px-4 md:mx-0 md:flex-wrap md:px-0 md:[mask-image:none]">
