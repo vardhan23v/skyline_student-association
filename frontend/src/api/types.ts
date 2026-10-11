@@ -49,3 +49,5 @@ export type DuesOverview = {
   totals: { owed_to_club: number; owed_by_club: number };
   as_of: string;
 };
+/** GET /me/upcoming: confirmed tickets for events that haven't started, soonest first. */
+export type UpcomingTicket = { id: number; event_id: number; ticket_type: string; price: number; event_title: string; starts_at: string; venue: string | null };

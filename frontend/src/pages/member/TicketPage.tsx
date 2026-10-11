@@ -1,8 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, CalendarDays, MapPin, Sun } from 'lucide-react';
+import { ArrowLeft, CalendarDays, CalendarPlus, ExternalLink, MapPin, Sun } from 'lucide-react';
 import { get } from '@/api/client';
+import { getToken } from '@/auth/token';
+import { Button } from '@/components/Button';
+import { useToast } from '@/components/Toast';
 import type { Ticket } from '@/api/types';
 import { StatusBadge } from '@/components/StatusBadge';
 import { SectionHeading } from '@/components/landing/SectionHeading';
@@ -26,6 +29,26 @@ function useWakeLock(on: boolean) {
   }, [on]);
 }
 
+/** Events have no end time; calendars get a 2-hour slot (the same as the .ics). */
+const EVENT_HOURS = 2;
+const gcalDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+/** A Google Calendar "add event" link from the ticket's event fields. */
+function googleCalendarUrl(t: Ticket) {
+  const start = new Date(t.starts_at!), end = new Date(start.getTime() + EVENT_HOURS * 3600_000);
+  const p = new URLSearchParams({ action: 'TEMPLATE', text: t.event_title ?? 'SSA event', dates: `${gcalDate(start)}/${gcalDate(end)}`, details: `Your ticket: ${window.location.origin}/tickets/${t.id}`, ...(t.venue ? { location: t.venue } : {}) });
+  return `https://calendar.google.com/calendar/render?${p}`;
+}
+
+/** Download the ticket's .ics. It needs the Authorization header, so it's fetched and handed over as a blob. */
+async function downloadIcs(id: number) {
+  const res = await fetch(`/api/tickets/${id}/calendar.ics`, { headers: { Authorization: `Bearer ${getToken() ?? ''}` } });
+  if (!res.ok) throw new Error((await res.json().catch(() => null))?.message ?? 'Could not create the calendar file');
+  const url = URL.createObjectURL(new Blob([await res.text()], { type: 'text/calendar' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: `ssa-ticket-${id}.ics` });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 /** Wallet-style ticket: QR on cream (dark on light scans reliably), perforated divider, holder details. */
 export function TicketPage() {
   const { id } = useParams();
@@ -34,6 +57,7 @@ export function TicketPage() {
   if (q.isLoading) return <div className="card mx-auto max-w-sm"><Skeleton rows={6} /></div>;
   if (!q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const t = q.data;
+  const upcoming = !!t.starts_at && +new Date(t.starts_at) > Date.now() && t.status !== 'cancelled';
   return (
     <div className="mx-auto max-w-sm">
       <Link to="/me" className="t-label mb-1 flex min-h-11 w-fit items-center gap-1 hover:text-accent-text"><ArrowLeft className="size-3" aria-hidden />My account</Link>
@@ -57,6 +81,18 @@ export function TicketPage() {
           {t.checked_in_at && <p className="t-caption mt-2">Checked in {datetime(t.checked_in_at)}</p>}
         </div>
       </article>
+      {upcoming && <CalendarButtons t={t} />}
+    </div>
+  );
+}
+
+function CalendarButtons({ t }: { t: Ticket }) {
+  const toast = useToast(); const [busy, setBusy] = useState(false);
+  const ics = async () => { setBusy(true); try { await downloadIcs(t.id); } catch (e) { toast.error('Add to calendar failed', (e as Error).message); } finally { setBusy(false); } };
+  return (
+    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+      <Button variant="secondary" className="w-full" loading={busy} onClick={ics} icon={<CalendarPlus className="size-4" aria-hidden />}>Add to calendar</Button>
+      <a href={googleCalendarUrl(t)} target="_blank" rel="noreferrer" className="btn-secondary w-full"><ExternalLink className="size-4" aria-hidden />Google Calendar</a>
     </div>
   );
 }

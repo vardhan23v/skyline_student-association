@@ -23,7 +23,7 @@ import { paymentsRouter } from './modules/payments/routes';
 import { adminRouter } from './modules/admin/routes';
 import { aiRouter } from './modules/ai/routes';
 import { myMembership } from './modules/memberships/service';
-import { myTickets } from './modules/events/service';
+import { myTickets, myUpcoming } from './modules/events/service';
 import { publicStats } from './modules/admin/service';
 
 export function createApp() {
@@ -48,6 +48,7 @@ export function createApp() {
   // Landing-page numbers; cached briefly so a busy homepage doesn't run five COUNTs per visit.
   api.get('/stats', asyncHandler(async (_req, res) => { res.set('Cache-Control', 'public, max-age=60'); res.json(await publicStats()); }));
   api.use('/auth', authRouter);
+  api.get('/me/upcoming', requireAuth, asyncHandler(async (req, res) => res.json(await myUpcoming(req.user!.id))));
   api.get('/me', requireAuth, asyncHandler(async (req, res) => {
     const user = await getDb()('users').where({ id: req.user!.id }).first('id', 'name', 'email', 'role', 'is_active');
     // A token outlives a deleted or deactivated account; answering 200 with `user: undefined` crashed the SPA (me.user.role).

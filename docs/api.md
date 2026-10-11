@@ -95,6 +95,8 @@ Unpaid holds (a ticket seat, reserved stock) expire after `PENDING_HOLD_MINUTES`
 | POST | `/api/events/:id/cash-ticket` | n/a | Old cash door sale | **removed** |
 | GET | `/api/tickets` | user | My tickets | unchanged |
 | GET | `/api/tickets/:id` | holder or admin | One ticket with its QR image | unchanged |
+| GET | `/api/tickets/:id/calendar.ics` | holder only | iCalendar file (`text/calendar`): UID `ticket-<id>@skyline`, UTC start, 2-hour slot, summary, location, description with the ticket link | added |
+| GET | `/api/me/upcoming` | user | My confirmed tickets for events that haven't started, soonest first | added |
 | GET | `/api/announcements` | public | Archive; members-only posts for members and admins | unchanged |
 | GET | `/api/products` | public | Active products with variants, `available` and `price_for_you` (member price for members) | changed (inactive products moved to admin) |
 | POST | `/api/orders` | user | Body `{ items: [{ variant_id, qty }] }`. Reserves stock, snapshots `unit_price`, returns `{ order, items, checkout }` | changed (any signed-in user) |

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, BadgeCheck, Check, CheckCircle2, QrCode, RefreshCw, ShoppingBag, Ticket } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, CalendarClock, Check, CheckCircle2, MapPin, QrCode, RefreshCw, ShoppingBag, Ticket } from 'lucide-react';
 import { get } from '@/api/client';
-import type { MembershipOffer, Order } from '@/api/types';
+import type { MembershipOffer, Order, UpcomingTicket } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { MembershipCard } from '@/components/MembershipCard';
 import { useToast } from '@/components/Toast';
@@ -25,6 +25,7 @@ export function MemberDashboard() {
   const qc = useQueryClient(); const toast = useToast();
   // Polled so a status change made by an admin (paid → fulfilled) shows up without a reload.
   const orders = useQuery({ queryKey: ['orders', 'mine'], queryFn: () => get<Order[]>('/orders/mine'), refetchInterval: 10_000 });
+  const upcoming = useQuery({ queryKey: ['me', 'upcoming'], queryFn: () => get<UpcomingTicket[]>('/me/upcoming') });
   const joined = async () => { setJoining(false); await refreshMe(); qc.invalidateQueries(); toast.success('Welcome to SSA', 'Your membership is active.'); };
   const renewed = async () => { setRenewing(false); await refreshMe(); qc.invalidateQueries(); toast.success('Membership renewed', 'Your next period is paid.'); };
   useEffect(() => {
@@ -36,6 +37,7 @@ export function MemberDashboard() {
   return (
     <>
       <PageHeader eyebrow={me.user.email} script="your" title="Account" description="Your membership, tickets and orders." />
+      {!!upcoming.data?.length && <UpNext tickets={upcoming.data} />}
       <div className="grid gap-6 md:gap-5 lg:grid-cols-3">
         <section className="card glow-horizon flex flex-col" aria-labelledby="ms-h">
           <div className="flex items-start justify-between gap-2"><h2 id="ms-h" className="t-section">Membership</h2><StatusBadge status={me.is_member ? 'active' : ms?.status ?? undefined}>{me.is_member ? 'active' : ms?.status === 'expired' ? 'expired' : 'not a member'}</StatusBadge></div>
@@ -114,5 +116,44 @@ export function MemberDashboard() {
       <MembershipCard open={joining} onClose={() => setJoining(false)} onPaid={joined} reason="Join SSA to register for events and get member prices." />
       <MembershipCard open={renewing} renew onClose={() => setRenewing(false)} onPaid={renewed} reason={me.membership_expires ? `Your next period starts the day after ${date(me.membership_expires)}.` : undefined} />
     </>
+  );
+}
+
+/** "in 3 days", "tomorrow", "in 5 hours", "today": calendar days in the viewer's zone, hours on the day itself. */
+export function countdown(iso: string, now = new Date()) {
+  const start = new Date(iso);
+  const days = Math.round((new Date(start).setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) / 86_400_000);
+  if (days > 1) return `in ${days} days`;
+  if (days === 1) return 'tomorrow';
+  const hours = Math.round((+start - +now) / 3_600_000);
+  return hours >= 1 ? `in ${hours} hour${hours === 1 ? '' : 's'}` : 'starting soon';
+}
+
+/** Top of /me: the next event with a countdown, then the rest of the member's upcoming tickets. */
+function UpNext({ tickets }: { tickets: UpcomingTicket[] }) {
+  const [next, ...rest] = tickets;
+  return (
+    <section className="card glow-horizon mb-6" aria-labelledby="up-next-h">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="t-label inline-flex items-center gap-1.5"><CalendarClock className="size-3.5" aria-hidden />Up next</p>
+          <h2 id="up-next-h" className="t-h3 mt-1 text-cream">{next.event_title} <span className="text-flame">· {countdown(next.starts_at)}</span></h2>
+          <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 t-caption"><span>{datetime(next.starts_at)}</span>{next.venue && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{next.venue}</span>}</p>
+        </div>
+        <Link to={`/tickets/${next.id}`} className="btn-primary shrink-0"><QrCode className="size-4" aria-hidden />Open ticket</Link>
+      </div>
+      {rest.length > 0 && (
+        <ul className="mt-4 divide-y divide-border border-t border-border text-sm" aria-label="Later events">
+          {rest.map((t) => (
+            <li key={t.id}>
+              <Link to={`/tickets/${t.id}`} className="flex min-h-12 items-center justify-between gap-3 py-2 hover:text-accent-text">
+                <span className="min-w-0 truncate font-medium">{t.event_title}</span>
+                <span className="shrink-0 t-caption">{datetime(t.starts_at)} · {countdown(t.starts_at)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

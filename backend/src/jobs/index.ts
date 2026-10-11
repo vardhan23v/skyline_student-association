@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import { getDb } from '../config/db';
 import { logger } from '../lib/logger';
 import { sendMail, siteLink } from '../lib/email';
-import { expirePendingTickets } from '../modules/events/service';
+import { expirePendingTickets, sendEventReminders } from '../modules/events/service';
 import { expirePendingOrders } from '../modules/merchandise/service';
 import { rescanSubmitted } from '../modules/finance/anomaly';
 import { env } from '../config/env';
@@ -65,5 +65,6 @@ export function startJobs() {
   cron.schedule('5 0 * * *', wrap('expireMemberships', expireMemberships), { timezone });
   cron.schedule('30 1 * * *', wrap('anomalyScan', () => rescanSubmitted(getDb())), { timezone });
   cron.schedule('0 2 * * *', wrap('lowStock', lowStockAlert), { timezone });
+  cron.schedule('0 * * * *', wrap('eventReminders', () => sendEventReminders()), { timezone }); // 23–25 h window: every event is caught by one run
   logger.info('scheduled jobs started');
 }

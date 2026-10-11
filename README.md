@@ -61,6 +61,7 @@ Sign in with a demo account:
 
 ## 🧭 What's inside
 
+- **Event reminders and calendars:** a "Tomorrow" email the day before, Add to calendar (.ics) and Google Calendar on every ticket, and an Up next card on the account page.
 - **Events and ticketing:** member and non-member prices, members-only events, capacity under a row lock, 15-minute seat holds, signed QR tickets, cancellation with an automatic ledger reversal. A non-member can **pay the non-member price** or **join and pay the member price** in one flow.
 - **Walk-in sign-up:** an admin signs a student up at the campus table, records cash dues in the same step and the student gets an email to set their password.
 - **Memberships and dues:** buy or renew online (renewal opens 30 days before expiry), cash dues recorded by admins, dues history, expiry dates set by admins, reminder emails 14 days before expiry and on the day, and a membership QR.
@@ -104,6 +105,7 @@ Open http://localhost:5173 and sign in with a [demo account](#-live-demo).
 | `npm test` | 116 vitest + supertest API tests on an in-memory SQLite database |
 | `npm --prefix backend run typecheck` · `npm --prefix frontend run typecheck` | Strict type checks |
 | `npm --prefix backend run migrate` · `migrate:rollback` · `seed` | Schema and demo data for whatever `DATABASE_URL` points at |
+| `npm --prefix backend run job <name>` | Run one scheduled job now: `eventReminders`, `renewalReminders`, `expireMemberships`, `expireHolds`, `lowStock` |
 | `npm --prefix frontend run test:responsive` | Playwright at 360 · 390 · 768 · 1280 px against a running server |
 | `npm --prefix frontend run media:prepare` | Phone-sized copies of the landing photos |
 
@@ -238,6 +240,7 @@ Base path `/api`. JSON in and out; auth is `Authorization: Bearer <JWT>`. Errors
 | POST | `/events/:id/register` | user | Member → member ticket at `member_price`; others → non-member ticket, or 403 on members-only events |
 | DELETE | `/events/:id/register` | holder | Cancel before start; paid tickets get a ledger reversal |
 | GET | `/tickets` · `/tickets/:id` | holder / admin | With the QR image |
+| GET | `/tickets/:id/calendar.ics` · `/me/upcoming` | holder | Add-to-calendar file; my next events, soonest first |
 </details>
 
 <details>
@@ -324,6 +327,7 @@ Conventions: money is `DECIMAL(12,2)`; calendar dates are `DATE` in the club tim
 | 01:30 | Re-scan submitted expenses for anomalies |
 | 02:00 | Low-stock alert |
 | 08:00 | Renewal reminders |
+| hourly | Event reminders: confirmed tickets for events 23–25 h away, once per ticket |
 
 ---
 

@@ -10,6 +10,7 @@
     "migrate": "tsx src/scripts/migrate.ts latest",
     "migrate:rollback": "tsx src/scripts/migrate.ts rollback",
     "seed": "tsx src/scripts/migrate.ts seed",
+    "job": "tsx src/scripts/job.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "seed:if-enabled": "node -e \"if(process.env.ALLOW_DEMO_SEED==='true')require('child_process').execSync('npm run seed',{stdio:'inherit'})\""

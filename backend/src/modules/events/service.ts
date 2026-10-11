@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
 import { getDb, lockRow } from '../../config/db';
-import { env } from '../../config/env';
+import { appUrl, env } from '../../config/env';
 import { HttpError, conflict, forbidden, notFound } from '../../lib/errors';
 import { qrDataUrl, signTicketQr, verifyQr } from '../../lib/qr';
 import { sendMail, siteLink } from '../../lib/email';
@@ -263,3 +263,76 @@ export async function expirePendingTickets(db: Knex = getDb()) {
   const cutoff = new Date(Date.now() - env.PENDING_HOLD_MINUTES * 60_000);
   return db('tickets').where({ status: 'pending' }).where('created_at', '<', createdAtBound(db, cutoff)).update({ status: 'cancelled' });
 }
+
+/** "Sat 24 Oct, 10:00 am" in the club's time zone (emails are read wherever the member is). */
+const clubTime = (d: Date) => new Intl.DateTimeFormat('en-IN', { timeZone: env.APP_TIMEZONE, weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(d);
+/** Events have no end time; calendars get this long a slot. */
+export const EVENT_DEFAULT_HOURS = 2;
+
+/**
+ * Hourly job: confirmed tickets whose event starts in 23–25 hours get one "Tomorrow" email. Each ticket is claimed by a
+ * conditional update on `reminder_sent_at` before the email goes out, so overlapping runs (or a retry) never send twice.
+ * The two-hour window means an hourly run always catches every event once.
+ */
+export async function sendEventReminders(now = new Date()) {
+  const db = getDb();
+  const from = new Date(now.getTime() + 23 * 3600_000), to = new Date(now.getTime() + 25 * 3600_000);
+  const rows = await db('tickets as t').join('events as e', 'e.id', 't.event_id')
+    .where('t.status', 'confirmed').whereNull('t.reminder_sent_at').whereNot('e.status', 'draft')
+    .where('e.starts_at', '>=', from).where('e.starts_at', '<=', to)
+    .select('t.id', 't.holder_name', 't.holder_email', 'e.title', 'e.starts_at', 'e.venue');
+  let sent = 0;
+  for (const r of rows) {
+    const claimed = await db('tickets').where({ id: r.id }).whereNull('reminder_sent_at').update({ reminder_sent_at: new Date() });
+    if (!claimed || !r.holder_email) continue;
+    const when = clubTime(new Date(r.starts_at));
+    await sendMail({
+      to: r.holder_email,
+      subject: `Tomorrow: ${r.title} at ${when.split(', ').pop()}${r.venue ? `, ${r.venue}` : ''}`,
+      html: `<p>Hi ${escapeHtml(r.holder_name)},</p><p><b>${escapeHtml(r.title)}</b> is tomorrow, ${escapeHtml(when)}${r.venue ? ` at ${escapeHtml(r.venue)}` : ''}. Keep your ticket QR ready at the door.</p>${siteLink(`/tickets/${r.id}`, 'Open your ticket')}`,
+    });
+    sent++;
+  }
+  if (sent) logger.info({ sent }, 'event reminders sent');
+  return sent;
+}
+
+/** iCalendar TEXT escaping (RFC 5545 §3.3.11): backslash, semicolon, comma, newlines. */
+const icsText = (s: unknown) => String(s ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const icsDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+/** Lines over 75 octets are folded: CRLF plus a space. */
+const fold = (line: string) => {
+  const out: string[] = []; let cur = '';
+  for (const ch of line) { if (Buffer.byteLength(cur + ch) > 75) { out.push(cur); cur = ` ${ch}`; } else cur += ch; }
+  return [...out, cur].join('\r\n');
+};
+
+/** GET /tickets/:id/calendar.ics — the holder's own ticket as one VEVENT (UTC times, 2 hours long). */
+export async function ticketCalendar(id: number, user_id: number) {
+  const t = await getDb()('tickets as t').join('events as e', 'e.id', 't.event_id').where('t.id', id)
+    .select('t.id', 't.holder_user_id', 't.status', 'e.title', 'e.description', 'e.starts_at', 'e.venue').first();
+  if (!t) throw notFound('Ticket not found');
+  if (Number(t.holder_user_id) !== user_id) throw forbidden('Only the ticket holder can add it to a calendar');
+  const start = new Date(t.starts_at), end = new Date(start.getTime() + EVENT_DEFAULT_HOURS * 3600_000);
+  const url = appUrl(`/tickets/${t.id}`);
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Skyline Student Association//Tickets//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:ticket-${t.id}@skyline`,
+    `DTSTAMP:${icsDate(new Date())}`,
+    `DTSTART:${icsDate(start)}`,
+    `DTEND:${icsDate(end)}`,
+    `SUMMARY:${icsText(t.title)}`,
+    ...(t.venue ? [`LOCATION:${icsText(t.venue)}`] : []),
+    `DESCRIPTION:${icsText(`${t.description ? `${t.description}\n\n` : ''}Your ticket: ${url}`)}`,
+    `URL:${url}`,
+    `STATUS:${t.status === 'cancelled' ? 'CANCELLED' : 'CONFIRMED'}`,
+    'END:VEVENT', 'END:VCALENDAR',
+  ];
+  return lines.map(fold).join('\r\n') + '\r\n';
+}
+
+/** GET /me/upcoming — the caller's confirmed tickets for events that haven't started, soonest first. */
+export const myUpcoming = (user_id: number) =>
+  getDb()('tickets as t').join('events as e', 'e.id', 't.event_id').where('t.holder_user_id', user_id).where('t.status', 'confirmed').where('e.starts_at', '>', new Date())
+    .select('t.id', 't.event_id', 't.ticket_type', 't.price', 'e.title as event_title', 'e.starts_at', 'e.venue').orderBy('e.starts_at', 'asc');

@@ -23,6 +23,11 @@ eventsRouter.delete('/:id/register', requireAuth, validate({ params: idParam }),
 }));
 
 ticketsRouter.get('/', requireAuth, asyncHandler(async (req, res) => res.json(await svc.myTickets(req.user!.id))));
+ticketsRouter.get('/:id/calendar.ics', requireAuth, validate({ params: idParam }), asyncHandler(async (req, res) => {
+  const ics = await svc.ticketCalendar(Number(req.params.id), req.user!.id);
+  res.set({ 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': `attachment; filename="ssa-ticket-${req.params.id}.ics"`, 'Cache-Control': 'private, no-store' });
+  res.send(ics);
+}));
 ticketsRouter.get('/:id', requireAuth, validate({ params: idParam }), asyncHandler(async (req, res) => res.json(await svc.getTicket(Number(req.params.id), req.user!))));
 
 adminEventsRouter.get('/', asyncHandler(async (req, res) => res.json(await svc.listEvents(req.user, true))));
